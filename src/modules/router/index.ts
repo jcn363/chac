@@ -14,5 +14,11 @@ export function createRouter(kernel: Kernel): Hono {
   setupStaticRoutes(app);
   setupApiRoutes(app, kernel);
 
+  // Global error handler
+  app.onError((err, c) => {
+    console.error("Unhandled error:", err);
+    return c.json({ error: "Internal server error" }, 500);
+  });
+
   return app;
 }

@@ -6,19 +6,19 @@ import { createRouter } from "./modules/router";
 
 const kernel = createKernel();
 
-// Phase 1: Database
+// Step 1: Database
 const db = initDb();
 kernel.provide("db", db);
 
-// Phase 2: Settings
+// Step 2: Settings
 const settings = new SettingsService(db);
 kernel.provide("settings", settings);
 
-// Phase 2: LLM
+// Step 3: LLM
 const llm = new LlmServiceImpl(kernel);
 kernel.provide("llm", llm);
 
-// Phase 1: Router (now with kernel for API routes)
+// Step 4: Router
 const router = createRouter(kernel);
 kernel.provide("router", router);
 
@@ -31,8 +31,11 @@ const server = Bun.serve({
 
 console.log(`Chac running at http://localhost:${server.port}`);
 
-// Graceful shutdown
+// Graceful shutdown (guarded against double-signal)
+let shuttingDown = false;
 const shutdown = async () => {
+  if (shuttingDown) return;
+  shuttingDown = true;
   console.log("Shutting down...");
   await llm.stop();
   await kernel.stop();

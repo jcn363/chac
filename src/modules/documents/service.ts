@@ -5,6 +5,7 @@ import { contentHash } from "../../utils/hash";
 import { chunkText } from "../../utils/chunking";
 import { embeddingToBlob, blobToEmbedding, cosineSimilarity } from "../../utils/vector";
 import type { Document, SearchResult, IngestResult } from "./types";
+import { basename } from "node:path";
 
 export class DocumentsService {
   private db: Database;
@@ -16,7 +17,17 @@ export class DocumentsService {
   }
 
   async ingest(filePath: string): Promise<IngestResult> {
+    // Security: validate path doesn't contain traversal
+    const normalized = filePath.replace(/\\/g, "/");
+    if (normalized.includes("..")) {
+      throw new Error("Path traversal not allowed");
+    }
+
     const file = Bun.file(filePath);
+    if (!await file.exists()) {
+      throw new Error(`File not found: ${filePath}`);
+    }
+
     const content = await file.text();
     const hash = await contentHash(content);
     const settings = this.kernel.get<{ get: (key: string) => unknown }>("settings");
@@ -31,7 +42,7 @@ export class DocumentsService {
     }
 
     const docId = generateId();
-    const title = filePath.split("/").pop() ?? "Untitled";
+    const title = basename(filePath) || "Untitled";
     const chunkSize = settings.get("rag.chunk_size") as number;
     const chunkOverlap = settings.get("rag.chunk_overlap") as number;
     const chunks = chunkText(content, chunkSize, chunkOverlap);
@@ -44,7 +55,7 @@ export class DocumentsService {
       )
       .run(docId, title, filePath, hash, file.type, file.size, chunks.length);
 
-    // Insert chunks + embeddings
+    // Insert chunks + embeddings (not wrapped in db.transaction since embeddings are async)
     const llm = this.kernel.get<{ embeddings: { create: (opts: { input: string }) => Promise<{ data: { embedding: number[] }[] }> } }>("llm");
 
     const insertChunk = this.db.query(
@@ -52,27 +63,23 @@ export class DocumentsService {
         "VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
     );
 
-    const insertAll = this.db.transaction(async () => {
-      for (const chunk of chunks) {
-        const embResult = await llm.embeddings.create({ input: chunk.content });
-        const firstEmb = embResult.data[0];
-        if (!firstEmb) throw new Error("No embedding returned");
-        const embedding = firstEmb.embedding;
-        const blob = embeddingToBlob(embedding);
-        insertChunk.run(
-          generateId(),
-          docId,
-          chunk.index,
-          chunk.content,
-          chunk.tokenCount,
-          blob,
-          "local",
-          embedding.length
-        );
-      }
-    });
-
-    await insertAll();
+    for (const chunk of chunks) {
+      const embResult = await llm.embeddings.create({ input: chunk.content });
+      const firstEmb = embResult.data[0];
+      if (!firstEmb) throw new Error("No embedding returned");
+      const embedding = firstEmb.embedding;
+      const blob = embeddingToBlob(embedding);
+      insertChunk.run(
+        generateId(),
+        docId,
+        chunk.index,
+        chunk.content,
+        chunk.tokenCount,
+        blob,
+        "local",
+        embedding.length
+      );
+    }
 
     return { id: docId, title, chunkCount: chunks.length };
   }

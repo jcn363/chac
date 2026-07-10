@@ -63,7 +63,7 @@ Chac uses a **microkernel architecture** with dependency injection. A minimal ke
 │   └─────┬─────┘ └───┬───┘ └──────────┘            │
 │   ┌─────▼─────┐ ┌───▼──────────────────┐           │
 │   │ Frontend  │ │     Modules           │           │
-│   │ (HTML/CSS │ │  Chat │ Wiki │ Docs  │           │
+│   │ (HTML/CSS │ │  Chat │ Wiki │ Documents │           │
 │   │  /JS)     │ │  LLM  │ Settings│Router│          │
 │   └───────────┘ └──────────┬───────────┘           │
 │                   ┌────────▼────────┐               │
@@ -160,16 +160,16 @@ chac/
 │   │       ├── api.ts                   # All API route definitions
 │   │       └── static.ts               # Frontend asset serving
 │   ├── public/
-│   │   ├── index.html                   # Main HTML (tabs: Chat, Docs, Wiki, Settings)
+│   │   ├── index.html                   # Main HTML (tabs: Chat, Documents, Wiki, Settings)
 │   │   ├── styles.css                   # CSS with dark mode via prefers-color-scheme
-│   │   └── app.ts                       # Frontend JavaScript
+│   │   └── app.js                       # Frontend JavaScript
 │   └── utils/
 │       ├── chunking.ts                  # Text chunking (500 chars, 100 overlap)
 │       ├── vector.ts                    # Cosine similarity, BLOB conversion
 │       ├── hash.ts                      # SHA-256 content hashing
 │       └── id.ts                        # UUID generation
 ├── tests/
-│   ├── unit/                            # 94 tests across 13 files
+│   ├── unit/                            # 94 tests across 15 files (83 unit + 5 integration + 6 e2e)
 │   ├── integration/                     # Document ingest integration tests
 │   ├── e2e/                             # End-to-end tests (excluded by default)
 │   ├── mocks/                           # Mock LLM for testing
@@ -407,8 +407,8 @@ curl -X PUT http://localhost:3000/api/settings \
 ```bash
 bun run dev          # Start dev server with hot reload
 bun test             # Run all tests
-bun test:watch       # Run tests in watch mode
-bun test:coverage    # Run tests with coverage report
+bun run test:watch   # Run tests in watch mode
+bun run test:coverage # Run tests with coverage report
 bun run build        # Cross-compile for all platforms
 ```
 
@@ -571,7 +571,7 @@ usb-drive/
 │           ├── darwin-x64/
 │           └── windows-x64/
 ├── data/                       # Runtime data (created on first run)
-└── models/                     # AI models (auto-downloaded on first run)
+└── models/                     # AI models (download via setup/download-models.sh)
     ├── chat.gguf               # ~1.7 GB
     ├── embed.gguf              # ~130 MB
     └── vision.gguf             # ~505 MB

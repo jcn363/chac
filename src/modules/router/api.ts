@@ -34,7 +34,7 @@ export function setupApiRoutes(app: Hono, kernel: Kernel): void {
     }
     const knownKeys = new Set(Object.keys(DEFAULT_SETTINGS));
     if (!knownKeys.has(body.key)) {
-      return c.json({ error: `Unknown setting: ${body.key}` }, 400);
+      return c.json({ error: "Unknown setting" }, 400);
     }
     settings.set(body.key, body.value);
     return c.json({ ok: true });
@@ -48,11 +48,10 @@ export function setupApiRoutes(app: Hono, kernel: Kernel): void {
 
   // Documents
   const docs = new DocumentsService(kernel);
-  const docsPerPage = (settings.get("ui.documents_per_page") as number) ?? 20;
 
   app.get("/api/documents", (c) => {
     const page = safeInt(c.req.query("page"), 1);
-    const perPage = safeInt(c.req.query("per_page"), docsPerPage);
+    const perPage = safeInt(c.req.query("per_page"), (settings.get("ui.documents_per_page") as number) ?? 20);
     return c.json(docs.list({ page, perPage }));
   });
 
@@ -100,6 +99,8 @@ export function setupApiRoutes(app: Hono, kernel: Kernel): void {
   });
 
   app.get("/api/chat/sessions/:id/messages", (c) => {
+    const session = chat.getSession(c.req.param("id"));
+    if (!session) return c.json({ error: "Session not found" }, 404);
     return c.json(chat.getMessages(c.req.param("id")));
   });
 
@@ -120,7 +121,7 @@ export function setupApiRoutes(app: Hono, kernel: Kernel): void {
 
   app.get("/api/wiki", (c) => {
     const page = safeInt(c.req.query("page"), 1);
-    const perPage = safeInt(c.req.query("per_page"), docsPerPage);
+    const perPage = safeInt(c.req.query("per_page"), (settings.get("ui.documents_per_page") as number) ?? 20);
     return c.json(wiki.list({ page, perPage }));
   });
 

@@ -1,28 +1,6 @@
 // Chac Frontend
 const API = "";
 
-interface Session {
-  id: string;
-  title: string | null;
-}
-
-interface Document {
-  id: string;
-  title: string;
-  chunk_count: number;
-}
-
-interface WikiPage {
-  id: string;
-  title: string;
-  content: string;
-}
-
-interface SettingRow {
-  key: string;
-  value: string;
-}
-
 // Tab switching
 document.querySelectorAll(".tab").forEach((tab) => {
   tab.addEventListener("click", () => {
@@ -34,7 +12,7 @@ document.querySelectorAll(".tab").forEach((tab) => {
 });
 
 // Chat
-let currentSession: string | null = null;
+let currentSession = null;
 
 document.getElementById("new-session")?.addEventListener("click", async () => {
   try {
@@ -44,7 +22,7 @@ document.getElementById("new-session")?.addEventListener("click", async () => {
       body: JSON.stringify({ title: "New Chat" }),
     });
     if (!res.ok) throw new Error(`Failed to create session: ${res.status}`);
-    const session: Session = await res.json();
+    const session = await res.json();
     currentSession = session.id;
     loadSessions();
   } catch (err) {
@@ -55,7 +33,7 @@ document.getElementById("new-session")?.addEventListener("click", async () => {
 document.getElementById("chat-form")?.addEventListener("submit", async (e) => {
   e.preventDefault();
   if (!currentSession) return;
-  const input = document.getElementById("chat-input") as HTMLTextAreaElement;
+  const input = document.getElementById("chat-input");
   const msg = input.value.trim();
   if (!msg) return;
 
@@ -76,7 +54,7 @@ document.getElementById("chat-form")?.addEventListener("submit", async (e) => {
   }
 });
 
-function addMessage(role: string, content: string) {
+function addMessage(role, content) {
   const div = document.createElement("div");
   div.className = `message ${role}`;
   div.innerHTML = `<div class="message-bubble">${escapeHtml(content)}</div>`;
@@ -87,7 +65,8 @@ function addMessage(role: string, content: string) {
 async function loadSessions() {
   try {
     const res = await fetch(`${API}/api/chat/sessions`);
-    const sessions: Session[] = await res.json();
+    if (!res.ok) throw new Error(`Failed to load sessions: ${res.status}`);
+    const sessions = await res.json();
     const list = document.getElementById("session-list");
     if (!list) return;
     list.innerHTML = sessions
@@ -100,6 +79,7 @@ async function loadSessions() {
       el.addEventListener("click", () => {
         currentSession = el.dataset.id ?? null;
         loadSessions();
+        loadMessages();
       });
     });
   } catch (err) {
@@ -107,14 +87,33 @@ async function loadSessions() {
   }
 }
 
+async function loadMessages() {
+  const messagesEl = document.getElementById("messages");
+  if (!messagesEl) return;
+  messagesEl.innerHTML = "";
+  if (!currentSession) return;
+
+  try {
+    const res = await fetch(`${API}/api/chat/sessions/${currentSession}/messages`);
+    if (!res.ok) throw new Error(`Failed to load messages: ${res.status}`);
+    const messages = await res.json();
+    for (const msg of messages) {
+      addMessage(msg.role, msg.content);
+    }
+  } catch (err) {
+    console.error("Failed to load messages:", err);
+  }
+}
+
 // Documents
 async function loadDocuments(page = 1) {
   try {
     const res = await fetch(`${API}/api/documents?page=${page}`);
+    if (!res.ok) throw new Error(`Failed to load documents: ${res.status}`);
     const data = await res.json();
     const list = document.getElementById("doc-list");
     if (!list) return;
-    list.innerHTML = (data.documents as Document[])
+    list.innerHTML = (data.documents || [])
       .map(
         (d) =>
           `<div class="doc-item" data-id="${d.id}">
@@ -132,11 +131,12 @@ document.getElementById("ingest-btn")?.addEventListener("click", async () => {
   const path = prompt("Enter file path:");
   if (!path) return;
   try {
-    await fetch(`${API}/api/documents`, {
+    const res = await fetch(`${API}/api/documents`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ path }),
     });
+    if (!res.ok) throw new Error(`Failed to ingest document: ${res.status}`);
     loadDocuments();
   } catch (err) {
     console.error("Failed to ingest document:", err);
@@ -147,15 +147,16 @@ document.getElementById("ingest-btn")?.addEventListener("click", async () => {
 async function loadWiki() {
   try {
     const res = await fetch(`${API}/api/wiki`);
+    if (!res.ok) throw new Error(`Failed to load wiki: ${res.status}`);
     const data = await res.json();
     const list = document.getElementById("wiki-list");
     if (!list) return;
-    list.innerHTML = (data.pages as WikiPage[])
+    list.innerHTML = (data.pages || [])
       .map(
         (p) =>
           `<div class="wiki-item">
             <strong>${escapeHtml(p.title)}</strong>
-            <p>${escapeHtml(p.content.slice(0, 200))}...</p>
+            <p>${escapeHtml((p.content || "").slice(0, 200))}...</p>
           </div>`
       )
       .join("");
@@ -165,11 +166,12 @@ async function loadWiki() {
 }
 
 document.getElementById("compile-btn")?.addEventListener("click", async () => {
-  const btn = document.getElementById("compile-btn") as HTMLButtonElement;
+  const btn = document.getElementById("compile-btn");
   btn.disabled = true;
   btn.textContent = "Compiling...";
   try {
-    await fetch(`${API}/api/wiki/compile`, { method: "POST" });
+    const res = await fetch(`${API}/api/wiki/compile`, { method: "POST" });
+    if (!res.ok) throw new Error(`Failed to compile wiki: ${res.status}`);
     loadWiki();
   } catch (err) {
     console.error("Failed to compile wiki:", err);
@@ -183,7 +185,8 @@ document.getElementById("compile-btn")?.addEventListener("click", async () => {
 async function loadSettings() {
   try {
     const res = await fetch(`${API}/api/settings`);
-    const settings: SettingRow[] = await res.json();
+    if (!res.ok) throw new Error(`Failed to load settings: ${res.status}`);
+    const settings = await res.json();
     const list = document.getElementById("settings-list");
     if (!list) return;
     list.innerHTML = settings
@@ -200,7 +203,7 @@ async function loadSettings() {
   }
 }
 
-function escapeHtml(str: string): string {
+function escapeHtml(str) {
   const div = document.createElement("div");
   div.textContent = str;
   return div.innerHTML;

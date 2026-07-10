@@ -28,8 +28,7 @@ export function getAppRoot(): string {
     const exeName = exeDir.split("/").pop() ?? "";
     if (exeName !== "bun" && exeName !== "node") {
       // If binary lives inside bin/, project root is one level up
-      const dirName = exeDir.split("/").pop() ?? "";
-      cachedRoot = dirName === "bin" ? join(exeDir, "..") : exeDir;
+      cachedRoot = exeName === "bin" ? join(exeDir, "..") : exeDir;
       return cachedRoot;
     }
   }

@@ -6,9 +6,11 @@ bin/llama.cpp/llama-server/darwin-arm64/*
 bin/llama.cpp/llama-server/windows-x64/*
 !bin/llama.cpp/llama-server/*/.gitkeep
 
-# Compiled binary
+# Compiled binaries (built by build.ts)
 bin/chac
 bin/chac.exe
+bin/chac-*
+bin/main.js.map
 
 # Debug binaries
 bin/debug*
@@ -18,6 +20,12 @@ models/*.gguf
 
 # Runtime data
 data/*.db
+
+# Build-generated launchers and README (copied from launchers/ by build.ts)
+start.bat
+start.command
+start.sh
+README.txt
 
 # Runtime DB in wrong location
 bin/data/

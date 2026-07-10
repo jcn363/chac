@@ -9,6 +9,13 @@ export function chunkText(
   chunkSize: number = 500,
   overlap: number = 100
 ): Chunk[] {
+  if (overlap >= chunkSize) {
+    throw new Error("chunk overlap must be less than chunk size");
+  }
+  if (chunkSize <= 0) {
+    throw new Error("chunk size must be positive");
+  }
+
   const chunks: Chunk[] = [];
   let start = 0;
   let index = 0;

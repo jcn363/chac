@@ -32,7 +32,7 @@ export class LlmServiceImpl implements LlmService {
     this.kernel = kernel;
     this.devMode = !isLlamaCppAvailable();
     if (this.devMode) {
-      console.log("⚠️  Dev mode: llama.cpp not found. Using mock LLM responses.");
+      console.log("Dev mode: llama.cpp not found. Using mock LLM responses.");
     }
   }
 
@@ -57,7 +57,6 @@ export class LlmServiceImpl implements LlmService {
     const splitMode = (settings.get("llm.gpu.split_mode") as string) ?? "none";
     const mtpEnabled = !!(settings.get("llm.mtp.enabled") as boolean);
     const mtpDraftNgl = (settings.get("llm.mtp.draft_ngl") as number) ?? 0;
-    const embedModel = (settings.get("llm.embed.model") as string) ?? "local";
 
     const port = this.nextPort++;
     const args = [
@@ -78,10 +77,8 @@ export class LlmServiceImpl implements LlmService {
     if (gpuLayers !== 0) {
       args.push("-ngl", String(gpuLayers));
     }
-    if (flashAttn && flashAttn !== "auto") {
+    if (flashAttn && flashAttn !== "off") {
       args.push("--flash-attn", flashAttn);
-    } else if (flashAttn === "auto") {
-      args.push("--flash-attn", "auto");
     }
     if (splitMode && splitMode !== "none") {
       args.push("--split-mode", splitMode);
@@ -97,14 +94,19 @@ export class LlmServiceImpl implements LlmService {
 
     const { resolveBinary } = await import("../../platform/binaries");
     const binaryPath = resolveBinary("llama-server");
-    const process = Bun.spawn([binaryPath, ...args], {
+    const subprocess = Bun.spawn([binaryPath, ...args], {
       stdout: "pipe",
       stderr: "pipe",
     });
 
-    this.instances.set(id, { process, port, modelType, modelPath: `models/${modelType}.gguf` });
+    this.instances.set(id, { process: subprocess, port, modelType, modelPath: `models/${modelType}.gguf` });
 
-    await this.waitForReady(port);
+    try {
+      await this.waitForReady(port);
+    } catch (e) {
+      this.instances.delete(id);
+      throw e;
+    }
     return this.getUrl(id);
   }
 
@@ -215,6 +217,9 @@ export class LlmServiceImpl implements LlmService {
   }
 
   private mockEmbedding(options: EmbeddingOptions): EmbeddingResponse {
+    if (!options.input || options.input.length === 0) {
+      return { data: [{ embedding: new Array(768).fill(0) }] };
+    }
     // Deterministic mock embedding based on content hash
     const embedding = new Array(768).fill(0).map((_, i) => {
       const charCode = options.input.charCodeAt(i % options.input.length) || 0;
@@ -235,17 +240,22 @@ export class LlmServiceImpl implements LlmService {
   }
 
   async stop(): Promise<void> {
+    const kills: Promise<void>[] = [];
     for (const [id, instance] of this.instances) {
       try {
         instance.process.kill("SIGTERM");
-        await Bun.sleep(1000);
-        if (instance.process.exitCode === null) {
-          instance.process.kill("SIGKILL");
-        }
+        kills.push(
+          Bun.sleep(1000).then(() => {
+            if (instance.process.exitCode === null) {
+              instance.process.kill("SIGKILL");
+            }
+          })
+        );
       } catch {
         // process already dead
       }
       this.instances.delete(id);
     }
+    await Promise.all(kills);
   }
 }

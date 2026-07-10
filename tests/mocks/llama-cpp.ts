@@ -16,7 +16,14 @@ export function createMockLlmService(): LlmService {
     },
     embeddings: {
       async create(options: EmbeddingOptions): Promise<EmbeddingResponse> {
-        const embedding = new Array(768).fill(0).map(() => Math.random() * 2 - 1);
+        // Deterministic mock embedding based on input content
+        if (!options.input || options.input.length === 0) {
+          return { data: [{ embedding: new Array(768).fill(0) }] };
+        }
+        const embedding = new Array(768).fill(0).map((_, i) => {
+          const charCode = options.input.charCodeAt(i % options.input.length) || 0;
+          return (charCode / 255) * 2 - 1;
+        });
         return { data: [{ embedding }] };
       },
     },

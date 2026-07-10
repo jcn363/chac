@@ -1,5 +1,5 @@
 import { join } from "node:path";
-import { existsSync, chmodSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { detectPlatform } from "./detect";
 import { appPath } from "./paths";
 
@@ -33,22 +33,4 @@ export function resolveBinary(name: string): string {
     `No binary found for ${name} on ${platform.platformKey}. ` +
       `Expected at: ${join(exactDir, name + ext)}`
   );
-}
-
-export async function spawnBinary(
-  name: string,
-  args: string[] = [],
-  options?: { env?: Record<string, string> }
-): Promise<Bun.Subprocess> {
-  const binaryPath = resolveBinary(name);
-
-  if (process.platform !== "win32") {
-    chmodSync(binaryPath, 0o755);
-  }
-
-  return Bun.spawn([binaryPath, ...args], {
-    stdout: "pipe",
-    stderr: "pipe",
-    env: options?.env,
-  });
 }

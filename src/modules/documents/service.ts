@@ -5,7 +5,8 @@ import { contentHash } from "../../utils/hash";
 import { chunkText } from "../../utils/chunking";
 import { embeddingToBlob, blobToEmbedding, cosineSimilarity } from "../../utils/vector";
 import type { Document, SearchResult, IngestResult } from "./types";
-import { basename } from "node:path";
+import { basename, resolve } from "node:path";
+import { getAppRoot } from "../../platform/paths";
 
 export class DocumentsService {
   private db: Database;
@@ -17,10 +18,17 @@ export class DocumentsService {
   }
 
   async ingest(filePath: string): Promise<IngestResult> {
-    // Security: validate path doesn't contain traversal
+    // Security: validate path doesn't contain traversal or absolute paths
     const normalized = filePath.replace(/\\/g, "/");
     if (normalized.includes("..")) {
       throw new Error("Path traversal not allowed");
+    }
+
+    const resolved = resolve(filePath);
+    const appRoot = getAppRoot();
+    const allowedBase = resolve(appRoot);
+    if (!resolved.startsWith(allowedBase + "/") && resolved !== allowedBase) {
+      throw new Error("Access denied: path outside allowed directory");
     }
 
     const file = Bun.file(filePath);

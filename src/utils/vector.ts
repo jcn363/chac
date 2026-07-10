@@ -24,6 +24,7 @@ export function embeddingToBlob(embedding: number[]): Buffer {
 
 export function blobToEmbedding(blob: Uint8Array | Buffer): Float32Array {
   const bytes = blob instanceof Buffer ? blob : Buffer.from(blob);
+  if (bytes.length % 4 !== 0) throw new Error("Embedding blob length is not a multiple of 4");
   const arr = new Float32Array(bytes.length / 4);
   for (let i = 0; i < arr.length; i++) {
     arr[i] = bytes.readFloatLE(i * 4);

@@ -43,7 +43,8 @@ async function build() {
     });
 
     if (!result.success) {
-      console.error(`  FAILED: ${result.logs}`);
+      const logMessages = result.logs.map(l => l.text || String(l)).join("\n");
+      console.error(`  FAILED: ${logMessages}`);
       process.exit(1);
     }
     console.log(`  OK (${(await Bun.file(outfile).arrayBuffer()).byteLength} bytes)`);

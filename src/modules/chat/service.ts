@@ -49,6 +49,7 @@ export class ChatService {
 
     // Build messages for LLM — query history BEFORE inserting user message
     const session = this.getSession(sessionId);
+    if (!session) throw new Error("Session not found");
     const messages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [];
 
     if (session?.system_prompt) {

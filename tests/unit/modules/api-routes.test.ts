@@ -4,8 +4,6 @@ import { createTestKernel } from "../../helpers/setup";
 import { createRouter } from "../../../src/modules/router";
 import { SettingsService } from "../../../src/modules/settings/service";
 import { runMigrations } from "../../../src/database/migrations";
-import { embeddingToBlob } from "../../../src/utils/vector";
-import { generateId } from "../../../src/utils/id";
 import type { Kernel } from "../../../src/kernel/types";
 import { join } from "path";
 import { mkdirSync, writeFileSync, rmSync } from "fs";

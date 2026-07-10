@@ -104,6 +104,7 @@ export class LlmServiceImpl implements LlmService {
     try {
       await this.waitForReady(port);
     } catch (e) {
+      subprocess.kill("SIGKILL");
       this.instances.delete(id);
       throw e;
     }
@@ -241,6 +242,7 @@ export class LlmServiceImpl implements LlmService {
 
   async stop(): Promise<void> {
     const kills: Promise<void>[] = [];
+    const idsToDelete: string[] = [];
     for (const [id, instance] of this.instances) {
       try {
         instance.process.kill("SIGTERM");
@@ -254,8 +256,9 @@ export class LlmServiceImpl implements LlmService {
       } catch {
         // process already dead
       }
-      this.instances.delete(id);
+      idsToDelete.push(id);
     }
     await Promise.all(kills);
+    for (const id of idsToDelete) this.instances.delete(id);
   }
 }

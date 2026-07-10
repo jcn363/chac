@@ -39,14 +39,6 @@ describe("SettingsService", () => {
     expect(settings.get("llm.chat.temperature")).toBe(0.8);
   });
 
-  it("gets settings by category", () => {
-    const llmSettings = settings.getCategory("llm");
-    expect(llmSettings.length).toBeGreaterThan(0);
-    for (const s of llmSettings) {
-      expect(s.category).toBe("llm");
-    }
-  });
-
   it("returns undefined for unknown key", () => {
     expect(settings.get("nonexistent.key")).toBeUndefined();
   });

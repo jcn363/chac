@@ -3,6 +3,13 @@ import { realpathSync } from "node:fs";
 
 let cachedRoot: string | null = null;
 
+function isDevMode(): boolean {
+  // Dev mode: running via bun/node directly (not compiled binary)
+  const argv0 = process.argv[0] ?? "";
+  const base = argv0.split("/").pop() ?? "";
+  return base === "bun" || base === "node";
+}
+
 function resolveExeDir(): string | null {
   // Linux: /proc/self/exe is the most reliable
   if (process.platform === "linux") {
@@ -21,19 +28,22 @@ function resolveExeDir(): string | null {
 export function getAppRoot(): string {
   if (cachedRoot) return cachedRoot;
 
-  // Try to find real executable directory first
-  const exeDir = resolveExeDir();
-  if (exeDir) {
-    // Verify it's not the bun runtime itself (dev mode)
-    const exeName = exeDir.split("/").pop() ?? "";
-    if (exeName !== "bun" && exeName !== "node") {
-      // If binary lives inside bin/, project root is one level up
-      cachedRoot = exeName === "bin" ? join(exeDir, "..") : exeDir;
-      return cachedRoot;
-    }
+  // Dev mode: source tree relative to this file
+  if (isDevMode()) {
+    cachedRoot = join(import.meta.dir, "..", "..");
+    return cachedRoot;
   }
 
-  // Dev mode: source tree relative to this file
+  // Production mode: compiled binary
+  const exeDir = resolveExeDir();
+  if (exeDir) {
+    // If binary lives inside bin/, project root is one level up
+    const exeName = exeDir.split("/").pop() ?? "";
+    cachedRoot = exeName === "bin" ? join(exeDir, "..") : exeDir;
+    return cachedRoot;
+  }
+
+  // Fallback
   cachedRoot = join(import.meta.dir, "..", "..");
   return cachedRoot;
 }

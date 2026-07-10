@@ -5,10 +5,10 @@ import { ChatService } from "../chat/service";
 import { WikiService } from "../wiki/service";
 import { DEFAULT_SETTINGS } from "../settings/types";
 
-function safeInt(value: string | undefined, fallback: number): number {
+function safeInt(value: string | undefined, fallback: number, max = 100): number {
   if (value === undefined) return fallback;
   const n = parseInt(value, 10);
-  return Number.isFinite(n) && n > 0 ? n : fallback;
+  return Number.isFinite(n) && n > 0 ? Math.min(n, max) : fallback;
 }
 
 export function setupApiRoutes(app: Hono, kernel: Kernel): void {
@@ -81,7 +81,8 @@ export function setupApiRoutes(app: Hono, kernel: Kernel): void {
     if (!body?.query || typeof body.query !== "string") {
       return c.json({ error: "Missing or invalid query" }, 400);
     }
-    const results = await docs.search(body.query, { limit: body.limit });
+    const limit = body.limit ? safeInt(String(body.limit), 5) : 5;
+    const results = await docs.search(body.query, { limit });
     return c.json(results);
   });
 
@@ -147,7 +148,8 @@ export function setupApiRoutes(app: Hono, kernel: Kernel): void {
     if (!body?.query || typeof body.query !== "string") {
       return c.json({ error: "Missing or invalid query" }, 400);
     }
-    const results = await wiki.search(body.query, { limit: body.limit });
+    const limit = body.limit ? safeInt(String(body.limit), 5) : 5;
+    const results = await wiki.search(body.query, { limit });
     return c.json(results);
   });
 }

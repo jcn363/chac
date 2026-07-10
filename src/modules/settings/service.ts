@@ -24,7 +24,12 @@ export class SettingsService {
     const row = this.db
       .query("SELECT value FROM settings WHERE key = ?")
       .get(key) as { value: string } | undefined;
-    return row ? JSON.parse(row.value) : undefined;
+    if (!row) return undefined;
+    try {
+      return JSON.parse(row.value);
+    } catch {
+      return row.value;
+    }
   }
 
   set(key: string, value: unknown): void {
@@ -41,11 +46,5 @@ export class SettingsService {
 
   getAll(): SettingRow[] {
     return this.db.query("SELECT * FROM settings ORDER BY category, key").all() as SettingRow[];
-  }
-
-  getCategory(category: string): SettingRow[] {
-    return this.db
-      .query("SELECT * FROM settings WHERE category = ? ORDER BY key")
-      .all(category) as SettingRow[];
   }
 }

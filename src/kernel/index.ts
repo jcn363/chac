@@ -14,7 +14,7 @@ class KernelImpl implements Kernel {
 
   get<T>(token: string): T {
     const service = this.services.get(token);
-    if (!service) throw new Error(`Service "${token}" not registered`);
+    if (service === undefined) throw new Error(`Service "${token}" not registered`);
     return service as T;
   }
 

@@ -547,34 +547,41 @@ Executables are placed in `usb-drive/bin/`.
 
 ```
 usb-drive/
-├── launchers/
-│   ├── start.bat               # Windows launcher
-│   ├── start.command           # macOS launcher (double-clickable)
-│   └── start.sh                # Linux launcher
-├── setup/
-│   ├── install.sh              # Unix installer
-│   ├── install.bat             # Windows installer
-│   ├── download-llama.sh       # Download llama.cpp binaries
-│   ├── download-models.sh      # Download AI models (Unix)
-│   ├── download-models.bat     # Download AI models (Windows)
-│   └── setup-all.sh            # Full setup (install + download)
-├── README.md                   # Setup instructions
 ├── bin/
-│   ├── chac-linux-x64          # Compiled Bun executables
+│   ├── chac                           # Compiled Bun executables
+│   ├── chac-linux-x64
+│   ├── chac-linux-x64-baseline
+│   ├── chac-linux-arm64
 │   ├── chac-darwin-arm64
+│   ├── chac-darwin-x64
+│   ├── chac-darwin-x64-baseline
 │   ├── chac-windows-x64.exe
+│   ├── chac-windows-x64-baseline.exe
 │   └── llama.cpp/
-│       └── llama-server/       # Platform-specific llama.cpp binaries
+│       └── llama-server/              # Platform-specific llama.cpp binaries
 │           ├── linux-x64/
 │           ├── linux-arm64/
 │           ├── darwin-arm64/
 │           ├── darwin-x64/
 │           └── windows-x64/
-├── data/                       # Runtime data (created on first run)
-└── models/                     # AI models (download via setup/download-models.sh)
-    ├── chat.gguf               # ~1.7 GB
-    ├── embed.gguf              # ~130 MB
-    └── vision.gguf             # ~505 MB
+├── launchers/
+│   ├── start.bat                      # Windows launcher
+│   ├── start.command                  # macOS launcher (double-clickable)
+│   └── start.sh                       # Linux launcher
+├── setup/
+│   ├── install.sh                     # Unix installer
+│   ├── install.bat                    # Windows installer
+│   ├── download-llama.sh              # Download llama.cpp binaries
+│   ├── download-models.sh             # Download AI models (Unix)
+│   ├── download-models.bat            # Download AI models (Windows)
+│   └── setup-all.sh                   # Full setup (install + download)
+├── data/                              # Runtime data (created on first run)
+├── models/                            # AI models (download via setup/download-models.sh)
+│   ├── chat.gguf                      # ~1.7 GB
+│   ├── embed.gguf                     # ~130 MB
+│   └── vision.gguf                    # ~505 MB
+├── README.txt                         # Quick start guide
+└── .gitignore
 ```
 
 ### Launcher Scripts

@@ -20,9 +20,12 @@ kernel.provide("llm", llm);
 
 // Step 4: Router
 const router = createRouter(kernel);
-kernel.provide("router", router);
 
-const PORT = parseInt(process.env.PORT || "3000", 10);
+const rawPort = parseInt(process.env.PORT || "3000", 10);
+if (!Number.isFinite(rawPort) || rawPort <= 0 || rawPort > 65535) {
+  throw new Error(`Invalid PORT: ${process.env.PORT}`);
+}
+const PORT = rawPort;
 
 const server = Bun.serve({
   port: PORT,
@@ -40,8 +43,7 @@ const shutdown = async () => {
   await llm.stop();
   await kernel.stop();
   closeDb();
-  server.stop();
-  process.exit(0);
+  await server.stop();
 };
 
 process.on("SIGINT", shutdown);

@@ -121,6 +121,16 @@ export function setupApiRoutes(app: Hono, kernel: Kernel): void {
     return c.json(session);
   });
 
+  app.put("/api/chat/messages/:id", async (c) => {
+    const body = await c.req.json<{ content: string }>();
+    if (!body?.content || typeof body.content !== "string") {
+      return c.json({ error: "Missing or invalid content" }, 400);
+    }
+    const msg = chat.updateMessage(c.req.param("id"), body.content);
+    if (!msg) return c.json({ error: "Message not found" }, 404);
+    return c.json(msg);
+  });
+
   app.put("/api/chat/sessions", async (c) => {
     const body = await c.req.json<{ ids: string[] }>();
     if (!Array.isArray(body?.ids)) {

@@ -41,6 +41,12 @@ export class ChatService {
     return this.getSession(id);
   }
 
+  updateMessage(id: string, content: string): ChatMessage | undefined {
+    this.db.query("UPDATE chat_messages SET content = ? WHERE id = ?").run(content, id);
+    const row = this.db.query("SELECT * FROM chat_messages WHERE id = ?").get(id);
+    return row ? (row as ChatMessage) : undefined;
+  }
+
   reorderSessions(ids: string[]): void {
     const stmt = this.db.query("UPDATE chat_sessions SET sort_order = ? WHERE id = ?");
     const updateAll = this.db.transaction((orderedIds: string[]) => {

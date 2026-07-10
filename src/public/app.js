@@ -143,16 +143,63 @@ function hideTypingIndicator() {
   document.getElementById("typing-indicator")?.classList.add("hidden");
 }
 
-function addMessage(role, content, timestamp) {
+function addMessage(role, content, timestamp, msgId) {
   hideTypingIndicator();
   const div = document.createElement("div");
   div.className = `message ${role}`;
+  if (msgId) div.dataset.msgId = msgId;
   const rendered = DOMPurify.sanitize(marked.parse(content));
   const timeStr = timestamp ? new Date(timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "";
+  const editBtn = role === "user" ? `<button class="msg-edit" data-tooltip="Edit" aria-label="Edit message">&#9998;</button>` : "";
   div.innerHTML = `<div class="message-bubble" data-md="${escapeHtml(content)}">${rendered}</div>` +
-    (timeStr ? `<span class="message-time">${timeStr}</span>` : "");
+    `<span class="message-time">${timeStr}${editBtn}</span>`;
   document.getElementById("messages")?.appendChild(div);
   div.scrollIntoView({ behavior: "smooth" });
+
+  if (role === "user") {
+    div.querySelector(".msg-edit")?.addEventListener("click", () => startEditMessage(div));
+  }
+}
+
+function startEditMessage(msgEl) {
+  const bubble = msgEl.querySelector(".message-bubble");
+  if (!bubble || msgEl.querySelector(".msg-edit-input")) return;
+  const id = msgEl.dataset.msgId;
+  const md = bubble.dataset.md || bubble.textContent;
+
+  const textarea = document.createElement("textarea");
+  textarea.className = "msg-edit-input";
+  textarea.value = md;
+  textarea.rows = Math.min(md.split("\n").length + 1, 8);
+  textarea.setAttribute("aria-label", "Edit message");
+  bubble.replaceWith(textarea);
+  textarea.focus();
+  textarea.select();
+
+  async function save() {
+    const newContent = textarea.value.trim();
+    if (!newContent || newContent === md) {
+      loadMessages();
+      return;
+    }
+    try {
+      const res = await fetch(`${API}/api/chat/messages/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: newContent }),
+      });
+      if (!res.ok) throw new Error("Failed to update");
+    } catch {
+      showToast("Failed to update message");
+    }
+    loadMessages();
+  }
+
+  textarea.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); save(); }
+    if (e.key === "Escape") { loadMessages(); }
+  });
+  textarea.addEventListener("blur", save);
 }
 
 function startRename(el) {
@@ -313,7 +360,7 @@ async function loadMessages() {
     if (!res.ok) throw new Error(`Failed to load messages: ${res.status}`);
     const messages = await res.json();
     for (const msg of messages) {
-      addMessage(msg.role, msg.content, msg.created_at);
+      addMessage(msg.role, msg.content, msg.created_at, msg.id);
     }
   } catch (err) {
     showToast("Failed to load messages");

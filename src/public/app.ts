@@ -1,6 +1,28 @@
 // Chac Frontend
 const API = "";
 
+interface Session {
+  id: string;
+  title: string | null;
+}
+
+interface Document {
+  id: string;
+  title: string;
+  chunk_count: number;
+}
+
+interface WikiPage {
+  id: string;
+  title: string;
+  content: string;
+}
+
+interface SettingRow {
+  key: string;
+  value: string;
+}
+
 // Tab switching
 document.querySelectorAll(".tab").forEach((tab) => {
   tab.addEventListener("click", () => {
@@ -15,14 +37,19 @@ document.querySelectorAll(".tab").forEach((tab) => {
 let currentSession: string | null = null;
 
 document.getElementById("new-session")?.addEventListener("click", async () => {
-  const res = await fetch(`${API}/api/chat/sessions`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ title: "New Chat" }),
-  });
-  const session = await res.json();
-  currentSession = session.id;
-  loadSessions();
+  try {
+    const res = await fetch(`${API}/api/chat/sessions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title: "New Chat" }),
+    });
+    if (!res.ok) throw new Error(`Failed to create session: ${res.status}`);
+    const session: Session = await res.json();
+    currentSession = session.id;
+    loadSessions();
+  } catch (err) {
+    console.error("Failed to create session:", err);
+  }
 });
 
 document.getElementById("chat-form")?.addEventListener("submit", async (e) => {
@@ -35,13 +62,18 @@ document.getElementById("chat-form")?.addEventListener("submit", async (e) => {
   addMessage("user", msg);
   input.value = "";
 
-  const res = await fetch(`${API}/api/chat`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ sessionId: currentSession, message: msg }),
-  });
-  const data = await res.json();
-  addMessage("assistant", data.content);
+  try {
+    const res = await fetch(`${API}/api/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sessionId: currentSession, message: msg }),
+    });
+    if (!res.ok) throw new Error(`Chat failed: ${res.status}`);
+    const data = await res.json();
+    addMessage("assistant", data.content ?? "No response");
+  } catch (err) {
+    addMessage("assistant", `Error: ${err instanceof Error ? err.message : "Unknown error"}`);
+  }
 });
 
 function addMessage(role: string, content: string) {
@@ -53,94 +85,119 @@ function addMessage(role: string, content: string) {
 }
 
 async function loadSessions() {
-  const res = await fetch(`${API}/api/chat/sessions`);
-  const sessions = await res.json();
-  const list = document.getElementById("session-list");
-  if (!list) return;
-  list.innerHTML = sessions
-    .map(
-      (s: any) =>
-        `<div class="doc-item ${s.id === currentSession ? "active" : ""}" data-id="${s.id}">${escapeHtml(s.title || "Untitled")}</div>`
-    )
-    .join("");
-  list.querySelectorAll(".doc-item").forEach((el) => {
-    el.addEventListener("click", () => {
-      currentSession = el.dataset.id;
-      loadSessions();
+  try {
+    const res = await fetch(`${API}/api/chat/sessions`);
+    const sessions: Session[] = await res.json();
+    const list = document.getElementById("session-list");
+    if (!list) return;
+    list.innerHTML = sessions
+      .map(
+        (s) =>
+          `<div class="doc-item ${s.id === currentSession ? "active" : ""}" data-id="${s.id}">${escapeHtml(s.title || "Untitled")}</div>`
+      )
+      .join("");
+    list.querySelectorAll(".doc-item").forEach((el) => {
+      el.addEventListener("click", () => {
+        currentSession = el.dataset.id ?? null;
+        loadSessions();
+      });
     });
-  });
+  } catch (err) {
+    console.error("Failed to load sessions:", err);
+  }
 }
 
 // Documents
 async function loadDocuments(page = 1) {
-  const res = await fetch(`${API}/api/documents?page=${page}`);
-  const data = await res.json();
-  const list = document.getElementById("doc-list");
-  if (!list) return;
-  list.innerHTML = data.documents
-    .map(
-      (d: any) =>
-        `<div class="doc-item" data-id="${d.id}">
-          <strong>${escapeHtml(d.title)}</strong>
-          <span class="setting-value">${d.chunk_count} chunks</span>
-        </div>`
-    )
-    .join("");
+  try {
+    const res = await fetch(`${API}/api/documents?page=${page}`);
+    const data = await res.json();
+    const list = document.getElementById("doc-list");
+    if (!list) return;
+    list.innerHTML = (data.documents as Document[])
+      .map(
+        (d) =>
+          `<div class="doc-item" data-id="${d.id}">
+            <strong>${escapeHtml(d.title)}</strong>
+            <span class="setting-value">${d.chunk_count} chunks</span>
+          </div>`
+      )
+      .join("");
+  } catch (err) {
+    console.error("Failed to load documents:", err);
+  }
 }
 
 document.getElementById("ingest-btn")?.addEventListener("click", async () => {
   const path = prompt("Enter file path:");
   if (!path) return;
-  await fetch(`${API}/api/documents`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ path }),
-  });
-  loadDocuments();
+  try {
+    await fetch(`${API}/api/documents`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path }),
+    });
+    loadDocuments();
+  } catch (err) {
+    console.error("Failed to ingest document:", err);
+  }
 });
 
 // Wiki
 async function loadWiki() {
-  const res = await fetch(`${API}/api/wiki`);
-  const data = await res.json();
-  const list = document.getElementById("wiki-list");
-  if (!list) return;
-  list.innerHTML = data.pages
-    .map(
-      (p: any) =>
-        `<div class="wiki-item">
-          <strong>${escapeHtml(p.title)}</strong>
-          <p>${escapeHtml(p.content.slice(0, 200))}...</p>
-        </div>`
-    )
-    .join("");
+  try {
+    const res = await fetch(`${API}/api/wiki`);
+    const data = await res.json();
+    const list = document.getElementById("wiki-list");
+    if (!list) return;
+    list.innerHTML = (data.pages as WikiPage[])
+      .map(
+        (p) =>
+          `<div class="wiki-item">
+            <strong>${escapeHtml(p.title)}</strong>
+            <p>${escapeHtml(p.content.slice(0, 200))}...</p>
+          </div>`
+      )
+      .join("");
+  } catch (err) {
+    console.error("Failed to load wiki:", err);
+  }
 }
 
 document.getElementById("compile-btn")?.addEventListener("click", async () => {
   const btn = document.getElementById("compile-btn") as HTMLButtonElement;
   btn.disabled = true;
   btn.textContent = "Compiling...";
-  await fetch(`${API}/api/wiki/compile`, { method: "POST" });
-  btn.disabled = false;
-  btn.textContent = "Compile Wiki";
-  loadWiki();
+  try {
+    await fetch(`${API}/api/wiki/compile`, { method: "POST" });
+    loadWiki();
+  } catch (err) {
+    console.error("Failed to compile wiki:", err);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Compile Wiki";
+  }
 });
 
 // Settings
 async function loadSettings() {
-  const res = await fetch(`${API}/api/settings`);
-  const settings = await res.json();
-  const list = document.getElementById("settings-list");
-  if (!list) return;
-  list.innerHTML = settings
-    .map(
-      (s: any) =>
-        `<div class="setting-row">
-          <span class="setting-key">${escapeHtml(s.key)}</span>
-          <span class="setting-value">${escapeHtml(s.value)}</span>
-        </div>`
-    )
-    .join("");
+  try {
+    const res = await fetch(`${API}/api/settings`);
+    const settings: SettingRow[] = await res.json();
+    const list = document.getElementById("settings-list");
+    if (!list) return;
+    list.innerHTML = settings
+      .map(
+        (s) =>
+          `<div class="setting-row">
+            <span class="setting-key">${escapeHtml(s.key)}</span>
+            <span class="setting-value">${escapeHtml(String(s.value))}</span>
+          </div>`
+      )
+      .join("");
+  } catch (err) {
+    console.error("Failed to load settings:", err);
+  }
 }
 
 function escapeHtml(str: string): string {

@@ -50,13 +50,14 @@ export class LlmServiceImpl implements LlmService {
     }
 
     const settings = this.kernel.get<{ get: (key: string) => unknown }>("settings");
-    const ctxSize = settings.get("llm.chat.ctx_size") as number;
-    const threads = settings.get("llm.chat.threads") as number;
-    const gpuLayers = settings.get("llm.gpu.layers") as number;
-    const flashAttn = settings.get("llm.gpu.flash_attn") as string;
-    const splitMode = settings.get("llm.gpu.split_mode") as string;
-    const mtpEnabled = settings.get("llm.mtp.enabled") as boolean;
-    const mtpDraftNgl = settings.get("llm.mtp.draft_ngl") as number;
+    const ctxSize = (settings.get("llm.chat.ctx_size") as number) ?? 4096;
+    const threads = (settings.get("llm.chat.threads") as number) ?? 4;
+    const gpuLayers = (settings.get("llm.gpu.layers") as number) ?? 0;
+    const flashAttn = (settings.get("llm.gpu.flash_attn") as string) ?? "auto";
+    const splitMode = (settings.get("llm.gpu.split_mode") as string) ?? "none";
+    const mtpEnabled = !!(settings.get("llm.mtp.enabled") as boolean);
+    const mtpDraftNgl = (settings.get("llm.mtp.draft_ngl") as number) ?? 0;
+    const embedModel = (settings.get("llm.embed.model") as string) ?? "local";
 
     const port = this.nextPort++;
     const args = [
@@ -137,7 +138,7 @@ export class LlmServiceImpl implements LlmService {
         model: "local",
         messages: options.messages,
         stream: options.stream ?? true,
-        temperature: options.temperature ?? (settings.get("llm.chat.temperature") as number),
+        temperature: options.temperature ?? (settings.get("llm.chat.temperature") as number ?? 0.7),
         max_tokens: options.max_tokens ?? 2048,
       }),
     });
@@ -146,7 +147,11 @@ export class LlmServiceImpl implements LlmService {
       throw new Error(`llama.cpp error: ${response.status} ${response.statusText}`);
     }
 
-    const reader = response.body!.getReader();
+    if (!response.body) {
+      throw new Error("No response body from llama.cpp");
+    }
+
+    const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let buffer = "";
 
@@ -224,7 +229,7 @@ export class LlmServiceImpl implements LlmService {
       embed: this.devMode || this.instances.has("embed"),
       vision: !this.devMode && this.instances.has("vision"),
       gpu: !this.devMode && (settings.get("llm.gpu.layers") as number) !== 0,
-      mtp: !this.devMode && (settings.get("llm.mtp.enabled") as boolean),
+      mtp: !this.devMode && !!(settings.get("llm.mtp.enabled") as boolean),
     };
   }
 

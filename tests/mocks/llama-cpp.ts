@@ -20,7 +20,7 @@ export function createMockLlmService(): LlmService {
       },
     },
     status() {
-      return { chat: true, embed: true, vision: false };
+      return { chat: true, embed: true, vision: false, gpu: false, mtp: false };
     },
     async stop() {},
   };

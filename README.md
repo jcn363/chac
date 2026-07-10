@@ -28,11 +28,14 @@
 - **RAG Chat** — ask questions grounded in your documents
 - **Wiki (Karpathy Method)** — compile documents into structured wiki entries using LLM
 - **Two-Tier Retrieval** — query wiki entries first, fall back to raw chunks
+- **GPU Acceleration** — CUDA/Metal/Vulkan offloading via `llm.gpu.layers` setting
+- **Flash Attention** — memory-efficient attention via `llm.gpu.flash_attn` setting
+- **Multi-Token Prediction** — speculative decoding for faster inference (requires MTP-capable model)
+- **Vision Model** — multimodal support via `llm.vision.model` setting
 - **Portable & Cross-Platform** — runs on any OS via USB drive (Windows, macOS, Linux)
 - **Document Ingestion** — chunk, embed, and store any text file
 - **Vector Search** — cosine similarity over stored embeddings
 - **Streaming Responses** — real-time streaming from `llama.cpp`
-- **Document Management** — search, sort, rename, delete, bulk operations
 - **Dark Mode** — follows system theme automatically
 - **Dev Mode** — mock LLM responses for development without `llama.cpp`
 
@@ -167,7 +170,7 @@ chac/
 │       ├── hash.ts                      # SHA-256 content hashing
 │       └── id.ts                        # UUID generation
 ├── tests/
-│   ├── unit/                            # 44 tests across 10 files
+│   ├── unit/                            # 84 tests across 13 files
 │   ├── integration/                     # Document ingest integration tests
 │   ├── mocks/                           # Mock LLM for testing
 │   └── helpers/                         # Test setup utilities
@@ -365,12 +368,18 @@ All settings are stored in the `settings` table and accessible via the API.
 
 | Key | Default | Category | Description |
 |-----|---------|----------|-------------|
-| `llm.chat.model` | `"local"` | llm | Chat model name |
+| `llm.chat.model` | `"openbmb/MiniCPM5-1B"` | llm | Chat model name |
 | `llm.chat.ctx_size` | `4096` | llm | Context window size |
 | `llm.chat.temperature` | `0.7` | llm | Sampling temperature |
 | `llm.chat.threads` | `4` | llm | CPU threads for inference |
-| `llm.embed.model` | `"local"` | llm | Embedding model name |
+| `llm.embed.model` | `"nomic-ai/nomic-embed-text-v2-moe"` | llm | Embedding model name |
 | `llm.embed.dimensions` | `768` | llm | Embedding vector dimensions |
+| `llm.vision.model` | `"openbmb/MiniCPM-V-4.6"` | llm | Vision model name |
+| `llm.gpu.layers` | `20` | llm | GPU layers to offload (0=CPU, -1=all) |
+| `llm.gpu.flash_attn` | `"on"` | llm | Flash Attention: on, off, auto |
+| `llm.gpu.split_mode` | `"none"` | llm | GPU split: none, layer, row, tensor |
+| `llm.mtp.enabled` | `false` | llm | Multi-Token Prediction (model must support MTP) |
+| `llm.mtp.draft_ngl` | `10` | llm | GPU layers for MTP draft model |
 | `rag.chunk_size` | `500` | rag | Target chunk size (chars) |
 | `rag.chunk_overlap` | `100` | rag | Overlap between chunks |
 | `rag.wiki_threshold` | `0.3` | rag | Min similarity for wiki match |
@@ -448,15 +457,21 @@ interface Kernel {
 ```
 tests/
 ├── unit/                      # One test file per source file
+│   ├── kernel.test.ts
 │   ├── database/migrations.test.ts
 │   ├── modules/settings.test.ts
+│   ├── modules/settings-api.test.ts
 │   ├── modules/chat.test.ts
+│   ├── modules/chat-context.test.ts
 │   ├── modules/wiki.test.ts
+│   ├── modules/api-routes.test.ts
 │   ├── platform/detect.test.ts
 │   ├── platform/paths.test.ts
 │   └── utils/{chunking,vector,hash}.test.ts
 ├── integration/               # Cross-module with real DB
 │   └── documents-ingest.test.ts
+├── e2e/                       # End-to-end (excluded by default)
+│   └── app.test.ts
 ├── mocks/
 │   └── llama-cpp.ts           # Mock LLM for unit tests
 └── helpers/

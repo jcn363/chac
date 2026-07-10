@@ -5,7 +5,15 @@ import { ChatService } from "../chat/service";
 import { WikiService } from "../wiki/service";
 import { DEFAULT_SETTINGS } from "../settings/types";
 
+function safeInt(value: string | undefined, fallback: number): number {
+  if (value === undefined) return fallback;
+  const n = parseInt(value, 10);
+  return Number.isFinite(n) && n > 0 ? n : fallback;
+}
+
 export function setupApiRoutes(app: Hono, kernel: Kernel): void {
+  const settings = kernel.get<{ get: (key: string) => unknown; getAll: () => unknown[]; set: (key: string, value: unknown) => void }>("settings");
+
   // Status
   app.get("/api/status", (c) => {
     return c.json({ status: "ok", version: "0.1.0" });
@@ -13,7 +21,6 @@ export function setupApiRoutes(app: Hono, kernel: Kernel): void {
 
   // Settings
   app.get("/api/settings", (c) => {
-    const settings = kernel.get<{ getAll: () => unknown[] }>("settings");
     return c.json(settings.getAll());
   });
 
@@ -29,7 +36,6 @@ export function setupApiRoutes(app: Hono, kernel: Kernel): void {
     if (!knownKeys.has(body.key)) {
       return c.json({ error: `Unknown setting: ${body.key}` }, 400);
     }
-    const settings = kernel.get<{ set: (key: string, value: unknown) => void }>("settings");
     settings.set(body.key, body.value);
     return c.json({ ok: true });
   });
@@ -42,10 +48,11 @@ export function setupApiRoutes(app: Hono, kernel: Kernel): void {
 
   // Documents
   const docs = new DocumentsService(kernel);
+  const docsPerPage = (settings.get("ui.documents_per_page") as number) ?? 20;
 
   app.get("/api/documents", (c) => {
-    const page = parseInt(c.req.query("page") ?? "1");
-    const perPage = parseInt(c.req.query("per_page") ?? "20");
+    const page = safeInt(c.req.query("page"), 1);
+    const perPage = safeInt(c.req.query("per_page"), docsPerPage);
     return c.json(docs.list({ page, perPage }));
   });
 
@@ -57,6 +64,9 @@ export function setupApiRoutes(app: Hono, kernel: Kernel): void {
 
   app.post("/api/documents", async (c) => {
     const body = await c.req.json<{ path: string }>();
+    if (!body?.path || typeof body.path !== "string") {
+      return c.json({ error: "Missing or invalid path" }, 400);
+    }
     const result = await docs.ingest(body.path);
     return c.json(result, 201);
   });
@@ -69,6 +79,9 @@ export function setupApiRoutes(app: Hono, kernel: Kernel): void {
 
   app.post("/api/documents/search", async (c) => {
     const body = await c.req.json<{ query: string; limit?: number }>();
+    if (!body?.query || typeof body.query !== "string") {
+      return c.json({ error: "Missing or invalid query" }, 400);
+    }
     const results = await docs.search(body.query, { limit: body.limit });
     return c.json(results);
   });
@@ -82,7 +95,7 @@ export function setupApiRoutes(app: Hono, kernel: Kernel): void {
 
   app.post("/api/chat/sessions", async (c) => {
     const body = await c.req.json<{ title?: string; systemPrompt?: string }>();
-    const session = chat.createSession(body);
+    const session = chat.createSession(body ?? {});
     return c.json(session, 201);
   });
 
@@ -92,6 +105,12 @@ export function setupApiRoutes(app: Hono, kernel: Kernel): void {
 
   app.post("/api/chat", async (c) => {
     const body = await c.req.json<{ sessionId: string; message: string }>();
+    if (!body?.sessionId || typeof body.sessionId !== "string") {
+      return c.json({ error: "Missing or invalid sessionId" }, 400);
+    }
+    if (!body.message || typeof body.message !== "string") {
+      return c.json({ error: "Missing or invalid message" }, 400);
+    }
     const msg = await chat.sendMessage(body.sessionId, body.message);
     return c.json(msg);
   });
@@ -100,8 +119,8 @@ export function setupApiRoutes(app: Hono, kernel: Kernel): void {
   const wiki = new WikiService(kernel);
 
   app.get("/api/wiki", (c) => {
-    const page = parseInt(c.req.query("page") ?? "1");
-    const perPage = parseInt(c.req.query("per_page") ?? "20");
+    const page = safeInt(c.req.query("page"), 1);
+    const perPage = safeInt(c.req.query("per_page"), docsPerPage);
     return c.json(wiki.list({ page, perPage }));
   });
 
@@ -124,6 +143,9 @@ export function setupApiRoutes(app: Hono, kernel: Kernel): void {
 
   app.post("/api/wiki/search", async (c) => {
     const body = await c.req.json<{ query: string; limit?: number }>();
+    if (!body?.query || typeof body.query !== "string") {
+      return c.json({ error: "Missing or invalid query" }, 400);
+    }
     const results = await wiki.search(body.query, { limit: body.limit });
     return c.json(results);
   });

@@ -102,6 +102,7 @@ Configuration: `-ngl 20 --flash-attn on` (20 layers on GTX 1050, Flash Attention
 | `llm.gpu.layers` | `20` | 0, -1, 1-N | GPU layers to offload (0=CPU, -1=all) |
 | `llm.gpu.flash_attn` | `on` | on/off/auto | Flash Attention |
 | `llm.gpu.split_mode` | `none` | none/layer/row/tensor | Multi-GPU distribution |
+| `llm.vision.model` | `openbmb/MiniCPM-V-4.6` | any GGUF | Vision/multimodal model |
 | `llm.mtp.enabled` | `false` | true/false | Speculative decoding (model must support MTP) |
 | `llm.mtp.draft_ngl` | `10` | 0, -1, 1-N | GPU layers for MTP draft model |
 

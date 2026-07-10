@@ -1,26 +1,45 @@
 import { join, dirname } from "node:path";
-import { realpathSync } from "node:fs";
+import { realpathSync, existsSync } from "node:fs";
 
 let cachedRoot: string | null = null;
 
-function isDevMode(): boolean {
-  // Dev mode: running via bun/node directly (not compiled binary)
+function isCompiledBinary(): boolean {
+  // Check if running as a standalone compiled binary (not via bun/node runtime)
   const argv0 = process.argv[0] ?? "";
-  const base = argv0.split("/").pop() ?? "";
-  return base === "bun" || base === "node";
+  // Bun compiled binaries have argv[0] set to "bun" but /proc/self/exe points to the real binary
+  // Dev mode: argv[0] is the full path to bun/node binary
+  if (argv0.includes("/") || argv0 === "node") return false;
+  // argv[0] is "bun" — could be compiled or dev mode via bun
+  // Compiled binary: /proc/self/exe differs from bun binary
+  if (process.platform === "linux") {
+    try {
+      const exePath = realpathSync("/proc/self/exe");
+      const exeName = exePath.split("/").pop() ?? "";
+      // If /proc/self/exe is not "bun", it's a compiled binary
+      return exeName !== "bun" && exeName !== "node";
+    } catch {}
+  }
+  return false;
 }
 
-function resolveExeDir(): string | null {
+function resolveCompiledExeDir(): string | null {
+  if (!isCompiledBinary()) return null;
   // Linux: /proc/self/exe is the most reliable
   if (process.platform === "linux") {
     try {
-      return dirname(realpathSync("/proc/self/exe"));
+      const dir = dirname(realpathSync("/proc/self/exe"));
+      const dirName = dir.split("/").pop() ?? "";
+      return dirName === "bin" ? join(dir, "..") : dir;
     } catch {}
   }
   // macOS / Windows: resolve argv[0]
   try {
     const arg0 = process.argv[0];
-    if (arg0) return dirname(realpathSync(arg0));
+    if (arg0) {
+      const dir = dirname(realpathSync(arg0));
+      const dirName = dir.split("/").pop() ?? "";
+      return dirName === "bin" ? join(dir, "..") : dir;
+    }
   } catch {}
   return null;
 }
@@ -28,22 +47,14 @@ function resolveExeDir(): string | null {
 export function getAppRoot(): string {
   if (cachedRoot) return cachedRoot;
 
-  // Dev mode: source tree relative to this file
-  if (isDevMode()) {
-    cachedRoot = join(import.meta.dir, "..", "..");
-    return cachedRoot;
-  }
-
-  // Production mode: compiled binary
-  const exeDir = resolveExeDir();
+  // Production mode: compiled binary location
+  const exeDir = resolveCompiledExeDir();
   if (exeDir) {
-    // If binary lives inside bin/, project root is one level up
-    const exeName = exeDir.split("/").pop() ?? "";
-    cachedRoot = exeName === "bin" ? join(exeDir, "..") : exeDir;
+    cachedRoot = exeDir;
     return cachedRoot;
   }
 
-  // Fallback
+  // Dev mode: source tree relative to this file
   cachedRoot = join(import.meta.dir, "..", "..");
   return cachedRoot;
 }

@@ -8,7 +8,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT_DIR="$(dirname "$SCRIPT_DIR")"
 BIN_DIR="$ROOT_DIR/bin/llama.cpp/llama-server"
 
-LLAMA_CPP_VERSION="b5510"
+LLAMA_CPP_VERSION="b9946"
 RELEASE_BASE="https://github.com/ggerganov/llama.cpp/releases/download"
 
 echo "=== Chac llama.cpp Downloader ==="
@@ -40,12 +40,15 @@ download_and_extract() {
     else
       tar xf "$archive_name"
     fi
-    # Find and copy llama-server
-    find . -name "llama-server" -o -name "llama-server.exe" | head -1 | xargs -I{} cp {} "$target_dir/"
-    chmod +x "$target_dir/llama-server" 2>/dev/null || true
+    # Find extracted directory and copy everything (binary + shared libs)
+    EXTRACTED_DIR=$(find . -maxdepth 1 -type d -name "llama-*" | head -1)
+    if [ -n "$EXTRACTED_DIR" ]; then
+      cp "$EXTRACTED_DIR"/* "$target_dir/" 2>/dev/null
+    fi
+    chmod +x "$target_dir/llama-server" "$target_dir/llama-server.exe" 2>/dev/null || true
     cd "$ROOT_DIR"
     rm -rf "$tmp_dir"
-    echo "✓ $platform_key installed"
+    echo "✓ $platform_key installed ($(ls "$target_dir" | wc -l) files)"
   else
     echo "⚠ Failed to download for $platform_key (not critical, dev mode will be used)"
     rm -rf "$tmp_dir"
@@ -53,19 +56,19 @@ download_and_extract() {
 }
 
 # Linux x64
-download_and_extract "linux-x64" "llama.cpp-b${LLAMA_CPP_VERSION}-bin-ubuntu-x64.zip"
+download_and_extract "linux-x64" "llama-${LLAMA_CPP_VERSION}-bin-ubuntu-x64.tar.gz"
 
 # Linux ARM64
-download_and_extract "linux-arm64" "llama.cpp-b${LLAMA_CPP_VERSION}-bin-ubuntu-arm64.zip"
+download_and_extract "linux-arm64" "llama-${LLAMA_CPP_VERSION}-bin-ubuntu-arm64.tar.gz"
 
 # macOS ARM64
-download_and_extract "darwin-arm64" "llama.cpp-b${LLAMA_CPP_VERSION}-bin-macos-arm64.zip"
+download_and_extract "darwin-arm64" "llama-${LLAMA_CPP_VERSION}-bin-macos-arm64.tar.gz"
 
 # macOS x64
-download_and_extract "darwin-x64" "llama.cpp-b${LLAMA_CPP_VERSION}-bin-macos-x64.zip"
+download_and_extract "darwin-x64" "llama-${LLAMA_CPP_VERSION}-bin-macos-x64.tar.gz"
 
 # Windows x64
-download_and_extract "windows-x64" "llama.cpp-b${LLAMA_CPP_VERSION}-bin-win-x64.zip"
+download_and_extract "windows-x64" "llama-${LLAMA_CPP_VERSION}-bin-win-cpu-x64.zip"
 
 echo ""
 echo "=== llama.cpp setup complete ==="

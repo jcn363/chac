@@ -26,7 +26,9 @@ export function getAppRoot(): string {
     // Verify it's not the bun runtime itself (dev mode)
     const exeName = exeDir.split("/").pop() ?? "";
     if (exeName !== "bun" && exeName !== "node") {
-      cachedRoot = exeDir;
+      // If binary lives inside bin/, project root is one level up
+      const dirName = exeDir.split("/").pop() ?? "";
+      cachedRoot = dirName === "bin" ? join(exeDir, "..") : exeDir;
       return cachedRoot;
     }
   }

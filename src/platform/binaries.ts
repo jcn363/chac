@@ -7,20 +7,31 @@ const BINARIES_ROOT = appPath("bin", "llama.cpp");
 
 export function resolveBinary(name: string): string {
   const platform = detectPlatform();
+  const ext = platform.os === "windows" ? ".exe" : "";
 
-  const exactPath = join(BINARIES_ROOT, name, platform.platformKey);
-  if (existsSync(exactPath)) return exactPath;
+  function findInDir(dir: string): string | null {
+    const fullPath = join(dir, `${name}${ext}`);
+    if (existsSync(fullPath)) return fullPath;
+    return null;
+  }
 
+  // Exact platform match
+  const exactDir = join(BINARIES_ROOT, name, platform.platformKey);
+  const exact = findInDir(exactDir);
+  if (exact) return exact;
+
+  // Fallback: x64-baseline, x64-modern
   if (platform.arch === "x64") {
     for (const variant of ["x64-baseline", "x64-modern"]) {
-      const variantPath = join(BINARIES_ROOT, name, `${platform.os}-${variant}`);
-      if (existsSync(variantPath)) return variantPath;
+      const variantDir = join(BINARIES_ROOT, name, `${platform.os}-${variant}`);
+      const variant = findInDir(variantDir);
+      if (variant) return variant;
     }
   }
 
   throw new Error(
     `No binary found for ${name} on ${platform.platformKey}. ` +
-      `Expected at: ${join(BINARIES_ROOT, name, platform.platformKey)}`
+      `Expected at: ${join(exactDir, name + ext)}`
   );
 }
 

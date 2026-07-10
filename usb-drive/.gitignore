@@ -1,17 +1,23 @@
-# Downloaded binaries
-bin/llama.cpp/llama-server/*/llama-server
-bin/llama.cpp/llama-server/*/*.exe
-!bin/llama.cpp/llama-server/**/.gitkeep
+# llama.cpp binaries and libraries (downloaded at setup)
+bin/llama.cpp/llama-server/linux-x64/*
+bin/llama.cpp/llama-server/linux-arm64/*
+bin/llama.cpp/llama-server/darwin-x64/*
+bin/llama.cpp/llama-server/darwin-arm64/*
+bin/llama.cpp/llama-server/windows-x64/*
+!bin/llama.cpp/llama-server/*/.gitkeep
 
 # Compiled binary
 bin/chac
 bin/chac.exe
 
+# Debug binaries
+bin/debug*
+
 # Downloaded models
 models/*.gguf
-!models/.gitkeep
 
 # Runtime data
 data/*.db
-!data/.gitkeep
-usb-drive/bin/data/
+
+# Runtime DB in wrong location
+bin/data/

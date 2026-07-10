@@ -9,7 +9,8 @@ const BASE_PORT = 8080;
 
 function isLlamaCppAvailable(): boolean {
   const platform = detectPlatform();
-  const binaryPath = join(getAppRoot(), "bin", "llama.cpp", "llama-server", platform.platformKey);
+  const ext = platform.os === "windows" ? ".exe" : "";
+  const binaryPath = join(getAppRoot(), "bin", "llama.cpp", "llama-server", platform.platformKey, `llama-server${ext}`);
   return existsSync(binaryPath);
 }
 

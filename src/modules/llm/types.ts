@@ -32,6 +32,6 @@ export interface LlmService {
   embeddings: {
     create(options: EmbeddingOptions): Promise<EmbeddingResponse>;
   };
-  status(): { chat: boolean; embed: boolean; vision: boolean };
+  status(): { chat: boolean; embed: boolean; vision: boolean; gpu: boolean; mtp: boolean };
   stop(): Promise<void>;
 }

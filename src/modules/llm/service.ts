@@ -52,6 +52,11 @@ export class LlmServiceImpl implements LlmService {
     const settings = this.kernel.get<{ get: (key: string) => unknown }>("settings");
     const ctxSize = settings.get("llm.chat.ctx_size") as number;
     const threads = settings.get("llm.chat.threads") as number;
+    const gpuLayers = settings.get("llm.gpu.layers") as number;
+    const flashAttn = settings.get("llm.gpu.flash_attn") as string;
+    const splitMode = settings.get("llm.gpu.split_mode") as string;
+    const mtpEnabled = settings.get("llm.mtp.enabled") as boolean;
+    const mtpDraftNgl = settings.get("llm.mtp.draft_ngl") as number;
 
     const port = this.nextPort++;
     const args = [
@@ -66,6 +71,27 @@ export class LlmServiceImpl implements LlmService {
     if (modelType === "chat") {
       args.push("--ctx-size", String(ctxSize));
       args.push("--threads", String(threads));
+    }
+
+    // GPU acceleration
+    if (gpuLayers !== 0) {
+      args.push("-ngl", String(gpuLayers));
+    }
+    if (flashAttn && flashAttn !== "auto") {
+      args.push("--flash-attn", flashAttn);
+    } else if (flashAttn === "auto") {
+      args.push("--flash-attn", "auto");
+    }
+    if (splitMode && splitMode !== "none") {
+      args.push("--split-mode", splitMode);
+    }
+
+    // MTP speculative decoding
+    if (mtpEnabled && modelType === "chat") {
+      args.push("--spec-type", "draft-mtp");
+      if (mtpDraftNgl > 0) {
+        args.push("--spec-draft-ngl", String(mtpDraftNgl));
+      }
     }
 
     const { resolveBinary } = await import("../../platform/binaries");
@@ -191,11 +217,14 @@ export class LlmServiceImpl implements LlmService {
     return { data: [{ embedding }] };
   }
 
-  status(): { chat: boolean; embed: boolean; vision: boolean } {
+  status(): { chat: boolean; embed: boolean; vision: boolean; gpu: boolean; mtp: boolean } {
+    const settings = this.kernel.get<{ get: (key: string) => unknown }>("settings");
     return {
       chat: this.devMode || this.instances.has("chat"),
       embed: this.devMode || this.instances.has("embed"),
       vision: !this.devMode && this.instances.has("vision"),
+      gpu: !this.devMode && (settings.get("llm.gpu.layers") as number) !== 0,
+      mtp: !this.devMode && (settings.get("llm.mtp.enabled") as boolean),
     };
   }
 

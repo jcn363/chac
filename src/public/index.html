@@ -40,7 +40,13 @@
             <input type="text" id="msg-search" class="hidden" placeholder="Search messages..." aria-label="Search messages">
             <span id="msg-search-count" class="hidden"></span>
           </div>
-          <div id="messages"></div>
+          <div id="messages">
+            <div id="typing-indicator" class="message assistant hidden">
+              <div class="message-bubble">
+                <span class="typing-dots"><span></span><span></span><span></span></span>
+              </div>
+            </div>
+          </div>
           <form id="chat-form">
             <textarea id="chat-input" placeholder="Ask a question..." rows="2" data-tooltip="Type your question here"></textarea>
             <button type="submit" data-tooltip="Send message">Send</button>

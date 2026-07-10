@@ -109,6 +109,7 @@ document.getElementById("chat-form")?.addEventListener("submit", async (e) => {
   input.disabled = true;
   sendBtn.disabled = true;
   input.placeholder = "Thinking...";
+  showTypingIndicator();
 
   try {
     const res = await fetch(`${API}/api/chat`, {
@@ -130,7 +131,20 @@ document.getElementById("chat-form")?.addEventListener("submit", async (e) => {
   }
 });
 
+function showTypingIndicator() {
+  const indicator = document.getElementById("typing-indicator");
+  if (indicator) {
+    indicator.classList.remove("hidden");
+    indicator.scrollIntoView({ behavior: "smooth" });
+  }
+}
+
+function hideTypingIndicator() {
+  document.getElementById("typing-indicator")?.classList.add("hidden");
+}
+
 function addMessage(role, content) {
+  hideTypingIndicator();
   const div = document.createElement("div");
   div.className = `message ${role}`;
   const rendered = DOMPurify.sanitize(marked.parse(content));

@@ -104,7 +104,7 @@ document.getElementById("chat-form")?.addEventListener("submit", async (e) => {
   const msg = input.value.trim();
   if (!msg) return;
 
-  addMessage("user", msg);
+  addMessage("user", msg, new Date().toISOString());
   input.value = "";
   input.disabled = true;
   sendBtn.disabled = true;
@@ -119,7 +119,7 @@ document.getElementById("chat-form")?.addEventListener("submit", async (e) => {
     });
     if (!res.ok) throw new Error(`Chat failed: ${res.status}`);
     const data = await res.json();
-    addMessage("assistant", data.content ?? "No response");
+    addMessage("assistant", data.content ?? "No response", data.created_at);
   } catch (err) {
     addMessage("assistant", `Error: ${err instanceof Error ? err.message : "Unknown error"}`);
     showToast("Failed to send message");
@@ -143,12 +143,14 @@ function hideTypingIndicator() {
   document.getElementById("typing-indicator")?.classList.add("hidden");
 }
 
-function addMessage(role, content) {
+function addMessage(role, content, timestamp) {
   hideTypingIndicator();
   const div = document.createElement("div");
   div.className = `message ${role}`;
   const rendered = DOMPurify.sanitize(marked.parse(content));
-  div.innerHTML = `<div class="message-bubble" data-md="${escapeHtml(content)}">${rendered}</div>`;
+  const timeStr = timestamp ? new Date(timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "";
+  div.innerHTML = `<div class="message-bubble" data-md="${escapeHtml(content)}">${rendered}</div>` +
+    (timeStr ? `<span class="message-time">${timeStr}</span>` : "");
   document.getElementById("messages")?.appendChild(div);
   div.scrollIntoView({ behavior: "smooth" });
 }
@@ -311,7 +313,7 @@ async function loadMessages() {
     if (!res.ok) throw new Error(`Failed to load messages: ${res.status}`);
     const messages = await res.json();
     for (const msg of messages) {
-      addMessage(msg.role, msg.content);
+      addMessage(msg.role, msg.content, msg.created_at);
     }
   } catch (err) {
     showToast("Failed to load messages");

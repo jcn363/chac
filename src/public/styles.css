@@ -266,6 +266,17 @@ body {
 .message.user { margin-left: auto; }
 .message.assistant { margin-right: auto; }
 
+.message-time {
+  display: block;
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+  padding: 0 4px;
+}
+
+.message.user .message-time { text-align: right; }
+.message.assistant .message-time { text-align: left; }
+
 /* Typing indicator */
 #typing-indicator { margin-bottom: 12px; max-width: 80%; }
 #typing-indicator.hidden { display: none; }

@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Chac</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <div id="app">
+    <nav id="tabs">
+      <button class="tab active" data-tab="chat">Chat</button>
+      <button class="tab" data-tab="documents">Documents</button>
+      <button class="tab" data-tab="wiki">Wiki</button>
+      <button class="tab" data-tab="settings">Settings</button>
+    </nav>
+
+    <main id="content">
+      <section id="chat-tab" class="tab-panel active">
+        <div id="chat-sessions">
+          <button id="new-session">+ New Session</button>
+          <div id="session-list"></div>
+        </div>
+        <div id="chat-area">
+          <div id="messages"></div>
+          <form id="chat-form">
+            <textarea id="chat-input" placeholder="Ask a question..." rows="2"></textarea>
+            <button type="submit">Send</button>
+          </form>
+        </div>
+      </section>
+
+      <section id="documents-tab" class="tab-panel">
+        <div id="doc-header">
+          <h2>Documents</h2>
+          <button id="ingest-btn">+ Add Document</button>
+        </div>
+        <div id="doc-list"></div>
+        <div id="doc-pagination"></div>
+      </section>
+
+      <section id="wiki-tab" class="tab-panel">
+        <div id="wiki-header">
+          <h2>Wiki</h2>
+          <button id="compile-btn">Compile Wiki</button>
+        </div>
+        <div id="wiki-list"></div>
+      </section>
+
+      <section id="settings-tab" class="tab-panel">
+        <h2>Settings</h2>
+        <div id="settings-list"></div>
+      </section>
+    </main>
+  </div>
+  <script type="module" src="/static/app.js"></script>
+</body>
+</html>

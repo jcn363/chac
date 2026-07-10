@@ -9,23 +9,42 @@
 <body>
   <div id="app">
     <nav id="tabs">
-      <button class="tab active" data-tab="chat">Chat</button>
-      <button class="tab" data-tab="documents">Documents</button>
-      <button class="tab" data-tab="wiki">Wiki</button>
-      <button class="tab" data-tab="settings">Settings</button>
+      <button class="tab active" data-tab="chat" data-tooltip="Chat with your documents">Chat</button>
+      <button class="tab" data-tab="documents" data-tooltip="Manage your library">Documents</button>
+      <button class="tab" data-tab="wiki" data-tooltip="Compile documents into a wiki">Wiki</button>
+      <button class="tab" data-tab="settings" data-tooltip="Configure Chac">Settings</button>
+      <button class="tab" id="theme-toggle" data-tooltip="Toggle dark mode" aria-label="Toggle dark mode">
+        <svg class="theme-icon theme-icon-light" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+        <svg class="theme-icon theme-icon-dark" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        <svg class="theme-icon theme-icon-system" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+      </button>
+      <button class="tab" id="help-toggle" data-tooltip="Open help" aria-label="Help">?</button>
     </nav>
 
     <main id="content">
       <section id="chat-tab" class="tab-panel active">
         <div id="chat-sessions">
-          <button id="new-session">+ New Session</button>
+          <button id="new-session" data-tooltip="Start a new conversation">+ New Session</button>
+          <input type="text" id="session-search" placeholder="Search sessions..." aria-label="Search sessions">
           <div id="session-list"></div>
+          <div id="chat-empty" class="empty-state">
+            <p>No conversations yet</p>
+            <p class="empty-hint">Click "+ New Session" to start chatting with your documents</p>
+          </div>
         </div>
         <div id="chat-area">
+          <div id="chat-toolbar">
+            <button id="search-toggle" data-tooltip="Search messages" aria-label="Search messages">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            </button>
+            <input type="text" id="msg-search" class="hidden" placeholder="Search messages..." aria-label="Search messages">
+            <span id="msg-search-count" class="hidden"></span>
+          </div>
           <div id="messages"></div>
           <form id="chat-form">
-            <textarea id="chat-input" placeholder="Ask a question..." rows="2"></textarea>
-            <button type="submit">Send</button>
+            <textarea id="chat-input" placeholder="Ask a question..." rows="2" data-tooltip="Type your question here"></textarea>
+            <button type="submit" data-tooltip="Send message">Send</button>
+            <button type="button" id="export-btn" data-tooltip="Export chat as markdown" aria-label="Export chat">↓</button>
           </form>
         </div>
       </section>
@@ -33,18 +52,26 @@
       <section id="documents-tab" class="tab-panel">
         <div id="doc-header">
           <h2>Documents</h2>
-          <button id="ingest-btn">+ Add Document</button>
+          <button id="ingest-btn" data-tooltip="Add a text file from this computer">+ Add Document</button>
         </div>
         <div id="doc-list"></div>
+        <div id="doc-empty" class="empty-state">
+          <p>No documents added</p>
+          <p class="empty-hint">Click "+ Add Document" to add a text file from this computer</p>
+        </div>
         <div id="doc-pagination"></div>
       </section>
 
       <section id="wiki-tab" class="tab-panel">
         <div id="wiki-header">
           <h2>Wiki</h2>
-          <button id="compile-btn">Compile Wiki</button>
+          <button id="compile-btn" data-tooltip="Synthesize documents into wiki entries">Compile Wiki</button>
         </div>
         <div id="wiki-list"></div>
+        <div id="wiki-empty" class="empty-state">
+          <p>No wiki entries</p>
+          <p class="empty-hint">Click "Compile Wiki" to synthesize your documents into structured entries</p>
+        </div>
       </section>
 
       <section id="settings-tab" class="tab-panel">
@@ -53,6 +80,63 @@
       </section>
     </main>
   </div>
+
+  <!-- Help overlay -->
+  <div id="help-overlay" class="overlay hidden">
+    <div class="overlay-backdrop"></div>
+    <div class="overlay-card" role="dialog" aria-modal="true" aria-labelledby="help-title">
+      <div class="overlay-header">
+        <h2 id="help-title">Help</h2>
+        <button class="overlay-close" data-tooltip="Close (Esc)" aria-label="Close help">&times;</button>
+      </div>
+      <div class="overlay-body">
+        <div class="overlay-section">
+          <h3>Quick Start</h3>
+          <ol>
+            <li><strong>Add documents</strong> — Documents tab → "+ Add Document" → enter file path</li>
+            <li><strong>Compile wiki</strong> (optional) — Wiki tab → "Compile Wiki"</li>
+            <li><strong>Ask questions</strong> — Chat tab → "+ New Session" → type question → Send</li>
+          </ol>
+        </div>
+        <div class="overlay-section">
+          <h3>Keyboard Shortcuts</h3>
+          <table class="help-table">
+            <tr><td><kbd>?</kbd></td><td>Open/close help</td></tr>
+            <tr><td><kbd>Esc</kbd></td><td>Close help</td></tr>
+            <tr><td><kbd>Ctrl</kbd>+<kbd>Enter</kbd></td><td>Send message</td></tr>
+            <tr><td>Theme toggle</td><td>Cycle system → dark → light</td></tr>
+          </table>
+        </div>
+        <div class="overlay-section">
+          <h3>Tips</h3>
+          <ul>
+            <li><strong>Chat:</strong> Ask specific questions; sessions remember history; wiki entries searched first</li>
+            <li><strong>Documents:</strong> Files must be on this computer; any plain text; duplicates auto-detected</li>
+            <li><strong>Wiki:</strong> Improves answer quality; re-compile after adding new docs</li>
+            <li><strong>Settings:</strong> GPU layers 0=CPU, -1=all; larger context = more memory; lower temp = focused</li>
+          </ul>
+        </div>
+        <div class="overlay-section">
+          <h3>System Status</h3>
+          <div id="help-status"></div>
+        </div>
+        <div class="overlay-section">
+          <h3>Troubleshooting</h3>
+          <table class="help-table">
+            <tr><td>Embedding server not running</td><td>Check <code>bin/llama.cpp/</code> binaries</td></tr>
+            <tr><td>Model not found</td><td>Run setup scripts to download models</td></tr>
+            <tr><td>Slow performance</td><td>Use USB 3.0+ drive, increase GPU layers</td></tr>
+            <tr><td>Port in use</td><td>Change <code>server.port</code> in Settings</td></tr>
+            <tr><td>Can't connect from phone</td><td>Make sure both devices are on same Wi-Fi</td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast container -->
+  <div id="toast-container" aria-live="polite" aria-atomic="true"></div>
+
   <script type="module" src="/static/app.js"></script>
 </body>
 </html>

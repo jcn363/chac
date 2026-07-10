@@ -34,16 +34,22 @@ describe("runMigrations", () => {
     expect(names).toContain("usage_log");
   });
 
-  it("sets version to 1", () => {
+  it("sets version to 2", () => {
     runMigrations(db);
     const row = db.query("SELECT value FROM schema_meta WHERE key = 'version'").get() as { value: string };
-    expect(row.value).toBe("1");
+    expect(row.value).toBe("2");
+  });
+
+  it("adds sort_order column to chat_sessions", () => {
+    runMigrations(db);
+    const cols = db.query("PRAGMA table_info(chat_sessions)").all() as { name: string }[];
+    expect(cols.some((c) => c.name === "sort_order")).toBe(true);
   });
 
   it("is idempotent", () => {
     runMigrations(db);
     runMigrations(db);
     const row = db.query("SELECT value FROM schema_meta WHERE key = 'version'").get() as { value: string };
-    expect(row.value).toBe("1");
+    expect(row.value).toBe("2");
   });
 });

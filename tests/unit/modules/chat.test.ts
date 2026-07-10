@@ -45,4 +45,35 @@ describe("ChatService", () => {
     const messages = chat.getMessages(session.id);
     expect(messages).toHaveLength(0);
   });
+
+  it("deletes a session", () => {
+    const session = chat.createSession({ title: "Delete me" });
+    const deleted = chat.deleteSession(session.id);
+    expect(deleted).toBe(true);
+    expect(chat.getSession(session.id)).toBeUndefined();
+  });
+
+  it("returns false when deleting nonexistent session", () => {
+    expect(chat.deleteSession("nonexistent")).toBe(false);
+  });
+
+  it("updates session title", () => {
+    const session = chat.createSession({ title: "Old" });
+    const updated = chat.updateSession(session.id, "New");
+    expect(updated).toBeDefined();
+    expect(updated!.title).toBe("New");
+  });
+
+  it("returns undefined when updating nonexistent session", () => {
+    expect(chat.updateSession("nonexistent", "Title")).toBeUndefined();
+  });
+
+  it("reorders sessions", () => {
+    const a = chat.createSession({ title: "A" });
+    const b = chat.createSession({ title: "B" });
+    const c = chat.createSession({ title: "C" });
+    chat.reorderSessions([c.id, a.id, b.id]);
+    const sessions = chat.listSessions();
+    expect(sessions.map((s) => s.id)).toEqual([c.id, a.id, b.id]);
+  });
 });

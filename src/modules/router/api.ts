@@ -105,6 +105,31 @@ export function setupApiRoutes(app: Hono, kernel: Kernel): void {
     return c.json(chat.getMessages(c.req.param("id")));
   });
 
+  app.delete("/api/chat/sessions/:id", (c) => {
+    const deleted = chat.deleteSession(c.req.param("id"));
+    if (!deleted) return c.json({ error: "Session not found" }, 404);
+    return c.json({ ok: true });
+  });
+
+  app.put("/api/chat/sessions/:id", async (c) => {
+    const body = await c.req.json<{ title: string }>();
+    if (!body?.title || typeof body.title !== "string") {
+      return c.json({ error: "Missing or invalid title" }, 400);
+    }
+    const session = chat.updateSession(c.req.param("id"), body.title);
+    if (!session) return c.json({ error: "Session not found" }, 404);
+    return c.json(session);
+  });
+
+  app.put("/api/chat/sessions", async (c) => {
+    const body = await c.req.json<{ ids: string[] }>();
+    if (!Array.isArray(body?.ids)) {
+      return c.json({ error: "Missing or invalid ids" }, 400);
+    }
+    chat.reorderSessions(body.ids);
+    return c.json({ ok: true });
+  });
+
   app.post("/api/chat", async (c) => {
     const body = await c.req.json<{ sessionId: string; message: string }>();
     if (!body?.sessionId || typeof body.sessionId !== "string") {

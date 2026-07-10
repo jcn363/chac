@@ -114,6 +114,16 @@ const MIGRATIONS: Migration[] = [
     version: 1,
     up: SCHEMA_SQL,
   },
+  {
+    version: 2,
+    up: `
+      ALTER TABLE chat_sessions ADD COLUMN sort_order INTEGER DEFAULT 0;
+      UPDATE chat_sessions SET sort_order = (
+        SELECT COUNT(*) FROM chat_sessions AS s2
+        WHERE s2.created_at <= chat_sessions.created_at
+      );
+    `,
+  },
 ];
 
 function ensureMetaTable(db: Database): void {

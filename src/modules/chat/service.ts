@@ -22,13 +22,31 @@ export class ChatService {
 
   listSessions(): ChatSession[] {
     return this.db
-      .query("SELECT * FROM chat_sessions ORDER BY updated_at DESC")
+      .query("SELECT * FROM chat_sessions ORDER BY sort_order ASC, updated_at DESC")
       .all() as ChatSession[];
   }
 
   getSession(id: string): ChatSession | undefined {
     const row = this.db.query("SELECT * FROM chat_sessions WHERE id = ?").get(id);
     return row ? (row as ChatSession) : undefined;
+  }
+
+  deleteSession(id: string): boolean {
+    const result = this.db.query("DELETE FROM chat_sessions WHERE id = ?").run(id);
+    return result.changes > 0;
+  }
+
+  updateSession(id: string, title: string): ChatSession | undefined {
+    this.db.query("UPDATE chat_sessions SET title = ?, updated_at = datetime('now') WHERE id = ?").run(title, id);
+    return this.getSession(id);
+  }
+
+  reorderSessions(ids: string[]): void {
+    const stmt = this.db.query("UPDATE chat_sessions SET sort_order = ? WHERE id = ?");
+    const updateAll = this.db.transaction((orderedIds: string[]) => {
+      orderedIds.forEach((id, i) => stmt.run(i, id));
+    });
+    updateAll(ids);
   }
 
   getMessages(sessionId: string): ChatMessage[] {

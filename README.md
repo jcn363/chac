@@ -20,12 +20,17 @@
 - [Build & Deployment](#build--deployment)
 - [USB Drive Setup](#usb-drive-setup)
 - [Troubleshooting](#troubleshooting)
+- [FAQ](FAQ.md)
 
 ---
 
 ## Features
 
 - **RAG Chat** — ask questions grounded in your documents
+- **Markdown Rendering** — messages render markdown (bold, italic, code blocks, lists, tables, links)
+- **Chat Export** — download session history as markdown files
+- **Chat Search** — search and highlight messages within a session
+- **Session Management** — create, rename (double-click), delete, reorder (drag-and-drop), search sessions
 - **Wiki (Karpathy Method)** — compile documents into structured wiki entries using LLM
 - **Two-Tier Retrieval** — query wiki entries first, fall back to raw chunks
 - **GPU Acceleration** — CUDA/Metal/Vulkan offloading via `llm.gpu.layers` setting
@@ -36,7 +41,14 @@
 - **Document Ingestion** — chunk, embed, and store any text file
 - **Vector Search** — cosine similarity over stored embeddings
 - **Streaming Responses** — real-time streaming from `llama.cpp`
-- **Dark Mode** — follows system theme automatically
+- **Dark Mode** — toggle between system/light/dark themes
+- **Help System** — in-app help overlay with quick start, keyboard shortcuts, tips, troubleshooting, and live system status
+- **Toasts** — non-intrusive notifications for success/error feedback
+- **Empty States** — contextual guidance when tabs have no content
+- **Loading States** — visual feedback during async operations
+- **Keyboard Shortcuts** — `?` help, `Esc` close, `Ctrl+Enter` send, tab navigation
+- **Accessibility** — focus rings, ARIA labels, reduced-motion support, touch targets
+- **Responsive** — adapts to mobile screens (sidebar hides on narrow viewports)
 - **Dev Mode** — mock LLM responses for development without `llama.cpp`
 
 ---
@@ -92,7 +104,7 @@ Chac uses a **microkernel architecture** with dependency injection. A minimal ke
 | **Language** | TypeScript | Type safety, compiles to single executable |
 | **Web Framework** | Hono | ~14KB, Web Standards-based |
 | **Database** | `bun:sqlite` | Built-in, zero deps, WAL mode |
-| **Frontend** | Vanilla HTML/CSS/JS | Zero build step, embedded via Bun HTML imports |
+| **Frontend** | Vanilla HTML/CSS/JS + marked + DOMPurify | Zero build step, markdown rendering, XSS protection |
 | **LLM Backend** | llama.cpp | OpenAI-compatible API, cross-platform |
 | **Testing** | `bun test` | Bun-native test runner, Vitest-compatible API |
 
@@ -169,7 +181,7 @@ chac/
 │       ├── hash.ts                      # SHA-256 content hashing
 │       └── id.ts                        # UUID generation
 ├── tests/
-│   ├── unit/                            # 94 tests across 15 files (83 unit + 5 integration + 6 e2e)
+│   ├── unit/                            # 99 tests across 15 files (87 unit + 6 integration + 6 e2e)
 │   ├── integration/                     # Document ingest integration tests
 │   ├── e2e/                             # End-to-end tests (excluded by default)
 │   ├── mocks/                           # Mock LLM for testing
@@ -294,8 +306,11 @@ http://localhost:3000
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `GET` | `/api/chat/sessions` | List chat sessions |
+| `GET` | `/api/chat/sessions` | List chat sessions (sorted by order) |
 | `POST` | `/api/chat/sessions` | Create a chat session |
+| `PUT` | `/api/chat/sessions/:id` | Update session title |
+| `PUT` | `/api/chat/sessions` | Reorder sessions |
+| `DELETE` | `/api/chat/sessions/:id` | Delete a session and its messages |
 | `GET` | `/api/chat/sessions/:id/messages` | Get messages for a session |
 | `POST` | `/api/chat` | Send a message (returns response) |
 
@@ -342,7 +357,7 @@ http://localhost:3000
 |-------|---------|-------------|
 | `documents` | Ingested source files | `id`, `title`, `content_hash` (dedup), `chunk_count` |
 | `chunks` | Text segments + embeddings | `document_id`, `content`, `embedding` (BLOB) |
-| `chat_sessions` | Conversation groups | `id`, `title`, `system_prompt` |
+| `chat_sessions` | Conversation groups | `id`, `title`, `system_prompt`, `sort_order` |
 | `chat_messages` | Individual messages | `session_id`, `role`, `content`, `context_chunks` (JSON) |
 | `wiki_pages` | LLM-synthesized entries | `id`, `title`, `slug`, `content`, `embedding` (BLOB) |
 | `settings` | App configuration | `key`, `value` (JSON), `category` |

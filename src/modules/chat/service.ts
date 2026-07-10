@@ -47,6 +47,11 @@ export class ChatService {
     return row ? (row as ChatMessage) : undefined;
   }
 
+  deleteMessage(id: string): boolean {
+    const result = this.db.query("DELETE FROM chat_messages WHERE id = ?").run(id);
+    return result.changes > 0;
+  }
+
   reorderSessions(ids: string[]): void {
     const stmt = this.db.query("UPDATE chat_sessions SET sort_order = ? WHERE id = ?");
     const updateAll = this.db.transaction((orderedIds: string[]) => {

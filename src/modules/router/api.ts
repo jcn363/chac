@@ -131,6 +131,12 @@ export function setupApiRoutes(app: Hono, kernel: Kernel): void {
     return c.json(msg);
   });
 
+  app.delete("/api/chat/messages/:id", (c) => {
+    const deleted = chat.deleteMessage(c.req.param("id"));
+    if (!deleted) return c.json({ error: "Message not found" }, 404);
+    return c.json({ ok: true });
+  });
+
   app.put("/api/chat/sessions", async (c) => {
     const body = await c.req.json<{ ids: string[] }>();
     if (!Array.isArray(body?.ids)) {

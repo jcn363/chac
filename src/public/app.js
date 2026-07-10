@@ -151,14 +151,26 @@ function addMessage(role, content, timestamp, msgId) {
   const rendered = DOMPurify.sanitize(marked.parse(content));
   const timeStr = timestamp ? new Date(timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "";
   const editBtn = role === "user" ? `<button class="msg-edit" data-tooltip="Edit" aria-label="Edit message">&#9998;</button>` : "";
+  const deleteBtn = `<button class="msg-delete" data-tooltip="Delete" aria-label="Delete message">&times;</button>`;
   div.innerHTML = `<div class="message-bubble" data-md="${escapeHtml(content)}">${rendered}</div>` +
-    `<span class="message-time">${timeStr}${editBtn}</span>`;
+    `<span class="message-time">${timeStr}${editBtn}${deleteBtn}</span>`;
   document.getElementById("messages")?.appendChild(div);
   div.scrollIntoView({ behavior: "smooth" });
 
   if (role === "user") {
     div.querySelector(".msg-edit")?.addEventListener("click", () => startEditMessage(div));
   }
+  div.querySelector(".msg-delete")?.addEventListener("click", async () => {
+    if (!confirm("Delete this message?")) return;
+    try {
+      const res = await fetch(`${API}/api/chat/messages/${msgId}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Failed to delete");
+      loadMessages();
+      showToast("Message deleted", "success");
+    } catch {
+      showToast("Failed to delete message");
+    }
+  });
 }
 
 function startEditMessage(msgEl) {

@@ -300,6 +300,26 @@ body {
 .message:hover .msg-edit { opacity: 1; }
 .msg-edit:hover { color: var(--accent); background: var(--bg-secondary); }
 
+.msg-delete {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 2px 5px;
+  border-radius: 4px;
+  opacity: 0;
+  transition: opacity 0.15s ease-out, color 0.15s ease-out, background 0.15s ease-out;
+  min-width: 24px;
+  min-height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.message:hover .msg-delete { opacity: 1; }
+.msg-delete:hover { color: var(--danger); background: var(--bg-secondary); }
+
 .msg-edit-input {
   width: 100%;
   padding: 10px 14px;

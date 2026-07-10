@@ -1,0 +1,17 @@
+# Downloaded binaries
+bin/llama.cpp/llama-server/*/llama-server
+bin/llama.cpp/llama-server/*/*.exe
+!bin/llama.cpp/llama-server/**/.gitkeep
+
+# Compiled binary
+bin/chac
+bin/chac.exe
+
+# Downloaded models
+models/*.gguf
+!models/.gitkeep
+
+# Runtime data
+data/*.db
+!data/.gitkeep
+usb-drive/bin/data/

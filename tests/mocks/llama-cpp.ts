@@ -5,6 +5,7 @@ export function createMockLlmService(): LlmService {
     chat: {
       async *completions(options: ChatCompletionOptions): AsyncGenerator<string> {
         const lastMessage = options.messages[options.messages.length - 1];
+        if (!lastMessage) throw new Error("No messages provided");
         const response = `Mock response to: "${lastMessage.content}"`;
         const words = response.split(" ");
         for (const word of words) {

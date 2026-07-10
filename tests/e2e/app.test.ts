@@ -1,7 +1,7 @@
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { describe, it, expect, beforeAll, afterAll } from "bun:test";
 
 const BASE = "http://localhost:3000";
-let server: Bun.ChildProcess;
+let server: Bun.Subprocess;
 
 beforeAll(async () => {
   server = Bun.spawn(["bun", "run", "src/main.ts"], {
@@ -19,14 +19,14 @@ describe("E2E API", () => {
   it("GET /api/status", async () => {
     const res = await fetch(`${BASE}/api/status`);
     expect(res.ok).toBe(true);
-    const data = await res.json();
+    const data = await res.json() as any;
     expect(data.status).toBe("ok");
   });
 
   it("GET /api/settings", async () => {
     const res = await fetch(`${BASE}/api/settings`);
     expect(res.ok).toBe(true);
-    const data = await res.json();
+    const data = await res.json() as any;
     expect(Array.isArray(data)).toBe(true);
     expect(data.length).toBeGreaterThan(0);
   });
@@ -34,7 +34,7 @@ describe("E2E API", () => {
   it("GET /api/llm/status", async () => {
     const res = await fetch(`${BASE}/api/llm/status`);
     expect(res.ok).toBe(true);
-    const data = await res.json();
+    const data = await res.json() as any;
     expect(data).toHaveProperty("chat");
     expect(data).toHaveProperty("embed");
   });
@@ -42,7 +42,7 @@ describe("E2E API", () => {
   it("GET /api/documents", async () => {
     const res = await fetch(`${BASE}/api/documents`);
     expect(res.ok).toBe(true);
-    const data = await res.json();
+    const data = await res.json() as any;
     expect(data).toHaveProperty("documents");
     expect(data).toHaveProperty("total");
   });
@@ -50,14 +50,14 @@ describe("E2E API", () => {
   it("GET /api/chat/sessions", async () => {
     const res = await fetch(`${BASE}/api/chat/sessions`);
     expect(res.ok).toBe(true);
-    const data = await res.json();
+    const data = await res.json() as any;
     expect(Array.isArray(data)).toBe(true);
   });
 
   it("GET /api/wiki", async () => {
     const res = await fetch(`${BASE}/api/wiki`);
     expect(res.ok).toBe(true);
-    const data = await res.json();
+    const data = await res.json() as any;
     expect(data).toHaveProperty("pages");
   });
 });

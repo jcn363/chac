@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "bun:test";
 import { createTestKernel } from "../helpers/setup";
 import { DocumentsService } from "../../src/modules/documents/service";
 import { writeFileSync, unlinkSync } from "node:fs";

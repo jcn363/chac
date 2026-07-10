@@ -14,8 +14,9 @@ chac/
 │           ├── darwin-arm64/
 │           └── windows-x64/
 ├── models/
-│   ├── chat.gguf                   # Chat LLM model
-│   └── embed.gguf                  # Embedding model
+│   ├── chat.gguf                   # Chat LLM model (~1.7 GB)
+│   ├── embed.gguf                  # Embedding model (~130 MB)
+│   └── vision.gguf                 # Vision model (~505 MB)
 ├── data/
 │   └── chac.db                     # SQLite database (auto-created)
 ├── launchers/
@@ -25,7 +26,10 @@ chac/
 └── setup/                          # First-run setup scripts
     ├── install.sh                  # Linux/macOS setup
     ├── install.bat                 # Windows setup
-    └── download-models.sh          # Download recommended GGUF models
+    ├── download-models.sh          # Download recommended GGUF models
+    ├── download-models.bat         # Download models (Windows)
+    ├── download-llama.sh           # Download llama.cpp binaries
+    └── setup-all.sh               # Full setup (all-in-one)
 ```
 
 ## Quick Start

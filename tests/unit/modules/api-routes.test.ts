@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "bun:test";
 import { Database } from "bun:sqlite";
 import { createTestKernel } from "../../helpers/setup";
 import { createRouter } from "../../../src/modules/router";
@@ -27,6 +27,10 @@ function json(method: string, path: string, body: unknown) {
   });
 }
 
+async function parseJson<T = any>(res: Response): Promise<T> {
+  return res.json() as Promise<T>;
+}
+
 beforeEach(() => {
   mkdirSync(tmpDir, { recursive: true });
   db = new Database(":memory:");
@@ -49,7 +53,7 @@ describe("GET /api/status", () => {
   it("returns ok", async () => {
     const res = await req("/api/status");
     expect(res.status).toBe(200);
-    const data = await res.json();
+    const data = await res.json() as any;
     expect(data.status).toBe("ok");
   });
 });
@@ -60,7 +64,7 @@ describe("GET /api/llm/status", () => {
   it("returns llm status", async () => {
     const res = await req("/api/llm/status");
     expect(res.status).toBe(200);
-    const data = await res.json();
+    const data = await res.json() as any;
     expect(data).toHaveProperty("chat");
   });
 });
@@ -70,14 +74,14 @@ describe("GET /api/llm/status", () => {
 describe("Documents API", () => {
   it("GET /api/documents returns empty list", async () => {
     const res = await req("/api/documents");
-    const data = await res.json();
+    const data = await res.json() as any;
     expect(data.documents).toEqual([]);
     expect(data.total).toBe(0);
   });
 
   it("GET /api/documents with pagination", async () => {
     const res = await req("/api/documents?page=1&per_page=10");
-    const data = await res.json();
+    const data = await res.json() as any;
     expect(data.page).toBe(1);
     expect(data.perPage).toBe(10);
   });
@@ -92,7 +96,7 @@ describe("Documents API", () => {
     writeFileSync(filePath, "Hello world. This is a test document with some content for chunking and embedding.");
     const res = await json("POST", "/api/documents", { path: filePath });
     expect(res.status).toBe(201);
-    const data = await res.json();
+    const data = await res.json() as any;
     expect(data).toHaveProperty("id");
     expect(data).toHaveProperty("title");
   });
@@ -101,11 +105,11 @@ describe("Documents API", () => {
     const filePath = join(tmpDir, "find-me.txt");
     writeFileSync(filePath, "Find me content for testing retrieval by id.");
     const createRes = await json("POST", "/api/documents", { path: filePath });
-    const { id } = await createRes.json();
+    const { id } = await createRes.json() as any;
 
     const res = await req(`/api/documents/${id}`);
     expect(res.status).toBe(200);
-    const doc = await res.json();
+    const doc = await res.json() as any;
     expect(doc.id).toBe(id);
   });
 
@@ -113,7 +117,7 @@ describe("Documents API", () => {
     const filePath = join(tmpDir, "delete-me.txt");
     writeFileSync(filePath, "Delete this document content for testing.");
     const createRes = await json("POST", "/api/documents", { path: filePath });
-    const { id } = await createRes.json();
+    const { id } = await createRes.json() as any;
 
     const delRes = await req(`/api/documents/${id}`, { method: "DELETE" });
     expect(delRes.status).toBe(200);
@@ -134,7 +138,7 @@ describe("Documents API", () => {
 
     const res = await json("POST", "/api/documents/search", { query: "fox" });
     expect(res.status).toBe(200);
-    const results = await res.json();
+    const results = await res.json() as any;
     expect(Array.isArray(results)).toBe(true);
   });
 });
@@ -144,35 +148,35 @@ describe("Documents API", () => {
 describe("Chat API", () => {
   it("GET /api/chat/sessions returns empty list", async () => {
     const res = await req("/api/chat/sessions");
-    const data = await res.json();
+    const data = await res.json() as any;
     expect(data).toEqual([]);
   });
 
   it("POST /api/chat/sessions creates a session", async () => {
     const res = await json("POST", "/api/chat/sessions", { title: "Test" });
     expect(res.status).toBe(201);
-    const data = await res.json();
+    const data = await res.json() as any;
     expect(data).toHaveProperty("id");
     expect(data.title).toBe("Test");
   });
 
   it("GET /api/chat/sessions/:id/messages returns messages", async () => {
     const createRes = await json("POST", "/api/chat/sessions", { title: "Msg test" });
-    const { id } = await createRes.json();
+    const { id } = await createRes.json() as any;
 
     const res = await req(`/api/chat/sessions/${id}/messages`);
     expect(res.status).toBe(200);
-    const data = await res.json();
+    const data = await res.json() as any;
     expect(data).toEqual([]);
   });
 
   it("POST /api/chat sends a message", async () => {
     const createRes = await json("POST", "/api/chat/sessions", { title: "Chat" });
-    const { id } = await createRes.json();
+    const { id } = await createRes.json() as any;
 
     const res = await json("POST", "/api/chat", { sessionId: id, message: "Hello" });
     expect(res.status).toBe(200);
-    const msg = await res.json();
+    const msg = await res.json() as any;
     expect(msg.role).toBe("assistant");
     expect(msg.content).toContain("Mock response");
   });
@@ -183,14 +187,14 @@ describe("Chat API", () => {
 describe("Wiki API", () => {
   it("GET /api/wiki returns empty list", async () => {
     const res = await req("/api/wiki");
-    const data = await res.json();
+    const data = await res.json() as any;
     expect(data.pages).toEqual([]);
     expect(data.total).toBe(0);
   });
 
   it("GET /api/wiki with pagination", async () => {
     const res = await req("/api/wiki?page=2&per_page=5");
-    const data = await res.json();
+    const data = await res.json() as any;
     expect(data).toHaveProperty("pages");
   });
 
@@ -206,7 +210,7 @@ describe("Wiki API", () => {
 
     const res = await req("/api/wiki/compile", { method: "POST" });
     expect(res.status).toBe(200);
-    const data = await res.json();
+    const data = await res.json() as any;
     expect(data.compiled).toBeGreaterThan(0);
     expect(data.pages.length).toBeGreaterThan(0);
   });
@@ -218,12 +222,12 @@ describe("Wiki API", () => {
     await req("/api/wiki/compile", { method: "POST" });
 
     const listRes = await req("/api/wiki");
-    const { pages } = await listRes.json();
+    const { pages } = await listRes.json() as any;
     expect(pages.length).toBeGreaterThan(0);
 
     const getRes = await req(`/api/wiki/${pages[0].id}`);
     expect(getRes.status).toBe(200);
-    const page = await getRes.json();
+    const page = await getRes.json() as any;
     expect(page.id).toBe(pages[0].id);
   });
 
@@ -234,7 +238,7 @@ describe("Wiki API", () => {
     await req("/api/wiki/compile", { method: "POST" });
 
     const listRes = await req("/api/wiki");
-    const { pages } = await listRes.json();
+    const { pages } = await listRes.json() as any;
     const id = pages[0].id;
 
     const delRes = await req(`/api/wiki/${id}`, { method: "DELETE" });
@@ -257,7 +261,7 @@ describe("Wiki API", () => {
 
     const res = await json("POST", "/api/wiki/search", { query: "machine learning" });
     expect(res.status).toBe(200);
-    const results = await res.json();
+    const results = await res.json() as any;
     expect(Array.isArray(results)).toBe(true);
   });
 });

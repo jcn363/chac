@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "bun:test";
 import { Database } from "bun:sqlite";
 import { SettingsService } from "../../../src/modules/settings/service";
 import { runMigrations } from "../../../src/database/migrations";

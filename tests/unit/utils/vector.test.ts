@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "bun:test";
 import { cosineSimilarity, embeddingToBlob, blobToEmbedding } from "../../../src/utils/vector";
 
 describe("cosineSimilarity", () => {
@@ -33,7 +33,7 @@ describe("embeddingToBlob / blobToEmbedding", () => {
     const result = blobToEmbedding(blob);
     expect(result.length).toBe(4);
     for (let i = 0; i < original.length; i++) {
-      expect(result[i]).toBeCloseTo(original[i], 5);
+      expect(result[i]).toBeCloseTo(original[i]!, 5);
     }
   });
 

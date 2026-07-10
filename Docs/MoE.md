@@ -46,7 +46,7 @@ MoE represents a form of **ensemble learning** where:
 | 1997 | Meta-Pi Network (phoneme classification) | Hampshire & Waibel |
 | 2013 | MoE applied to deep learning | Eigen et al. |
 | 2017 | Sparsely-Gated MoE Layer | Shazeer et al. (Google Brain) |
-| 2017 | Switch Transformer (k=1 routing) | Fedus et al. |
+| 2021 | Switch Transformer (k=1 routing) | Fedus et al. |
 | 2021 | GShard (600B parameter MoE) | Lepikhin et al. (Google) |
 | 2023 | Mixtral 8x7B (open-source MoE) | Mistral AI |
 | 2024 | DeepSeek-MoE (fine-grained experts) | DeepSeek |
@@ -521,21 +521,20 @@ Standard fine-tuning approaches don't work well:
 
 ## References
 
-1. Jacobs, R.A. et al. (1991). "Adaptive Mixtures of Local Experts." *Neural Computation*.
-2. Nowlan, S.J. & Hinton, G.E. (1991). "Adaptive Mixtures of Local Experts." *Neural Computation*.
-3. Jordan, M.I. & Jacobs, R.A. (1994). "Hierarchical Mixtures of Experts and the EM Algorithm." *Neural Computation*.
-4. Hampshire, J.B. & Waibel, A. (1992). "The Meta-Pi Network." *IEEE Trans. Neural Networks*.
-5. Eigen, D. et al. (2013). "Learning Split and Recombine for Distributed Deep Learning." *arXiv:1312.5392*.
-6. Shazeer, N. et al. (2017). "Outrageously Large Neural Networks: The Sparsely-Gated Mixture-of-Experts Layer." *ICLR 2017*.
-7. Fedus, W. et al. (2022). "Switch Transformers: Scaling to Trillion Parameter Models with Simple and Efficient Sparsity." *JMLR*.
-8. Lepikhin, D. et al. (2021). "GShard: Scaling Giant Models with Conditional Computation and Automatic Sharding." *ICLR 2021*.
-9. Jiang, A.Q. et al. (2024). "Mixtral of Experts." *arXiv:2401.04088*.
-10. DeepSeek-AI. (2024). "DeepSeek-V2: A Strong, Economical, and Efficient Mixture-of-Experts Language Model." *arXiv:2405.04434*.
-11. Zhou, Y. et al. (2022). "Mixture-of-Experts with Expert Choice Routing." *NeurIPS 2022*.
-12. Puigcerver, J. et al. (2023). "From Sparse to Soft Mixtures of Experts." *arXiv:2308.00951*.
-13. Jaggi, M. (2026). "Tying the Loop — Tied Expert Layers in MoE Language Models." *arXiv:2606.16825*.
-14. Jiang, J. et al. (2026). "FourierMoE: Fourier Mixture-of-Experts Adaptation of LLMs." *arXiv:2604.01762*.
-15. Ye, C. et al. (2026). "Polysemantic Experts, Monosemantic Paths: Routing as Control in MoEs." *arXiv:2604.17837*.
-16. Abdurrahman, M.S. et al. (2026). "Federation of Experts: Communication Efficient Distributed Inference." *arXiv:2605.06206*.
+1. Jacobs, R.A., Nowlan, S.J. & Hinton, G.E. (1991). "Adaptive Mixtures of Local Experts." *Neural Computation*.
+2. Jordan, M.I. & Jacobs, R.A. (1994). "Hierarchical Mixtures of Experts and the EM Algorithm." *Neural Computation*.
+3. Hampshire, J.B. & Waibel, A. (1992). "The Meta-Pi Network." *IEEE Trans. Neural Networks*.
+4. Eigen, D. et al. (2013). "Learning Split and Recombine for Distributed Deep Learning." *arXiv:1312.5392*.
+5. Shazeer, N. et al. (2017). "Outrageously Large Neural Networks: The Sparsely-Gated Mixture-of-Experts Layer." *ICLR 2017*.
+6. Fedus, W. et al. (2022). "Switch Transformers: Scaling to Trillion Parameter Models with Simple and Efficient Sparsity." *JMLR*.
+7. Lepikhin, D. et al. (2021). "GShard: Scaling Giant Models with Conditional Computation and Automatic Sharding." *ICLR 2021*.
+8. Jiang, A.Q. et al. (2024). "Mixtral of Experts." *arXiv:2401.04088*.
+9. DeepSeek-AI. (2024). "DeepSeek-V2: A Strong, Economical, and Efficient Mixture-of-Experts Language Model." *arXiv:2405.04434*.
+10. Zhou, Y. et al. (2022). "Mixture-of-Experts with Expert Choice Routing." *NeurIPS 2022*.
+11. Puigcerver, J. et al. (2023). "From Sparse to Soft Mixtures of Experts." *arXiv:2308.00951*.
+12. Jaggi, M. (2026). "Tying the Loop — Tied Expert Layers in MoE Language Models." *arXiv:2606.16825*.
+13. Jiang, J. et al. (2026). "FourierMoE: Fourier Mixture-of-Experts Adaptation of LLMs." *arXiv:2604.01762*.
+14. Ye, C. et al. (2026). "Polysemantic Experts, Monosemantic Paths: Routing as Control in MoEs." *arXiv:2604.17837*.
+15. Abdurrahman, M.S. et al. (2026). "Federation of Experts: Communication Efficient Distributed Inference." *arXiv:2605.06206*.
 17. Balderas, L. et al. (2026). "MoEITS: A Green AI approach for simplifying MoE-LLMs." *arXiv:2604.10603*.
 18. Li, B. et al. (2026). "Mix-MoE: Improving Multilingual MT through Mixed MoEs." *arXiv:2605.24681*.

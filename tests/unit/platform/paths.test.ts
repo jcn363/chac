@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "bun:test";
 import { getAppRoot, appPath, dataPath } from "../../../src/platform/paths";
 
 describe("getAppRoot", () => {

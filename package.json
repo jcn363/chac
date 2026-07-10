@@ -7,13 +7,12 @@
   "scripts": {
     "dev": "bun run --hot src/main.ts",
     "build": "bun run build.ts",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test": "bun test",
+    "test:watch": "bun test --watch",
+    "test:coverage": "bun test --coverage"
   },
   "devDependencies": {
-    "@types/bun": "latest",
-    "vitest": "^4.1.10"
+    "@types/bun": "latest"
   },
   "peerDependencies": {
     "typescript": "^5"

@@ -54,7 +54,9 @@ export class WikiService {
 
       // Generate embedding
       const embResult = await llm.embeddings.create({ input: wikiContent });
-      const embedding = embResult.data[0].embedding;
+      const firstEmb = embResult.data[0];
+      if (!firstEmb) throw new Error("No embedding returned");
+      const embedding = firstEmb.embedding;
       const blob = embeddingToBlob(embedding);
 
       // Create or update wiki page
@@ -125,7 +127,9 @@ export class WikiService {
     const { blobToEmbedding, cosineSimilarity } = await import("../../utils/vector");
 
     const embResult = await llm.embeddings.create({ input: query });
-    const queryVec = new Float32Array(embResult.data[0].embedding);
+    const firstEmb = embResult.data[0];
+    if (!firstEmb) throw new Error("No embedding returned");
+    const queryVec = new Float32Array(firstEmb.embedding);
 
     const pages = this.db
       .query("SELECT * FROM wiki_pages WHERE embedding IS NOT NULL")

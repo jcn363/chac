@@ -1,5 +1,5 @@
 export interface LlmInstance {
-  process: Bun.ChildProcess;
+  process: Bun.Subprocess;
   port: number;
   modelType: "chat" | "embed" | "vision";
   modelPath: string;

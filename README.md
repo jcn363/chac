@@ -94,7 +94,7 @@ Chac uses a **microkernel architecture** with dependency injection. A minimal ke
 | **Database** | `bun:sqlite` | Built-in, zero deps, WAL mode |
 | **Frontend** | Vanilla HTML/CSS/JS | Zero build step, embedded via Bun HTML imports |
 | **LLM Backend** | llama.cpp | OpenAI-compatible API, cross-platform |
-| **Testing** | Vitest | Fast, Bun-native |
+| **Testing** | `bun test` | Bun-native test runner, Vitest-compatible API |
 
 ---
 
@@ -134,8 +134,7 @@ chac/
 │   ├── database/
 │   │   ├── index.ts                     # DB connection, WAL mode, foreign keys
 │   │   ├── schema.sql                   # Single source of truth for all tables
-│   │   ├── migrations.ts                # Version-tracked migration runner
-│   │   └── types.ts                     # DB row types
+│   │   └── migrations.ts                # Version-tracked migration runner
 │   ├── platform/
 │   │   ├── detect.ts                    # OS/arch detection (SSOT)
 │   │   ├── paths.ts                     # Portable path resolution
@@ -170,8 +169,9 @@ chac/
 │       ├── hash.ts                      # SHA-256 content hashing
 │       └── id.ts                        # UUID generation
 ├── tests/
-│   ├── unit/                            # 84 tests across 13 files
+│   ├── unit/                            # 94 tests across 13 files
 │   ├── integration/                     # Document ingest integration tests
+│   ├── e2e/                             # End-to-end tests (excluded by default)
 │   ├── mocks/                           # Mock LLM for testing
 │   └── helpers/                         # Test setup utilities
 ├── launchers/                           # USB drive launcher scripts
@@ -188,7 +188,7 @@ chac/
 Chac implements the Karpathy Method for document-based Q&A:
 
 ```
-1. Add Documents     → Ingest text files, PDFs, audio, video
+1. Add Documents     → Ingest text files
 2. Compile Wiki      → LLM synthesizes documents into structured wiki entries
 3. Query Wiki        → Ask questions; retrieval finds relevant wiki entries first,
                        falls back to raw document chunks if needed
@@ -489,7 +489,7 @@ bun test tests/integration/   # Integration tests only
 ### Writing Tests
 
 ```typescript
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "bun:test";
 import { createTestKernel } from "../helpers/setup";
 import { SettingsService } from "../../src/modules/settings/service";
 
@@ -547,22 +547,34 @@ Executables are placed in `usb-drive/bin/`.
 
 ```
 usb-drive/
-├── start.bat               # Windows launcher
-├── start.command           # macOS launcher (double-clickable)
-├── start.sh                # Linux launcher
-├── README.txt              # Setup instructions
+├── launchers/
+│   ├── start.bat               # Windows launcher
+│   ├── start.command           # macOS launcher (double-clickable)
+│   └── start.sh                # Linux launcher
+├── setup/
+│   ├── install.sh              # Unix installer
+│   ├── install.bat             # Windows installer
+│   ├── download-llama.sh       # Download llama.cpp binaries
+│   ├── download-models.sh      # Download AI models (Unix)
+│   ├── download-models.bat     # Download AI models (Windows)
+│   └── setup-all.sh            # Full setup (install + download)
+├── README.md                   # Setup instructions
 ├── bin/
-│   ├── chac-linux-x64      # Compiled Bun executables
+│   ├── chac-linux-x64          # Compiled Bun executables
 │   ├── chac-darwin-arm64
 │   ├── chac-windows-x64.exe
-│   └── llama.cpp/          # Platform-specific llama.cpp binaries
-│       ├── linux-x64/
-│       ├── darwin-arm64/
-│       └── windows-x64/
-└── models/                 # AI models (auto-downloaded on first run)
-    ├── chat.gguf           # ~1.7 GB
-    ├── embed.gguf          # ~130 MB
-    └── ...
+│   └── llama.cpp/
+│       └── llama-server/       # Platform-specific llama.cpp binaries
+│           ├── linux-x64/
+│           ├── linux-arm64/
+│           ├── darwin-arm64/
+│           ├── darwin-x64/
+│           └── windows-x64/
+├── data/                       # Runtime data (created on first run)
+└── models/                     # AI models (auto-downloaded on first run)
+    ├── chat.gguf               # ~1.7 GB
+    ├── embed.gguf              # ~130 MB
+    └── vision.gguf             # ~505 MB
 ```
 
 ### Launcher Scripts

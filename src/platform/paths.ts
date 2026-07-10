@@ -12,7 +12,8 @@ function resolveExeDir(): string | null {
   }
   // macOS / Windows: resolve argv[0]
   try {
-    return dirname(realpathSync(process.argv[0]));
+    const arg0 = process.argv[0];
+    if (arg0) return dirname(realpathSync(arg0));
   } catch {}
   return null;
 }

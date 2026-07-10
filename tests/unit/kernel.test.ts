@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach } from "bun:test";
 import { createKernel, type Module } from "../../src/kernel";
 
 let kernel: ReturnType<typeof createKernel>;

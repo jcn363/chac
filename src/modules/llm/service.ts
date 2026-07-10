@@ -181,6 +181,7 @@ export class LlmServiceImpl implements LlmService {
 
   private async *mockChatCompletions(options: ChatCompletionOptions): AsyncGenerator<string> {
     const lastMsg = options.messages[options.messages.length - 1];
+    if (!lastMsg) throw new Error("No messages provided");
     const response = `[Dev Mode] This is a mock response to: "${lastMsg.content}". ` +
       `In production, this would be answered by llama.cpp running locally.`;
     const words = response.split(" ");

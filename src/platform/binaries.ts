@@ -22,10 +22,10 @@ export function resolveBinary(name: string): string {
 
   // Fallback: x64-baseline, x64-modern
   if (platform.arch === "x64") {
-    for (const variant of ["x64-baseline", "x64-modern"]) {
-      const variantDir = join(BINARIES_ROOT, name, `${platform.os}-${variant}`);
-      const variant = findInDir(variantDir);
-      if (variant) return variant;
+    for (const v of ["x64-baseline", "x64-modern"]) {
+      const variantDir = join(BINARIES_ROOT, name, `${platform.os}-${v}`);
+      const found = findInDir(variantDir);
+      if (found) return found;
     }
   }
 
@@ -39,7 +39,7 @@ export async function spawnBinary(
   name: string,
   args: string[] = [],
   options?: { env?: Record<string, string> }
-): Promise<Bun.ChildProcess> {
+): Promise<Bun.Subprocess> {
   const binaryPath = resolveBinary(name);
 
   if (process.platform !== "win32") {

@@ -44,18 +44,10 @@ export class ChatService {
   ): Promise<ChatMessage> {
     const startTime = Date.now();
 
-    // Save user message
-    const userMsgId = generateId();
-    this.db
-      .query(
-        "INSERT INTO chat_messages (id, session_id, role, content) VALUES (?, ?, 'user', ?)"
-      )
-      .run(userMsgId, sessionId, content);
-
     // Two-tier retrieval
     const contextChunks = await this.retrieveContext(content);
 
-    // Build messages for LLM
+    // Build messages for LLM — query history BEFORE inserting user message
     const session = this.getSession(sessionId);
     const messages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [];
 
@@ -73,7 +65,7 @@ export class ChatService {
       });
     }
 
-    // Add history
+    // Add history (before current message)
     const history = this.getMessages(sessionId);
     for (const msg of history) {
       if (msg.role === "user" || msg.role === "assistant") {
@@ -82,6 +74,14 @@ export class ChatService {
     }
 
     messages.push({ role: "user", content });
+
+    // Save user message AFTER building context
+    const userMsgId = generateId();
+    this.db
+      .query(
+        "INSERT INTO chat_messages (id, session_id, role, content) VALUES (?, ?, 'user', ?)"
+      )
+      .run(userMsgId, sessionId, content);
 
     // Stream response
     const llm = this.kernel.get<{
@@ -156,7 +156,9 @@ export class ChatService {
     const { blobToEmbedding, cosineSimilarity } = await import("../../utils/vector");
 
     const embResult = await llm.embeddings.create({ input: query });
-    const queryVec = new Float32Array(embResult.data[0].embedding);
+    const firstEmb = embResult.data[0];
+    if (!firstEmb) throw new Error("No embedding returned");
+    const queryVec = new Float32Array(firstEmb.embedding);
 
     const pages = this.db
       .query("SELECT id, content, embedding FROM wiki_pages WHERE embedding IS NOT NULL")
@@ -184,7 +186,9 @@ export class ChatService {
     const { blobToEmbedding, cosineSimilarity } = await import("../../utils/vector");
 
     const embResult = await llm.embeddings.create({ input: query });
-    const queryVec = new Float32Array(embResult.data[0].embedding);
+    const firstEmb = embResult.data[0];
+    if (!firstEmb) throw new Error("No embedding returned");
+    const queryVec = new Float32Array(firstEmb.embedding);
 
     const rows = this.db
       .query("SELECT id, content, embedding FROM chunks WHERE embedding IS NOT NULL")

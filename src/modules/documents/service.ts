@@ -55,7 +55,9 @@ export class DocumentsService {
     const insertAll = this.db.transaction(async () => {
       for (const chunk of chunks) {
         const embResult = await llm.embeddings.create({ input: chunk.content });
-        const embedding = embResult.data[0].embedding;
+        const firstEmb = embResult.data[0];
+        if (!firstEmb) throw new Error("No embedding returned");
+        const embedding = firstEmb.embedding;
         const blob = embeddingToBlob(embedding);
         insertChunk.run(
           generateId(),
@@ -107,7 +109,9 @@ export class DocumentsService {
     const limit = options.limit ?? 5;
     const llm = this.kernel.get<{ embeddings: { create: (opts: { input: string }) => Promise<{ data: { embedding: number[] }[] }> } }>("llm");
     const embResult = await llm.embeddings.create({ input: query });
-    const queryVec = new Float32Array(embResult.data[0].embedding);
+    const firstEmb = embResult.data[0];
+    if (!firstEmb) throw new Error("No embedding returned");
+    const queryVec = new Float32Array(firstEmb.embedding);
 
     const rows = this.db
       .query("SELECT id, content, document_id, embedding FROM chunks WHERE embedding IS NOT NULL")

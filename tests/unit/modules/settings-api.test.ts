@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "bun:test";
 import { Database } from "bun:sqlite";
 import { SettingsService } from "../../../src/modules/settings/service";
 import { createTestKernel } from "../../helpers/setup";
@@ -37,49 +37,49 @@ describe("PUT /api/settings validation", () => {
   it("rejects missing key", async () => {
     const res = await PUT({ value: "x" });
     expect(res.status).toBe(400);
-    const data = await res.json();
+    const data = await res.json() as any;
     expect(data.error).toMatch(/key/i);
   });
 
   it("rejects empty string key", async () => {
     const res = await PUT({ key: "", value: "x" });
     expect(res.status).toBe(400);
-    const data = await res.json();
+    const data = await res.json() as any;
     expect(data.error).toMatch(/key/i);
   });
 
   it("rejects non-string key", async () => {
     const res = await PUT({ key: 123, value: "x" });
     expect(res.status).toBe(400);
-    const data = await res.json();
+    const data = await res.json() as any;
     expect(data.error).toMatch(/key/i);
   });
 
   it("rejects missing value", async () => {
     const res = await PUT({ key: "llm.chat.model" });
     expect(res.status).toBe(400);
-    const data = await res.json();
+    const data = await res.json() as any;
     expect(data.error).toMatch(/value/i);
   });
 
   it("rejects unknown setting key", async () => {
     const res = await PUT({ key: "hacker.thing", value: "x" });
     expect(res.status).toBe(400);
-    const data = await res.json();
+    const data = await res.json() as any;
     expect(data.error).toMatch(/Unknown setting/i);
   });
 
   it("accepts valid known key with value", async () => {
     const res = await PUT({ key: "llm.chat.model", value: "phi3" });
     expect(res.status).toBe(200);
-    const data = await res.json();
+    const data = await res.json() as any;
     expect(data.ok).toBe(true);
   });
 
   it("persists accepted value", async () => {
     await PUT({ key: "llm.chat.temperature", value: 0.95 });
     const res = await app.request("/api/settings");
-    const data = await res.json();
+    const data = await res.json() as any;
     const setting = data.find((s: { key: string }) => s.key === "llm.chat.temperature");
     expect(JSON.parse(setting.value)).toBe(0.95);
   });

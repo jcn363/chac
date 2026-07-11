@@ -3,11 +3,13 @@ import type { Kernel } from "../../kernel/types";
 import { generateId } from "../../utils/id";
 import { contentHash } from "../../utils/hash";
 import { embeddingToBlob } from "../../utils/vector";
+import { VectorIndex } from "../../utils/vector-index";
 import type { WikiPage } from "./types";
 
 export class WikiService {
   private db: Database;
   private kernel: Kernel;
+  private wikiIndex = new VectorIndex();
 
   constructor(kernel: Kernel) {
     this.kernel = kernel;
@@ -29,7 +31,9 @@ export class WikiService {
 
     const results: WikiPage[] = [];
 
-    for (const doc of documents) {
+    // Process documents in parallel (up to 4 concurrent LLM calls)
+    const CONCURRENCY = 4;
+    const processDoc = async (doc: { id: string; title: string }): Promise<WikiPage> => {
       const chunks = this.db
         .query("SELECT content FROM chunks WHERE document_id = ? ORDER BY chunk_index")
         .all(doc.id) as Array<{ content: string }>;
@@ -84,10 +88,14 @@ export class WikiService {
           .run(pageId, doc.title, slug, wikiContent, hash, blob, JSON.stringify([doc.id]));
       }
 
-      const page = this.db
-        .query("SELECT * FROM wiki_pages WHERE slug = ?")
-        .get(slug) as WikiPage;
-      results.push(page);
+      return this.db.query("SELECT * FROM wiki_pages WHERE slug = ?").get(slug) as WikiPage;
+    };
+
+    // Process in batches with concurrency limit
+    for (let i = 0; i < documents.length; i += CONCURRENCY) {
+      const batch = documents.slice(i, i + CONCURRENCY);
+      const batchResults = await Promise.all(batch.map(processDoc));
+      results.push(...batchResults);
     }
 
     return results;
@@ -124,23 +132,22 @@ export class WikiService {
     const llm = this.kernel.get<{
       embeddings: { create: (opts: { input: string }) => Promise<{ data: { embedding: number[] }[] }> };
     }>("llm");
-    const { blobToEmbedding, cosineSimilarity } = await import("../../utils/vector");
 
     const embResult = await llm.embeddings.create({ input: query });
     const firstEmb = embResult.data[0];
     if (!firstEmb) throw new Error("No embedding returned");
     const queryVec = new Float32Array(firstEmb.embedding);
 
-    const pages = this.db
-      .query("SELECT * FROM wiki_pages WHERE embedding IS NOT NULL")
-      .all() as Array<WikiPage & { embedding: Buffer }>;
+    const results = this.wikiIndex.search(this.db, "wiki_pages", "id", "content", queryVec, { limit });
 
-    return pages
-      .map((p) => ({
-        ...p,
-        score: cosineSimilarity(queryVec, blobToEmbedding(p.embedding)),
-      }))
-      .sort((a, b) => b.score - a.score)
-      .slice(0, limit);
+    // Fetch full page data for each result
+    return results.map((r) => {
+      const page = this.db.query("SELECT * FROM wiki_pages WHERE id = ?").get(r.id) as WikiPage;
+      return { ...page, score: r.score };
+    });
+  }
+
+  invalidateIndex(): void {
+    this.wikiIndex.invalidate();
   }
 }

@@ -603,20 +603,11 @@ document.getElementById("msg-search")?.addEventListener("input", (e) => {
   const messages = document.querySelectorAll("#messages .message-bubble");
   let matches = 0;
   messages.forEach((bubble) => {
-    const md = bubble.dataset.md || bubble.textContent;
-    const lower = md.toLowerCase();
-    const q = query.toLowerCase();
-    let idx = 0;
-    let result = "";
-    while (idx < md.length) {
-      const pos = lower.indexOf(q, idx);
-      if (pos === -1) { result += md.slice(idx); break; }
-      result += md.slice(idx, pos);
-      result += `<<mark>${md.slice(pos, pos + query.length)}</mark>>`;
-      idx = pos + query.length;
-      matches++;
-    }
-    bubble.innerHTML = DOMPurify.sanitize(marked.parse(result));
+    const md = bubble.dataset.md || "";
+    // Render markdown to HTML first, then highlight in the DOM
+    bubble.innerHTML = DOMPurify.sanitize(marked.parse(md));
+    highlightTextNode(bubble, query);
+    matches += bubble.querySelectorAll("mark").length;
   });
 
   countEl.textContent = matches > 0 ? `${matches} match${matches > 1 ? "es" : ""}` : "No matches";
@@ -625,6 +616,31 @@ document.getElementById("msg-search")?.addEventListener("input", (e) => {
   const first = document.querySelector(".message-bubble mark");
   if (first) first.scrollIntoView({ behavior: "smooth", block: "center" });
 });
+
+function highlightTextNode(el, query) {
+  if (!query) return;
+  const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null, false);
+  const textNodes = [];
+  while (walker.nextNode()) textNodes.push(walker.currentNode);
+  const lower = query.toLowerCase();
+  textNodes.forEach((node) => {
+    const text = node.textContent;
+    const lowerText = text.toLowerCase();
+    if (!lowerText.includes(lower)) return;
+    const frag = document.createDocumentFragment();
+    let idx = 0;
+    while (idx < text.length) {
+      const pos = lowerText.indexOf(lower, idx);
+      if (pos === -1) { frag.appendChild(document.createTextNode(text.slice(idx))); break; }
+      if (pos > idx) frag.appendChild(document.createTextNode(text.slice(idx, pos)));
+      const mark = document.createElement("mark");
+      mark.textContent = text.slice(pos, pos + query.length);
+      frag.appendChild(mark);
+      idx = pos + query.length;
+    }
+    node.parentNode.replaceChild(frag, node);
+  });
+}
 
 function clearSearchHighlights() {
   document.querySelectorAll("#messages .message-bubble").forEach((bubble) => {

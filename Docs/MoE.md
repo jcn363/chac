@@ -2,6 +2,8 @@
 
 > "The whole is greater than the sum of its parts — but only if you know which parts to use." — MoE Principle
 
+**See also:** [The Karpathy Method](./Karpathy.md) · [Swarm Intelligence](./Swarm.md) · [Sub-Quadratic Attention](./Sub-quadratic.md) · [README](../README.md) · [FAQ](../FAQ.md) · [BENCHMARK](../BENCHMARK.md)
+
 ## Table of Contents
 
 1. [Definition](#definition)
@@ -33,6 +35,14 @@ MoE represents a form of **ensemble learning** where:
 ### Key Insight
 
 > A model with 100B parameters can achieve the computational cost of a 10B model by activating only 10% of its parameters per input — if those 10% are the right experts.
+
+---
+
+## Relevance to Chac
+
+Chac's embedding model — **nomic-embed-text-v2-moe** — is itself an MoE architecture. Understanding MoE helps explain why this model achieves strong embedding quality at low compute cost: it activates only a subset of its expert networks per input token, getting the capacity of a larger model at the efficiency of a smaller one. This is the same principle that makes MoE LLMs like Mixtral and DeepSeek viable for local deployment.
+
+Specifically, nomic-embed-text-v2-moe uses top-k routing (similar to Switch Transformer's approach) to select experts per token. This means the embedding model can have many total parameters while keeping inference fast — critical for Chac's real-time document ingestion and query pipelines.
 
 ---
 
@@ -320,7 +330,7 @@ Fine-grained expert design:
 | DeepSeek-V2 | 2024 | 160 | 6 | 236B | 21B | Fine-grained + shared experts |
 | DeepSeek-V3 | 2025 | 256 | 8 | 671B | 37B | MLA + MoE |
 | Qwen3-235B | 2025 | 128 | 8 | 235B | 22B | Competitive with GPT-4 |
-| OLMoE | 2024 | 64 | 8 | 1.3B active | 1.3B | Fully open-source |
+| OLMoE | 2024 | 64 | 8 | 1.3B | ~1.1B | Fully open-source |
 
 ---
 
@@ -536,5 +546,5 @@ Standard fine-tuning approaches don't work well:
 13. Jiang, J. et al. (2026). "FourierMoE: Fourier Mixture-of-Experts Adaptation of LLMs." *arXiv:2604.01762*.
 14. Ye, C. et al. (2026). "Polysemantic Experts, Monosemantic Paths: Routing as Control in MoEs." *arXiv:2604.17837*.
 15. Abdurrahman, M.S. et al. (2026). "Federation of Experts: Communication Efficient Distributed Inference." *arXiv:2605.06206*.
-17. Balderas, L. et al. (2026). "MoEITS: A Green AI approach for simplifying MoE-LLMs." *arXiv:2604.10603*.
-18. Li, B. et al. (2026). "Mix-MoE: Improving Multilingual MT through Mixed MoEs." *arXiv:2605.24681*.
+16. Balderas, L. et al. (2026). "MoEITS: A Green AI approach for simplifying MoE-LLMs." *arXiv:2604.10603*.
+17. Li, B. et al. (2026). "Mix-MoE: Improving Multilingual MT through Mixed MoEs." *arXiv:2605.24681*.

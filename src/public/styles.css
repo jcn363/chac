@@ -163,7 +163,7 @@ body {
   flex: 1;
 }
 
-#chat-sessions button {
+#chat-sessions button:not(.session-delete):not(.tab):not(#theme-toggle):not(#help-toggle):not(#search-toggle) {
   background: var(--accent);
   color: white;
 }

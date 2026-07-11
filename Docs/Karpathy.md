@@ -2,6 +2,8 @@
 
 > "The best way to predict the future is to build it." — Andrej Karpathy
 
+**See also:** [Mixture of Experts](./MoE.md) · [Swarm Intelligence](./Swarm.md) · [Sub-Quadratic Attention](./Sub-quadratic.md) · [README](../README.md) · [FAQ](../FAQ.md) · [BENCHMARK](../BENCHMARK.md)
+
 ## Table of Contents
 
 1. [Who is Andrej Karpathy](#who-is-andrej-karpathy)
@@ -35,7 +37,7 @@ His approach to AI is characterized by building things from first principles, st
 
 ## The Karpathy Method Overview
 
-The Karpathy Method is a approach to building a **personal Retrieval-Augmented Generation (RAG) system** that gives a local LLM access to your entire document collection. Unlike traditional RAG, which retrieves raw document chunks, the Karpathy Method adds a **wiki compilation step** that synthesizes documents into structured knowledge entries.
+The Karpathy Method is an approach to building a **personal Retrieval-Augmented Generation (RAG) system** that gives a local LLM access to your entire document collection. Unlike traditional RAG, which retrieves raw document chunks, the Karpathy Method adds a **wiki compilation step** that synthesizes documents into structured knowledge entries.
 
 ### Core Principle
 
@@ -125,10 +127,10 @@ Question → Embedding → Wiki Search → (if good) → Wiki Context
                                      LLM Generation → Answer
 ```
 
-**Key parameters**:
+**Key parameters** (configurable via Settings API):
 - `wiki_threshold`: Minimum similarity for wiki match (default: 0.3)
 - `max_chunks`: Maximum chunks for LLM context (default: 5)
-- `max_wiki_chars`: Maximum chars for wiki synthesis (default: 4000)
+- `max_wiki_chars`: Maximum chars for wiki synthesis input (default: 4000)
 
 ---
 
@@ -183,30 +185,7 @@ User Question
 
 ### Database Schema
 
-```sql
--- Raw document chunks with embeddings
-CREATE TABLE chunks (
-  id TEXT PRIMARY KEY,
-  document_id TEXT NOT NULL,
-  chunk_index INTEGER NOT NULL,
-  content TEXT NOT NULL,
-  embedding BLOB,
-  embedding_model TEXT,
-  embedding_dimensions INTEGER
-);
-
--- Synthesized wiki pages with embeddings
-CREATE TABLE wiki_pages (
-  id TEXT PRIMARY KEY,
-  title TEXT NOT NULL,
-  slug TEXT UNIQUE NOT NULL,
-  content TEXT NOT NULL,
-  content_hash TEXT,
-  embedding BLOB,
-  source_document_ids TEXT,
-  version INTEGER DEFAULT 1
-);
-```
+Chac uses SQLite with two key tables for the Karpathy Method: `chunks` (raw document segments with embeddings) and `wiki_pages` (LLM-synthesized entries with embeddings). Full schema is in [`src/database/schema.sql`](../src/database/schema.sql) and documented in the [README](../README.md#database-schema).
 
 ---
 
@@ -361,18 +340,26 @@ The method uses a local LLM for synthesis and question answering:
 
 ### Vector Search
 
-Cosine similarity over stored embeddings:
+Cosine similarity with a `VectorIndex` that precomputes and caches document norms for efficient batch search:
 
 ```typescript
-function cosineSimilarity(a: Float32Array, b: Float32Array): number {
+// vector.ts — safety-checked with null fallbacks
+export function cosineSimilarity(a: Float32Array, b: Float32Array): number {
   let dot = 0, normA = 0, normB = 0;
-  for (let i = 0; i < a.length; i++) {
-    dot += a[i] * b[i];
-    normA += a[i] * a[i];
-    normB += b[i] * b[i];
+  const len = Math.min(a.length, b.length);
+  for (let i = 0; i < len; i++) {
+    const ai = a[i] ?? 0, bi = b[i] ?? 0;
+    dot += ai * bi;
+    normA += ai * ai;
+    normB += bi * bi;
   }
-  return dot / (Math.sqrt(normA) * Math.sqrt(normB));
+  const denom = Math.sqrt(normA) * Math.sqrt(normB);
+  return denom === 0 ? 0 : dot / denom;
 }
+
+// vector-index.ts — precomputed norms, O(n) with cached query norm
+const index = new VectorIndex();
+const results = index.search(db, "chunks", "id", "content", queryVec, { limit: 5, threshold: 0.3 });
 ```
 
 ### Portable Binary
@@ -426,27 +413,34 @@ This produces a single executable that includes:
 
 ## The Chac Implementation
 
-Chac is a complete implementation of the Karpathy Method as a portable USB drive application.
+Chac is a complete implementation of the Karpathy Method as a portable USB drive application. It differs from typical RAG projects in three key ways:
+
+1. **Offline-first, zero-install** — the entire stack (LLM, embeddings, database, web server) ships as a single compiled binary. No Docker, no Python, no cloud API keys. Insert USB → double-click launcher → chat.
+2. **Dev mode for iteration** — when llama.cpp binaries aren't present, Chac falls back to a mock LLM with deterministic responses. This lets you develop and test the UI, document pipeline, and wiki compilation without downloading 1.7GB of AI models.
+3. **Microkernel DI architecture** — a minimal kernel handles module lifecycle and dependency injection. Each feature (Documents, Wiki, Chat, Settings, LLM) is a self-contained module with its own service and types. Adding a new capability means registering a new module — no core changes needed.
 
 ### Architecture
 
 - **Microkernel**: Minimal core with DI container
 - **Modules**: Documents, Wiki, Chat, Settings, LLM
-- **Database**: SQLite with WAL mode
-- **Frontend**: Vanilla HTML/CSS/JS
-- **Backend**: Hono web framework on Bun
+- **Database**: SQLite with WAL mode (USB-latency tolerant via `busy_timeout = 5000`)
+- **Frontend**: Vanilla HTML/CSS/JS (zero build step)
+- **Backend**: Hono web framework on Bun (~14KB, Web Standards-based)
+- **Runtime**: Bun `--compile` produces a single standalone executable per platform
 
 ### Key Features
 
 | Feature | Description |
 |---------|-------------|
-| **Document Ingestion** | Chunk, embed, and store text files |
-| **Wiki Compilation** | LLM synthesizes chunks into wiki entries |
-| **Two-Tier Retrieval** | Wiki first, chunks fallback |
-| **Streaming Chat** | Real-time streaming from llama.cpp |
-| **Vector Search** | Cosine similarity over embeddings |
+| **Document Ingestion** | Chunk, embed, and store text files (SHA-256 dedup, batched embeddings) |
+| **Wiki Compilation** | LLM synthesizes chunks into structured wiki entries (parallel processing) |
+| **Two-Tier Retrieval** | Wiki first, chunks fallback (VectorIndex with precomputed norms) |
+| **Streaming Chat** | Real-time SSE streaming from llama.cpp |
+| **Vector Search** | O(n) search with cached query norms, invalidation on data changes |
+| **Settings Cache** | In-memory cache, no DB hits on repeated reads |
 | **Dev Mode** | Mock LLM for testing without models |
-| **Portable** | Runs from USB drive on any OS |
+| **GPU Acceleration** | CUDA/Metal/Vulkan offloading via settings |
+| **Portable** | Single binary, runs from USB on any OS |
 
 ### USB Drive Layout
 
@@ -482,10 +476,11 @@ Three microeconomic mechanisms:
 
 ### OpenClaw / Qing Claw
 
-An industrial-grade C# reimplementation of the multi-agent framework that implements the Karpathy Method:
-- ~200 lines of C#
-- First complete industrial-grade reference implementation
-- Demonstrates 84.6% token savings over traditional RAG
+An industrial-grade C# reimplementation of the multi-agent framework that implements the Karpathy Method (~200 lines). Demonstrates 84.6% token savings over traditional RAG. See [References](#references) for details.
+
+### Swarm Intelligence
+
+Multi-agent coordination is a natural extension of the Karpathy Method. See [Swarm Intelligence in AI](./Swarm.md) for how swarm-based approaches could enhance document processing and retrieval in future Chac versions.
 
 ---
 
@@ -496,9 +491,7 @@ An industrial-grade C# reimplementation of the multi-agent framework that implem
 3. Karpathy, A. (2025). "The space of minds." Bear Blog.
 4. Wen, S. & Ku, B. (2026). "Knowledge Compounding: An Empirical Economic Analysis of Self-Evolving Knowledge Wikis under the Agentic ROI Framework." arXiv:2604.11243.
 5. Chac Project. (2026). Portable RAG chat application implementing the Karpathy Method.
-6. Beni, G. & Wang, J. (1989). "Swarm Intelligence in Cellular Robotic Systems."
-7. Dorigo, M. (1992). "Optimization, Learning and Natural Algorithms."
-8. Kennedy, J. & Eberhart, R. (1995). "Particle Swarm Optimization."
+6. OpenClaw / Qing Claw. (2026). Industrial-grade C# reimplementation of multi-agent Karpathy Method framework. ~200 lines, demonstrates 84.6% token savings over traditional RAG.
 
 ---
 

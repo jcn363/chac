@@ -3,7 +3,8 @@ import type { Kernel } from "../../kernel/types";
 import { generateId } from "../../utils/id";
 import { contentHash } from "../../utils/hash";
 import { chunkText } from "../../utils/chunking";
-import { embeddingToBlob, blobToEmbedding, cosineSimilarity } from "../../utils/vector";
+import { embeddingToBlob } from "../../utils/vector";
+import { VectorIndex } from "../../utils/vector-index";
 import type { Document, SearchResult, IngestResult } from "./types";
 import { basename, resolve } from "node:path";
 import { getAppRoot } from "../../platform/paths";
@@ -11,6 +12,7 @@ import { getAppRoot } from "../../platform/paths";
 export class DocumentsService {
   private db: Database;
   private kernel: Kernel;
+  private chunkIndex = new VectorIndex();
 
   constructor(kernel: Kernel) {
     this.kernel = kernel;
@@ -63,7 +65,7 @@ export class DocumentsService {
       )
       .run(docId, title, filePath, hash, file.type, file.size, chunks.length);
 
-    // Insert chunks + embeddings (not wrapped in db.transaction since embeddings are async)
+    // Insert chunks + embeddings (batched with concurrency limit)
     const llm = this.kernel.get<{ embeddings: { create: (opts: { input: string }) => Promise<{ data: { embedding: number[] }[] }> } }>("llm");
 
     const insertChunk = this.db.query(
@@ -71,25 +73,36 @@ export class DocumentsService {
         "VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
     );
 
-    for (const chunk of chunks) {
-      const embResult = await llm.embeddings.create({ input: chunk.content });
-      const firstEmb = embResult.data[0];
-      if (!firstEmb) throw new Error("No embedding returned");
-      const embedding = firstEmb.embedding;
-      const blob = embeddingToBlob(embedding);
-      insertChunk.run(
-        generateId(),
-        docId,
-        chunk.index,
-        chunk.content,
-        chunk.tokenCount,
-        blob,
-        "local",
-        embedding.length
+    const BATCH_SIZE = 8;
+    for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
+      const batch = chunks.slice(i, i + BATCH_SIZE);
+      const embeddings = await Promise.all(
+        batch.map((chunk) => llm.embeddings.create({ input: chunk.content }))
       );
+      for (let j = 0; j < batch.length; j++) {
+        const chunk = batch[j]!;
+        const firstEmb = embeddings[j]!.data[0];
+        if (!firstEmb) throw new Error("No embedding returned");
+        const embedding = firstEmb.embedding;
+        const blob = embeddingToBlob(embedding);
+        insertChunk.run(
+          generateId(),
+          docId,
+          chunk.index,
+          chunk.content,
+          chunk.tokenCount,
+          blob,
+          "local",
+          embedding.length
+        );
+      }
     }
 
     return { id: docId, title, chunkCount: chunks.length };
+  }
+
+  invalidateIndex(): void {
+    this.chunkIndex.invalidate();
   }
 
   list(options: { page?: number; perPage?: number; sort?: string } = {}): {
@@ -128,19 +141,20 @@ export class DocumentsService {
     if (!firstEmb) throw new Error("No embedding returned");
     const queryVec = new Float32Array(firstEmb.embedding);
 
-    const rows = this.db
-      .query("SELECT id, content, document_id, embedding FROM chunks WHERE embedding IS NOT NULL")
-      .all() as Array<{ id: string; content: string; document_id: string; embedding: Buffer }>;
+    // Get document_id mapping
+    const docMap = new Map<string, string>();
+    const docRows = this.db.query("SELECT id, document_id FROM chunks").all() as Array<{ id: string; document_id: string }>;
+    for (const row of docRows) {
+      docMap.set(row.id, row.document_id);
+    }
 
-    const scored = rows.map((row) => ({
-      chunkId: row.id,
-      content: row.content,
-      documentId: row.document_id,
-      score: cosineSimilarity(queryVec, blobToEmbedding(row.embedding)),
+    const results = this.chunkIndex.search(this.db, "chunks", "id", "content", queryVec, { limit });
+
+    return results.map((r) => ({
+      chunkId: r.id,
+      content: r.content,
+      documentId: docMap.get(r.id) ?? "",
+      score: r.score,
     }));
-
-    return scored
-      .sort((a, b) => b.score - a.score)
-      .slice(0, limit);
   }
 }

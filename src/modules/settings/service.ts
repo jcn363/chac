@@ -3,10 +3,12 @@ import { DEFAULT_SETTINGS, type SettingRow } from "./types";
 
 export class SettingsService {
   private db: Database;
+  private cache = new Map<string, unknown>();
 
   constructor(db: Database) {
     this.db = db;
     this.ensureDefaults();
+    this.loadCache();
   }
 
   private ensureDefaults(): void {
@@ -20,16 +22,31 @@ export class SettingsService {
     console.log(`Settings: ${count} defaults loaded`);
   }
 
+  private loadCache(): void {
+    const rows = this.db.query("SELECT key, value FROM settings").all() as Array<{ key: string; value: string }>;
+    for (const row of rows) {
+      try {
+        this.cache.set(row.key, JSON.parse(row.value));
+      } catch {
+        this.cache.set(row.key, row.value);
+      }
+    }
+  }
+
   get(key: string): unknown {
+    if (this.cache.has(key)) return this.cache.get(key);
     const row = this.db
       .query("SELECT value FROM settings WHERE key = ?")
       .get(key) as { value: string } | undefined;
     if (!row) return undefined;
+    let parsed: unknown;
     try {
-      return JSON.parse(row.value);
+      parsed = JSON.parse(row.value);
     } catch {
-      return row.value;
+      parsed = row.value;
     }
+    this.cache.set(key, parsed);
+    return parsed;
   }
 
   set(key: string, value: unknown): void {
@@ -42,6 +59,7 @@ export class SettingsService {
         .query("INSERT INTO settings (key, value, category, updated_at) VALUES (?, ?, 'general', datetime('now'))")
         .run(key, jsonValue);
     }
+    this.cache.set(key, value);
   }
 
   getAll(): SettingRow[] {

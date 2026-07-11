@@ -2,6 +2,9 @@ import { createKernel } from "./kernel";
 import { initDb, closeDb } from "./database";
 import { SettingsService } from "./modules/settings/service";
 import { LlmServiceImpl } from "./modules/llm/service";
+import { DocumentsService } from "./modules/documents/service";
+import { ChatService } from "./modules/chat/service";
+import { WikiService } from "./modules/wiki/service";
 import { createRouter } from "./modules/router";
 
 const kernel = createKernel();
@@ -18,7 +21,32 @@ kernel.provide("settings", settings);
 const llm = new LlmServiceImpl(kernel);
 kernel.provide("llm", llm);
 
-// Step 4: Router
+// Step 4: Services (created once, reused across requests)
+const docs = new DocumentsService(kernel);
+const chat = new ChatService(kernel);
+const wiki = new WikiService(kernel);
+kernel.provide("docs", docs);
+kernel.provide("chat", chat);
+kernel.provide("wiki", wiki);
+
+// Step 5: Wire index invalidation — when docs/wiki change, invalidate search indexes
+const origIngest = docs.ingest.bind(docs);
+docs.ingest = async function (filePath: string) {
+  const result = await origIngest(filePath);
+  chat.invalidateIndexes();
+  docs.invalidateIndex();
+  return result;
+};
+
+const origCompile = wiki.compile.bind(wiki);
+wiki.compile = async function () {
+  const result = await origCompile();
+  chat.invalidateIndexes();
+  wiki.invalidateIndex();
+  return result;
+};
+
+// Step 5: Router
 const router = createRouter(kernel);
 
 const rawPort = parseInt(process.env.PORT || "3000", 10);

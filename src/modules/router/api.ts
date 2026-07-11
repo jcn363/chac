@@ -1,8 +1,8 @@
 import { Hono } from "hono";
 import type { Kernel } from "../../kernel/types";
-import { DocumentsService } from "../documents/service";
-import { ChatService } from "../chat/service";
-import { WikiService } from "../wiki/service";
+import type { DocumentsService } from "../documents/service";
+import type { ChatService } from "../chat/service";
+import type { WikiService } from "../wiki/service";
 import { DEFAULT_SETTINGS } from "../settings/types";
 
 function safeInt(value: string | undefined, fallback: number, max = 100): number {
@@ -13,6 +13,9 @@ function safeInt(value: string | undefined, fallback: number, max = 100): number
 
 export function setupApiRoutes(app: Hono, kernel: Kernel): void {
   const settings = kernel.get<{ get: (key: string) => unknown; getAll: () => unknown[]; set: (key: string, value: unknown) => void }>("settings");
+  const docs = kernel.get<DocumentsService>("docs");
+  const chat = kernel.get<ChatService>("chat");
+  const wiki = kernel.get<WikiService>("wiki");
 
   // Status
   app.get("/api/status", (c) => {
@@ -47,8 +50,6 @@ export function setupApiRoutes(app: Hono, kernel: Kernel): void {
   });
 
   // Documents
-  const docs = new DocumentsService(kernel);
-
   app.get("/api/documents", (c) => {
     const page = safeInt(c.req.query("page"), 1);
     const perPage = safeInt(c.req.query("per_page"), (settings.get("ui.documents_per_page") as number) ?? 20);
@@ -87,8 +88,6 @@ export function setupApiRoutes(app: Hono, kernel: Kernel): void {
   });
 
   // Chat
-  const chat = new ChatService(kernel);
-
   app.get("/api/chat/sessions", (c) => {
     return c.json(chat.listSessions());
   });
@@ -159,8 +158,6 @@ export function setupApiRoutes(app: Hono, kernel: Kernel): void {
   });
 
   // Wiki
-  const wiki = new WikiService(kernel);
-
   app.get("/api/wiki", (c) => {
     const page = safeInt(c.req.query("page"), 1);
     const perPage = safeInt(c.req.query("per_page"), (settings.get("ui.documents_per_page") as number) ?? 20);

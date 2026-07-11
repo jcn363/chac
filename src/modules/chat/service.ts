@@ -1,11 +1,14 @@
 import type { Database } from "bun:sqlite";
 import type { Kernel } from "../../kernel/types";
 import { generateId } from "../../utils/id";
+import { VectorIndex } from "../../utils/vector-index";
 import type { ChatSession, ChatMessage, SendMessageOptions } from "./types";
 
 export class ChatService {
   private db: Database;
   private kernel: Kernel;
+  private wikiIndex = new VectorIndex();
+  private chunkIndex = new VectorIndex();
 
   constructor(kernel: Kernel) {
     this.kernel = kernel;
@@ -95,8 +98,11 @@ export class ChatService {
       });
     }
 
-    // Add history (before current message)
-    const history = this.getMessages(sessionId);
+    // Add history (before current message) — limit to last 20 messages for context
+    const history = this.db
+      .query("SELECT * FROM chat_messages WHERE session_id = ? AND (role = 'user' OR role = 'assistant') ORDER BY created_at DESC LIMIT 20")
+      .all(sessionId) as ChatMessage[];
+    history.reverse();
     for (const msg of history) {
       if (msg.role === "user" || msg.role === "assistant") {
         messages.push({ role: msg.role, content: msg.content });
@@ -183,27 +189,17 @@ export class ChatService {
     const llm = this.kernel.get<{
       embeddings: { create: (opts: { input: string }) => Promise<{ data: { embedding: number[] }[] }> };
     }>("llm");
-    const { blobToEmbedding, cosineSimilarity } = await import("../../utils/vector");
 
     const embResult = await llm.embeddings.create({ input: query });
     const firstEmb = embResult.data[0];
     if (!firstEmb) throw new Error("No embedding returned");
     const queryVec = new Float32Array(firstEmb.embedding);
 
-    const pages = this.db
-      .query("SELECT id, content, embedding FROM wiki_pages WHERE embedding IS NOT NULL")
-      .all() as Array<{ id: string; content: string; embedding: Buffer }>;
+    const results = this.wikiIndex.search(this.db, "wiki_pages", "id", "content", queryVec, {
+      threshold,
+    });
 
-    const scored = pages
-      .map((p) => ({
-        pageId: p.id,
-        content: p.content,
-        score: cosineSimilarity(queryVec, blobToEmbedding(p.embedding)),
-      }))
-      .filter((s) => s.score >= threshold)
-      .sort((a, b) => b.score - a.score);
-
-    return scored;
+    return results.map((r) => ({ pageId: r.id, content: r.content, score: r.score }));
   }
 
   private async searchChunks(
@@ -213,24 +209,18 @@ export class ChatService {
     const llm = this.kernel.get<{
       embeddings: { create: (opts: { input: string }) => Promise<{ data: { embedding: number[] }[] }> };
     }>("llm");
-    const { blobToEmbedding, cosineSimilarity } = await import("../../utils/vector");
 
     const embResult = await llm.embeddings.create({ input: query });
     const firstEmb = embResult.data[0];
     if (!firstEmb) throw new Error("No embedding returned");
     const queryVec = new Float32Array(firstEmb.embedding);
 
-    const rows = this.db
-      .query("SELECT id, content, embedding FROM chunks WHERE embedding IS NOT NULL")
-      .all() as Array<{ id: string; content: string; embedding: Buffer }>;
+    const results = this.chunkIndex.search(this.db, "chunks", "id", "content", queryVec, { limit });
+    return results.map((r) => ({ chunkId: r.id, content: r.content, score: r.score }));
+  }
 
-    return rows
-      .map((r) => ({
-        chunkId: r.id,
-        content: r.content,
-        score: cosineSimilarity(queryVec, blobToEmbedding(r.embedding)),
-      }))
-      .sort((a, b) => b.score - a.score)
-      .slice(0, limit);
+  invalidateIndexes(): void {
+    this.wikiIndex.invalidate();
+    this.chunkIndex.invalidate();
   }
 }

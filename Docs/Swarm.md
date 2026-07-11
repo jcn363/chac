@@ -2,6 +2,8 @@
 
 > "The whole is greater than the sum of its parts." — Aristotle
 
+**See also:** [The Karpathy Method](./Karpathy.md) · [Mixture of Experts](./MoE.md) · [Sub-Quadratic Attention](./Sub-quadratic.md) · [README](../README.md) · [FAQ](../FAQ.md) · [BENCHMARK](../BENCHMARK.md)
+
 ## Table of Contents
 
 1. [Definition](#definition)
@@ -32,6 +34,12 @@ The term was introduced by **Jing Wang and Gerardo Beni in 1989** in the context
 - **Scalability**: Adding more agents typically improves (or at least doesn't break) performance
 - **Robustness**: The system tolerates individual agent failures
 - **Emergence**: Global intelligence arises from simple local rules
+
+---
+
+## Relevance to Chac
+
+Chac's two-tier retrieval (wiki → chunks) is a simple form of agent routing: a "router agent" decides which knowledge source to consult based on similarity scores. Future versions could apply swarm principles to enhance document processing — for example, using multiple LLM agents to independently synthesize wiki entries from different document clusters, then reaching consensus on the final wiki content. The [Inverse-Wisdom Law](#the-inverse-wisdom-law-2026) section below is particularly relevant: it warns that swarm systems need architectural diversity to avoid groupthink, which applies when combining multiple LLMs or embedding models.
 
 ---
 

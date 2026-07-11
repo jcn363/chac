@@ -2,7 +2,7 @@
 
 > The quadratic bottleneck is not a wall — it's a door waiting for the right key.
 
-**See also:** [The Karpathy Method](./Karpathy.md) · [Mixture of Experts](./MoE.md) · [Swarm Intelligence](./Swarm.md) · [README](../README.md) · [FAQ](../FAQ.md) · [BENCHMARK](../BENCHMARK.md)
+**See also:** [The Karpathy Method](./Karpathy.md) · [Mixture of Experts](./MoE.md) · [Swarm Intelligence](./Swarm.md) · [SubQ-1.1-Small](./Subq.md) · [SSA Deep-Dive](./SSA.md) · [MLA Deep-Dive](./MLA.md) · [GPT Architecture](./GPT.md) · [README](../README.md) · [FAQ](../FAQ.md) · [BENCHMARK](../BENCHMARK.md)
 
 ## Table of Contents
 
@@ -417,6 +417,7 @@ Combines GLA with the **delta rule** — a classic learning rule from neuroscien
 | Kimi Linear | 2025 | Hybrid Linear | O(n) | Outperforms full attention |
 | Differential Mamba | 2025 | SSM + Differential | O(n) | Noise-canceling SSM |
 | Gated DeltaNet-2 | 2026 | Linear Attention | O(n) | Decoupled erase/write gates |
+| SSA (SubQ-1.1-Small) | 2026 | Sparse | O(n) end-to-end | Content-dependent selection, 64.5× FLOPs at 1M |
 
 ---
 
@@ -434,6 +435,7 @@ Combines GLA with the **delta rule** — a classic learning rule from neuroscien
 | Gated DeltaNet | 99% | 95% | 75% | 60% |
 | Kimi Linear | 100% | 98% | 92% | 85% |
 | NSA | 99% | 97% | 90% | 80% |
+| SSA (SubQ-1.1-Small) | — | — | — | 99.12% |
 
 ### Throughput at 64K Context
 
@@ -444,6 +446,7 @@ Combines GLA with the **delta rule** — a classic learning rule from neuroscien
 | RWKV-6 | 4.5x | Fixed state |
 | Kimi Linear | 6.0x | 16K × d (75% reduction) |
 | NSA | 2.5x | Variable (sparse) |
+| SSA (SubQ-1.1-Small) | 56x (at 1M) | Content-dependent sparse |
 
 ### Training Compute (WikiText103)
 
@@ -536,6 +539,8 @@ Chac currently uses llama.cpp with standard attention for its LLM and embedding 
 
 4. **The Kimi Linear result** — The first hybrid linear attention to outperform full attention suggests that the quality gap is closing. As these models mature and get GGUF quantization support, they could become viable replacements for Chac's current llama.cpp models (MiniCPM5-1B for chat, nomic-embed-text-v2-moe for embeddings).
 
+5. **SSA and SubQ-1.1-Small** — Subversive AI's SSA achieves 64.5× FLOPs reduction at 1M tokens while maintaining dense-attention-level retrieval (99.12 RULER, 100% NIAH at 1M/2M, 98% at 12M). This is the strongest evidence yet that sub-quadratic attention can match full attention quality. If SSA or similar mechanisms reach GGUF-compatible models, Chac could process entire document collections in a single context window — eliminating the need for chunking, wiki compilation, and two-tier retrieval. See [Subq.md](./Subq.md) for the full analysis.
+
 ---
 
 ## Key Research Papers
@@ -579,6 +584,7 @@ Chac currently uses llama.cpp with standard attention for its LLM and embedding 
 | Differential Mamba | 2025 | Noise-canceling SSM |
 | Gated DeltaNet-2 | 2026 | Decoupled erase/write gates |
 | Gated Sparse Attention | 2026 | Gating + sparse attention combined |
+| SSA / SubQ-1.1-Small | 2026 | Content-dependent sparse attention, linear end-to-end, 64.5× FLOPs at 1M |
 
 ---
 
@@ -606,3 +612,4 @@ Chac currently uses llama.cpp with standard attention for its LLM and embedding 
 20. Ohayon, D. et al. (2025). "Block Sparse Flash Attention." *arXiv:2512.07011*.
 21. Hatamizadeh, A. et al. (2026). "Gated DeltaNet-2: Decoupling Erase and Write in Linear Attention." *arXiv:2605.22791*.
 22. Shen, A. & Shen, A. (2026). "Gated Sparse Attention: Combining Computational Efficiency with Training Stability." *arXiv:2601.15305*.
+23. Subversive AI. (2026). "SubQ-1.1-Small Model Card." *Technical Report*. (See [Subq.md](./Subq.md))

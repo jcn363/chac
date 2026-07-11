@@ -1,8 +1,15 @@
+export interface ModelCapabilities {
+  contextLength: number;
+  architecture: string;
+  supportsVision: boolean;
+}
+
 export interface LlmInstance {
   process: Bun.Subprocess;
   port: number;
   modelType: "chat" | "embed" | "vision";
   modelPath: string;
+  capabilities: ModelCapabilities | null;
 }
 
 export interface ChatMessage {
@@ -33,5 +40,7 @@ export interface LlmService {
     create(options: EmbeddingOptions): Promise<EmbeddingResponse>;
   };
   status(): { chat: boolean; embed: boolean; vision: boolean; gpu: boolean; mtp: boolean };
+  getModelInfo(modelType: string): ModelCapabilities | null;
+  restartInstance(modelType: string): Promise<void>;
   stop(): Promise<void>;
 }

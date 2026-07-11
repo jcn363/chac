@@ -7,6 +7,7 @@
 ## Table of Contents
 
 - [Features](#features)
+- [Documentation](#documentation)
 - [Architecture](#architecture)
 - [Tech Stack](#tech-stack)
 - [Quick Start](#quick-start)
@@ -27,19 +28,26 @@
 ## Features
 
 - **RAG Chat** — ask questions grounded in your documents
+- **Ranked Fusion Retrieval** — merges wiki and chunk results via Reciprocal Rank Fusion (K=60)
+- **Semantic Chunking** — splits text at sentence/paragraph boundaries (configurable)
+- **HNSW Vector Search** — O(log n) approximate nearest neighbor search (O(n) fallback for small indexes)
+- **Token-Aware Context** — fills context window up to model's capacity, not fixed message count
+- **Cross-Session Memory** — user preferences and facts remembered across chat sessions
+- **Knowledge Compounding** — high-value answers auto-feed back into wiki pages
+- **Multi-Agent Wiki** — 3 parallel LLM agents synthesize richer wiki entries (optional)
+- **Wiki (Karpathy Method)** — compile documents into structured wiki entries using LLM
+- **Model Selection** — choose from preset models (1B–7B) with auto-configured settings
+- **Model Hot-Swap** — change models in Settings without restarting
 - **Markdown Rendering** — messages render markdown (bold, italic, code blocks, lists, tables, links)
 - **Chat Export** — download session history as markdown files
 - **Chat Search** — search and highlight messages within a session
 - **Session Management** — create, rename (double-click), delete, reorder (drag-and-drop), search sessions
-- **Wiki (Karpathy Method)** — compile documents into structured wiki entries using LLM
-- **Two-Tier Retrieval** — query wiki entries first, fall back to raw chunks
 - **GPU Acceleration** — CUDA/Metal/Vulkan offloading via `llm.gpu.layers` setting
 - **Flash Attention** — memory-efficient attention via `llm.gpu.flash_attn` setting
 - **Multi-Token Prediction** — speculative decoding for faster inference (requires MTP-capable model)
 - **Vision Model** — multimodal support via `llm.vision.model` setting
 - **Portable & Cross-Platform** — runs on any OS via USB drive (Windows, macOS, Linux)
 - **Document Ingestion** — chunk, embed, and store any text file
-- **Vector Search** — cosine similarity over stored embeddings
 - **Streaming Responses** — real-time streaming from `llama.cpp`
 - **Dark Mode** — toggle between system/light/dark themes
 - **Help System** — in-app help overlay with quick start, keyboard shortcuts, tips, troubleshooting, and live system status
@@ -50,6 +58,26 @@
 - **Accessibility** — focus rings, ARIA labels, reduced-motion support, touch targets
 - **Responsive** — adapts to mobile screens (sidebar hides on narrow viewports)
 - **Dev Mode** — mock LLM responses for development without `llama.cpp`
+
+---
+
+## Documentation
+
+Technical reference docs in `Docs/`:
+
+| Doc | Topic | Description |
+|-----|-------|-------------|
+| [Docs/GPT.md](Docs/GPT.md) | GPT Architecture | Transformer decoder, scaling laws, and evolution of generative pre-training |
+| [Docs/Karpathy.md](Docs/Karpathy.md) | The Karpathy Method | Core RAG pipeline: ingest → compile wiki → query with two-tier retrieval |
+| [Docs/MoE.md](Docs/MoE.md) | Mixture of Experts | MoE architecture, routing, load balancing, and modern variants (2025–2026) |
+| [Docs/Swarm.md](Docs/Swarm.md) | Swarm Intelligence | Swarm algorithms, LLM-based multi-agent systems, and governance |
+| [Docs/Sub-quadratic.md](Docs/Sub-quadratic.md) | Sub-Quadratic Attention | Linear attention, SSMs, sparse attention, and alternatives to O(n²) |
+| [Docs/Subq.md](Docs/Subq.md) | SubQ-1.1-Small | SubQ model card: SSA mechanism, training, results, and implications |
+| [Docs/SSA.md](Docs/SSA.md) | SSA Deep-Dive | Technical analysis of Subquadratic Sparse Attention mechanism |
+| [Docs/MLA.md](Docs/MLA.md) | MLA Deep-Dive | Multi-Head Latent Attention: KV cache compression via low-rank decomposition |
+| [Docs/README.md](Docs/README.md) | Documentation Index | Full index with cross-reference map and reading order |
+| [FAQ.md](FAQ.md) | FAQ | Common questions: mobile access, llama.cpp setup, IP discovery |
+| [BENCHMARK.md](BENCHMARK.md) | Benchmarks | Performance benchmarks: GPU, CPU, MTP, ingestion, search |
 
 ---
 
@@ -75,8 +103,8 @@ Chac uses a **microkernel architecture** with dependency injection. A minimal ke
 │   └─────┬─────┘ └───┬───┘ └──────────┘            │
 │   ┌─────▼─────┐ ┌───▼──────────────────┐           │
 │   │ Frontend  │ │     Modules           │           │
-│   │ (HTML/CSS │ │  Chat │ Wiki │ Documents │           │
-│   │  /JS)     │ │  LLM  │ Settings│Router│          │
+│   │ (HTML/CSS │ │ Chat │ Wiki │ Documents │           │
+│   │  /JS)     │ │ Memory │ LLM │ Settings │ Router │          │
 │   └───────────┘ └──────────┬───────────┘           │
 │                   ┌────────▼────────┐               │
 │                   │   llama.cpp     │               │
@@ -165,8 +193,11 @@ chac/
 │   │   │   ├── service.ts               # Wiki compilation (Karpathy Method)
 │   │   │   └── types.ts                 # Wiki page types
 │   │   ├── chat/
-│   │   │   ├── service.ts               # Chat sessions, two-tier retrieval
+│   │   │   ├── service.ts               # Chat sessions, ranked fusion retrieval
 │   │   │   └── types.ts                 # Chat session and message types
+│   │   ├── memory/
+│   │   │   ├── service.ts               # Cross-session memory, extraction
+│   │   │   └── types.ts                 # Memory entry types
 │   │   └── router/
 │   │       ├── index.ts                 # Hono app setup
 │   │       ├── api.ts                   # All API route definitions
@@ -176,12 +207,13 @@ chac/
 │   │   ├── styles.css                   # CSS with dark mode via prefers-color-scheme
 │   │   └── app.js                       # Frontend JavaScript
 │   └── utils/
-│       ├── chunking.ts                  # Text chunking (500 chars, 100 overlap)
+│       ├── chunking.ts                  # Text chunking (character + semantic modes)
 │       ├── vector.ts                    # Cosine similarity, BLOB conversion
+│       ├── vector-index.ts              # HNSW approximate nearest neighbor search
 │       ├── hash.ts                      # SHA-256 content hashing
 │       └── id.ts                        # UUID generation
 ├── tests/
-│   ├── unit/                            # 99 tests across 15 files (87 unit + 6 integration + 6 e2e)
+│   ├── unit/                            # 158 tests across 21 files
 │   ├── integration/                     # Document ingest integration tests
 │   ├── e2e/                             # End-to-end tests (excluded by default)
 │   ├── mocks/                           # Mock LLM for testing
@@ -213,7 +245,7 @@ User selects file
   → Read file content
   → Compute SHA-256 hash (dedup check)
   → If hash exists → skip (already ingested)
-  → Split into 500-char chunks (100-char overlap)
+  → Split into chunks (character-based or semantic, configurable)
   → For each chunk:
     → Call embed server (POST /v1/embeddings)
     → Store chunk + embedding BLOB in DB
@@ -227,31 +259,36 @@ User clicks "Compile Wiki"
   → For each document:
     → Get all chunks for document
     → Concatenate content (limit 4000 chars)
-    → LLM synthesizes structured wiki entry
+    → LLM synthesizes structured wiki entry (single-pass or multi-agent, configurable)
     → Generate embedding for wiki content
     → Store in wiki_pages table
+  → Cross-document synthesis pass (clusters related pages)
 ```
 
-### Two-Tier Retrieval (Chat Query)
+### Ranked Fusion Retrieval (Chat Query)
 
 ```
 User sends message
   → Embed query via embed server
 
-  Tier 1: Wiki Entries
-  → Load all wiki embeddings
-  → Score each by cosine similarity
-  → If best score ≥ 0.3 → use wiki entry content
+  Simultaneous search:
+  → Wiki entries: cosine similarity (threshold 0.3)
+  → Raw chunks: cosine similarity (top 5)
 
-  Tier 2: Raw Chunks (fallback)
-  → If no good wiki match:
-    → Load all chunk embeddings
-    → Score each by cosine similarity
-    → Top 5 most relevant → system prompt
+  Reciprocal Rank Fusion (K=60):
+  → Score = Σ(1 / (K + rank)) across both sources
+  → Merge, deduplicate, sort by fused score
+  → Top results → system prompt
 
-  → Build system prompt with context
+  Token-aware context budget:
+  → Reserve 30% for response
+  → Fill history (newest first) until budget exhausted
+  → Fill RAG context (highest score first)
+
   → Stream response via chat server
   → Save message + context chunks to DB
+  → Extract user memory (cross-session)
+  → Compound knowledge into wiki (if enabled)
 ```
 
 ---
@@ -345,6 +382,19 @@ http://localhost:3000
 |--------|----------|-------------|
 | `GET` | `/api/llm/status` | Get LLM process status |
 
+### Memory
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/memory` | List all memory entries |
+| `PUT` | `/api/memory` | Create/update memory entry |
+| `DELETE` | `/api/memory/:id` | Delete a memory entry |
+
+**PUT /api/memory body:**
+```json
+{ "category": "preference", "key": "language", "value": "English" }
+```
+
 ---
 
 ## Database Schema
@@ -363,6 +413,7 @@ http://localhost:3000
 | `settings` | App configuration | `key`, `value` (JSON), `category` |
 | `document_tags` | Many-to-many tags | `document_id`, `tag` |
 | `usage_log` | Monitoring | `event_type`, `tokens_used`, `latency_ms` |
+| `user_memory` | Cross-session memory | `category`, `key`, `value`, `source`, `confidence` |
 
 ### SQLite PRAGMAs (set in code)
 
@@ -397,9 +448,15 @@ All settings are stored in the `settings` table and accessible via the API.
 | `llm.mtp.draft_ngl` | `10` | llm | GPU layers for MTP draft model |
 | `rag.chunk_size` | `500` | rag | Target chunk size (chars) |
 | `rag.chunk_overlap` | `100` | rag | Overlap between chunks |
+| `rag.chunk_mode` | `"character"` | rag | Chunking mode: character, semantic |
 | `rag.wiki_threshold` | `0.3` | rag | Min similarity for wiki match |
 | `rag.max_chunks` | `5` | rag | Max chunks for LLM context |
 | `rag.max_wiki_chars` | `4000` | rag | Max chars for wiki synthesis input |
+| `rag.wiki_synthesis_threshold` | `0.6` | rag | Min similarity for cross-doc synthesis |
+| `rag.auto_compound` | `false` | rag | Auto-feedback answers into wiki |
+| `wiki.agents_enabled` | `false` | rag | Multi-agent wiki compilation |
+| `memory.enabled` | `true` | memory | Cross-session memory |
+| `llm.chat.ctx_size.auto` | `true` | llm | Auto-detect context size from model |
 | `ui.dark_mode` | `"system"` | ui | "system", "light", or "dark" |
 | `ui.documents_per_page` | `20` | ui | Pagination size |
 | `server.port` | `3000` | server | HTTP server port |

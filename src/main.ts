@@ -5,6 +5,7 @@ import { LlmServiceImpl } from "./modules/llm/service";
 import { DocumentsService } from "./modules/documents/service";
 import { ChatService } from "./modules/chat/service";
 import { WikiService } from "./modules/wiki/service";
+import { MemoryService } from "./modules/memory/service";
 import { createRouter } from "./modules/router";
 
 const kernel = createKernel();
@@ -21,13 +22,30 @@ kernel.provide("settings", settings);
 const llm = new LlmServiceImpl(kernel);
 kernel.provide("llm", llm);
 
+// Step 3b: Wire model hot-swap — when model settings change, restart the LLM instance
+const origSet = settings.set.bind(settings);
+settings.set = (key: string, value: unknown) => {
+  origSet(key, value);
+  if (key === "llm.chat.model" || key === "llm.embed.model" || key === "llm.vision.model") {
+    const parts = key.split(".");
+    const modelType = parts[1];
+    if (modelType) {
+      llm.restartInstance(modelType).catch((err) => {
+        console.error(`Failed to restart ${modelType} model:`, err);
+      });
+    }
+  }
+};
+
 // Step 4: Services (created once, reused across requests)
 const docs = new DocumentsService(kernel);
 const chat = new ChatService(kernel);
 const wiki = new WikiService(kernel);
+const memory = new MemoryService(kernel);
 kernel.provide("docs", docs);
 kernel.provide("chat", chat);
 kernel.provide("wiki", wiki);
+kernel.provide("memory", memory);
 
 // Step 5: Wire index invalidation — when docs/wiki change, invalidate search indexes
 const origIngest = docs.ingest.bind(docs);

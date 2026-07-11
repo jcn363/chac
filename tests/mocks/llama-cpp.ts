@@ -1,4 +1,4 @@
-import type { LlmService, ChatCompletionOptions, EmbeddingOptions, EmbeddingResponse } from "../../src/modules/llm/types";
+import type { LlmService, ChatCompletionOptions, EmbeddingOptions, EmbeddingResponse, ModelCapabilities } from "../../src/modules/llm/types";
 
 export function createMockLlmService(): LlmService {
   return {
@@ -16,7 +16,6 @@ export function createMockLlmService(): LlmService {
     },
     embeddings: {
       async create(options: EmbeddingOptions): Promise<EmbeddingResponse> {
-        // Deterministic mock embedding based on input content
         if (!options.input || options.input.length === 0) {
           return { data: [{ embedding: new Array(768).fill(0) }] };
         }
@@ -30,6 +29,10 @@ export function createMockLlmService(): LlmService {
     status() {
       return { chat: true, embed: true, vision: false, gpu: false, mtp: false };
     },
+    getModelInfo(_modelType: string): ModelCapabilities | null {
+      return null;
+    },
+    async restartInstance(_modelType: string) {},
     async stop() {},
   };
 }

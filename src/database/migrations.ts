@@ -124,6 +124,22 @@ const MIGRATIONS: Migration[] = [
       );
     `,
   },
+  {
+    version: 3,
+    up: `
+      CREATE TABLE IF NOT EXISTS user_memory (
+        id TEXT PRIMARY KEY,
+        category TEXT NOT NULL CHECK(category IN ('preference', 'topic', 'fact', 'summary')),
+        key TEXT NOT NULL,
+        value TEXT NOT NULL,
+        source TEXT,
+        confidence REAL DEFAULT 1.0,
+        created_at TEXT DEFAULT (datetime('now')),
+        updated_at TEXT DEFAULT (datetime('now'))
+      );
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_user_memory_key ON user_memory(category, key);
+    `,
+  },
 ];
 
 function ensureMetaTable(db: Database): void {

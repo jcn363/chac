@@ -3,6 +3,7 @@ import type { Kernel } from "../../kernel/types";
 import type { DocumentsService } from "../documents/service";
 import type { ChatService } from "../chat/service";
 import type { WikiService } from "../wiki/service";
+import type { MemoryService } from "../memory/service";
 import { DEFAULT_SETTINGS } from "../settings/types";
 
 function safeInt(value: string | undefined, fallback: number, max = 100): number {
@@ -16,6 +17,7 @@ export function setupApiRoutes(app: Hono, kernel: Kernel): void {
   const docs = kernel.get<DocumentsService>("docs");
   const chat = kernel.get<ChatService>("chat");
   const wiki = kernel.get<WikiService>("wiki");
+  const memory = kernel.get<MemoryService>("memory");
 
   // Status
   app.get("/api/status", (c) => {
@@ -189,5 +191,29 @@ export function setupApiRoutes(app: Hono, kernel: Kernel): void {
     const limit = body.limit ? safeInt(String(body.limit), 5) : 5;
     const results = await wiki.search(body.query, { limit });
     return c.json(results);
+  });
+
+  // Memory
+  app.get("/api/memory", (c) => {
+    return c.json(memory.list());
+  });
+
+  app.put("/api/memory", async (c) => {
+    const body = await c.req.json<{ category: string; key: string; value: string }>();
+    if (!body?.category || !body?.key || !body?.value) {
+      return c.json({ error: "Missing required fields: category, key, value" }, 400);
+    }
+    const validCategories = ["preference", "topic", "fact", "summary"];
+    if (!validCategories.includes(body.category)) {
+      return c.json({ error: "Invalid category" }, 400);
+    }
+    const entry = memory.upsert(body.category as "preference" | "topic" | "fact" | "summary", body.key, body.value, "manual");
+    return c.json(entry);
+  });
+
+  app.delete("/api/memory/:id", (c) => {
+    const deleted = memory.delete(c.req.param("id"));
+    if (!deleted) return c.json({ error: "Not found" }, 404);
+    return c.json({ ok: true });
   });
 }

@@ -12,6 +12,7 @@
       <button class="tab active" data-tab="chat" data-tooltip="Chat with your documents">Chat</button>
       <button class="tab" data-tab="documents" data-tooltip="Manage your library">Documents</button>
       <button class="tab" data-tab="wiki" data-tooltip="Compile documents into a wiki">Wiki</button>
+      <button class="tab" data-tab="memory" data-tooltip="Manage cross-session memory">Memory</button>
       <button class="tab" data-tab="settings" data-tooltip="Configure Chac">Settings</button>
       <button class="tab" id="theme-toggle" data-tooltip="Toggle dark mode" aria-label="Toggle dark mode">
         <svg class="theme-icon theme-icon-light" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
@@ -83,6 +84,27 @@
       <section id="settings-tab" class="tab-panel">
         <h2>Settings</h2>
         <div id="settings-list"></div>
+      </section>
+
+      <section id="memory-tab" class="tab-panel">
+        <h2>Cross-Session Memory</h2>
+        <p class="tab-description">User preferences and facts remembered across chat sessions.</p>
+        <div id="memory-add" class="memory-form">
+          <select id="memory-category">
+            <option value="preference">Preference</option>
+            <option value="topic">Topic</option>
+            <option value="fact">Fact</option>
+            <option value="summary">Summary</option>
+          </select>
+          <input type="text" id="memory-key" placeholder="Key (e.g., language)">
+          <input type="text" id="memory-value" placeholder="Value (e.g., English)">
+          <button id="memory-add-btn">Add</button>
+        </div>
+        <div id="memory-list"></div>
+        <div id="memory-empty" class="empty-state">
+          <p>No memory entries</p>
+          <p class="empty-hint">Memory is automatically extracted from conversations, or add entries manually above</p>
+        </div>
       </section>
     </main>
   </div>

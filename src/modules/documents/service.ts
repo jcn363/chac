@@ -2,7 +2,7 @@ import type { Database } from "bun:sqlite";
 import type { Kernel } from "../../kernel/types";
 import { generateId } from "../../utils/id";
 import { contentHash } from "../../utils/hash";
-import { chunkText } from "../../utils/chunking";
+import { chunkText, chunkTextSemantic } from "../../utils/chunking";
 import { embeddingToBlob } from "../../utils/vector";
 import { VectorIndex } from "../../utils/vector-index";
 import type { Document, SearchResult, IngestResult } from "./types";
@@ -55,7 +55,10 @@ export class DocumentsService {
     const title = basename(filePath) || "Untitled";
     const chunkSize = settings.get("rag.chunk_size") as number;
     const chunkOverlap = settings.get("rag.chunk_overlap") as number;
-    const chunks = chunkText(content, chunkSize, chunkOverlap);
+    const chunkMode = settings.get("rag.chunk_mode") as string;
+    const chunks = chunkMode === "semantic"
+      ? chunkTextSemantic(content, chunkSize)
+      : chunkText(content, chunkSize, chunkOverlap);
 
     // Insert document
     this.db

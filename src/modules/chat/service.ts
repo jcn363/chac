@@ -4,6 +4,8 @@ import { generateId } from "../../utils/id";
 import { VectorIndex } from "../../utils/vector-index";
 import type { ChatSession, ChatMessage, SendMessageOptions } from "./types";
 
+const RRF_K = 60;
+
 export class ChatService {
   private db: Database;
   private kernel: Kernel;
@@ -76,13 +78,23 @@ export class ChatService {
   ): Promise<ChatMessage> {
     const startTime = Date.now();
 
-    // Two-tier retrieval
-    const contextChunks = await this.retrieveContext(content);
+    // Fused retrieval
+    const contextChunks = await this.retrieveContextFused(content);
 
-    // Build messages for LLM — query history BEFORE inserting user message
+    // Build messages for LLM
     const session = this.getSession(sessionId);
     if (!session) throw new Error("Session not found");
     const messages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [];
+
+    // Memory context (cross-session)
+    const memory = this.kernel.get<{ buildContextString: () => string }>("memory");
+    const memoryContext = memory.buildContextString();
+    if (memoryContext) {
+      messages.push({
+        role: "system",
+        content: `User context from previous sessions:\n${memoryContext}`,
+      });
+    }
 
     if (session?.system_prompt) {
       messages.push({ role: "system", content: session.system_prompt });
@@ -98,15 +110,12 @@ export class ChatService {
       });
     }
 
-    // Add history (before current message) — limit to last 20 messages for context
-    const history = this.db
-      .query("SELECT * FROM chat_messages WHERE session_id = ? AND (role = 'user' OR role = 'assistant') ORDER BY created_at DESC LIMIT 20")
-      .all(sessionId) as ChatMessage[];
-    history.reverse();
+    // Token-aware context budget for history
+    const settings = this.kernel.get<{ get: (key: string) => unknown }>("settings");
+    const ctxSize = settings.get("llm.chat.ctx_size") as number;
+    const history = this.buildHistoryBudget(sessionId, ctxSize, messages);
     for (const msg of history) {
-      if (msg.role === "user" || msg.role === "assistant") {
-        messages.push({ role: msg.role, content: msg.content });
-      }
+      messages.push(msg);
     }
 
     messages.push({ role: "user", content });
@@ -153,6 +162,10 @@ export class ChatService {
       .query("UPDATE chat_sessions SET updated_at = datetime('now') WHERE id = ?")
       .run(sessionId);
 
+    // Post-response: extract memory and compound knowledge (fire-and-forget)
+    this.extractMemory(content, fullResponse).catch(() => {});
+    this.compoundKnowledge(contextChunks, fullResponse).catch(() => {});
+
     const message = this.db
       .query("SELECT * FROM chat_messages WHERE id = ?")
       .get(assistantMsgId) as ChatMessage;
@@ -161,62 +174,162 @@ export class ChatService {
     return message;
   }
 
-  private async retrieveContext(
+  private async extractMemory(userMessage: string, assistantMessage: string): Promise<void> {
+    const memory = this.kernel.get<{ extractFromConversation: (u: string, a: string) => Promise<void> }>("memory");
+    await memory.extractFromConversation(userMessage, assistantMessage);
+  }
+
+  private async compoundKnowledge(
+    contextChunks: Array<{ chunkId: string; content: string; score: number }>,
+    response: string
+  ): Promise<void> {
+    const settings = this.kernel.get<{ get: (key: string) => unknown }>("settings");
+    const autoCompound = settings.get("rag.auto_compound") as boolean;
+    if (!autoCompound) return;
+    if (contextChunks.length === 0) return;
+    if (response.length < 50) return;
+
+    const wiki = this.kernel.get<{ updatePageInsight: (pageId: string, insight: string) => Promise<void> }>("wiki");
+
+    const chunkIds = contextChunks.slice(0, 3).map((c) => c.chunkId);
+    for (const chunkId of chunkIds) {
+      const chunk = this.db
+        .query("SELECT document_id FROM chunks WHERE id = ?")
+        .get(chunkId) as { document_id: string } | undefined;
+      if (!chunk) continue;
+
+      const wikiPage = this.db
+        .query("SELECT id FROM wiki_pages WHERE source_document_ids LIKE ?")
+        .get(`%"${chunk.document_id}"%`) as { id: string } | undefined;
+      if (!wikiPage) continue;
+
+      const llm = this.kernel.get<{
+        chat: { completions: (opts: { messages: Array<{ role: string; content: string }>; stream: boolean }) => AsyncGenerator<string> };
+      }>("llm");
+
+      const chunkData = contextChunks.find((c) => c.chunkId === chunkId);
+      const chunkContent = chunkData?.content.slice(0, 500) ?? "";
+
+      const messages = [
+        {
+          role: "system",
+          content:
+            "Extract one key insight from this Q&A that would improve a wiki entry. Return only the insight text, no formatting.",
+        },
+        {
+          role: "user",
+          content: `Context: ${chunkContent}\n\nQ: User asked about the context\nA: ${response.slice(0, 500)}`,
+        },
+      ];
+
+      let insight = "";
+      for await (const chunk of llm.chat.completions({ messages, stream: false })) {
+        insight += chunk;
+      }
+
+      if (insight.length > 20) {
+        await wiki.updatePageInsight(wikiPage.id, insight);
+      }
+    }
+  }
+
+  private async embedQuery(query: string): Promise<Float32Array> {
+    const llm = this.kernel.get<{
+      embeddings: { create: (opts: { input: string }) => Promise<{ data: { embedding: number[] }[] }> };
+    }>("llm");
+    const embResult = await llm.embeddings.create({ input: query });
+    const firstEmb = embResult.data[0];
+    if (!firstEmb) throw new Error("No embedding returned");
+    return new Float32Array(firstEmb.embedding);
+  }
+
+  private async retrieveContextFused(
     query: string
   ): Promise<Array<{ chunkId: string; content: string; score: number }>> {
     const settings = this.kernel.get<{ get: (key: string) => unknown }>("settings");
     const wikiThreshold = settings.get("rag.wiki_threshold") as number;
     const maxChunks = settings.get("rag.max_chunks") as number;
 
-    // Try wiki first
-    const wikiResults = await this.searchWiki(query, wikiThreshold);
-    if (wikiResults.length > 0) {
-      return wikiResults.map((r) => ({
-        chunkId: r.pageId,
+    const queryVec = await this.embedQuery(query);
+
+    const [wikiRaw, chunkRaw] = await Promise.all([
+      this.wikiIndex.search(this.db, "wiki_pages", "id", "content", queryVec, {
+        threshold: wikiThreshold,
+      }),
+      this.chunkIndex.search(this.db, "chunks", "id", "content", queryVec, { limit: maxChunks }),
+    ]);
+
+    // Reciprocal Rank Fusion
+    const scores = new Map<string, { chunkId: string; content: string; score: number; source: string }>();
+
+    for (let rank = 0; rank < wikiRaw.length; rank++) {
+      const r = wikiRaw[rank]!;
+      const rrfScore = 1 / (RRF_K + rank + 1);
+      scores.set(`wiki:${r.id}`, {
+        chunkId: r.id,
         content: r.content,
-        score: r.score,
-      }));
+        score: rrfScore,
+        source: "wiki",
+      });
     }
 
-    // Fallback to raw chunks
-    return this.searchChunks(query, maxChunks);
+    for (let rank = 0; rank < chunkRaw.length; rank++) {
+      const r = chunkRaw[rank]!;
+      const rrfScore = 1 / (RRF_K + rank + 1);
+      const key = `chunk:${r.id}`;
+      const existing = scores.get(key);
+      if (existing) {
+        existing.score += rrfScore;
+      } else {
+        scores.set(key, {
+          chunkId: r.id,
+          content: r.content,
+          score: rrfScore,
+          source: "chunk",
+        });
+      }
+    }
+
+    const fused = Array.from(scores.values());
+    fused.sort((a, b) => b.score - a.score);
+    return fused.slice(0, maxChunks).map((r) => ({
+      chunkId: r.chunkId,
+      content: r.content,
+      score: r.score,
+    }));
   }
 
-  private async searchWiki(
-    query: string,
-    threshold: number
-  ): Promise<Array<{ pageId: string; content: string; score: number }>> {
-    const llm = this.kernel.get<{
-      embeddings: { create: (opts: { input: string }) => Promise<{ data: { embedding: number[] }[] }> };
-    }>("llm");
+  private buildHistoryBudget(
+    sessionId: string,
+    ctxSize: number,
+    currentMessages: Array<{ role: string; content: string }>
+  ): Array<{ role: "user" | "assistant"; content: string }> {
+    const responseBuffer = Math.floor(ctxSize * 0.3);
+    const usedTokens = currentMessages.reduce(
+      (sum, m) => sum + Math.ceil(m.content.length / 4),
+      0
+    );
+    const historyBudget = Math.max(0, ctxSize - responseBuffer - usedTokens - 50);
 
-    const embResult = await llm.embeddings.create({ input: query });
-    const firstEmb = embResult.data[0];
-    if (!firstEmb) throw new Error("No embedding returned");
-    const queryVec = new Float32Array(firstEmb.embedding);
+    const allHistory = this.db
+      .query(
+        "SELECT * FROM chat_messages WHERE session_id = ? AND (role = 'user' OR role = 'assistant') ORDER BY created_at DESC"
+      )
+      .all(sessionId) as ChatMessage[];
 
-    const results = this.wikiIndex.search(this.db, "wiki_pages", "id", "content", queryVec, {
-      threshold,
-    });
+    const history: Array<{ role: "user" | "assistant"; content: string }> = [];
+    let tokensUsed = 0;
 
-    return results.map((r) => ({ pageId: r.id, content: r.content, score: r.score }));
-  }
+    for (let i = allHistory.length - 1; i >= 0; i--) {
+      const msg = allHistory[i]!;
+      if (msg.role !== "user" && msg.role !== "assistant") continue;
+      const msgTokens = Math.ceil(msg.content.length / 4);
+      if (tokensUsed + msgTokens > historyBudget) break;
+      history.unshift({ role: msg.role, content: msg.content });
+      tokensUsed += msgTokens;
+    }
 
-  private async searchChunks(
-    query: string,
-    limit: number
-  ): Promise<Array<{ chunkId: string; content: string; score: number }>> {
-    const llm = this.kernel.get<{
-      embeddings: { create: (opts: { input: string }) => Promise<{ data: { embedding: number[] }[] }> };
-    }>("llm");
-
-    const embResult = await llm.embeddings.create({ input: query });
-    const firstEmb = embResult.data[0];
-    if (!firstEmb) throw new Error("No embedding returned");
-    const queryVec = new Float32Array(firstEmb.embedding);
-
-    const results = this.chunkIndex.search(this.db, "chunks", "id", "content", queryVec, { limit });
-    return results.map((r) => ({ chunkId: r.id, content: r.content, score: r.score }));
+    return history;
   }
 
   invalidateIndexes(): void {

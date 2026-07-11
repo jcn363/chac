@@ -1,0 +1,312 @@
+{
+  "/home/user/Desktop/chac/build.ts": {
+    "mtime": 1783688850.1983516,
+    "ast_hash": "9ff1cf377679e22908d544a28eab3374",
+    "semantic_hash": "9ff1cf377679e22908d544a28eab3374"
+  },
+  "/home/user/Desktop/chac/launchers/start.sh": {
+    "mtime": 1783624621.729387,
+    "ast_hash": "e7d20ae9815d940d5276dc19bf351bcd",
+    "semantic_hash": "e7d20ae9815d940d5276dc19bf351bcd"
+  },
+  "/home/user/Desktop/chac/package.json": {
+    "mtime": 1783706520.4971638,
+    "ast_hash": "b43c823ef7472b7ed06fc78dd4a34b0d",
+    "semantic_hash": "b43c823ef7472b7ed06fc78dd4a34b0d"
+  },
+  "/home/user/Desktop/chac/src/database/index.ts": {
+    "mtime": 1783622931.187094,
+    "ast_hash": "f2bacc5310b8a27bf1797abaeb0edcac",
+    "semantic_hash": "f2bacc5310b8a27bf1797abaeb0edcac"
+  },
+  "/home/user/Desktop/chac/src/database/migrations.ts": {
+    "mtime": 1783705253.3221145,
+    "ast_hash": "702ebb5ee0cfca5c693303c889f6fa3f",
+    "semantic_hash": "702ebb5ee0cfca5c693303c889f6fa3f"
+  },
+  "/home/user/Desktop/chac/src/database/schema.sql": {
+    "mtime": 1783629436.625091,
+    "ast_hash": "d17db8f5f30d0c2bb3ae67a3605b0869",
+    "semantic_hash": "d17db8f5f30d0c2bb3ae67a3605b0869"
+  },
+  "/home/user/Desktop/chac/src/kernel/index.ts": {
+    "mtime": 1783688423.1371713,
+    "ast_hash": "d6feb575e0e7fd37c110707f23cd1087",
+    "semantic_hash": "d6feb575e0e7fd37c110707f23cd1087"
+  },
+  "/home/user/Desktop/chac/src/kernel/types.ts": {
+    "mtime": 1783622512.9481761,
+    "ast_hash": "9b786249f2cde6f946b039bdce4f32a8",
+    "semantic_hash": "9b786249f2cde6f946b039bdce4f32a8"
+  },
+  "/home/user/Desktop/chac/src/main.ts": {
+    "mtime": 1783688739.200629,
+    "ast_hash": "ac6cfcaccbd077e4acab0b6531f5697a",
+    "semantic_hash": "ac6cfcaccbd077e4acab0b6531f5697a"
+  },
+  "/home/user/Desktop/chac/src/modules/chat/service.ts": {
+    "mtime": 1783711098.9145863,
+    "ast_hash": "a3b63769685a4a6cbfc9545e41860adc",
+    "semantic_hash": "a3b63769685a4a6cbfc9545e41860adc"
+  },
+  "/home/user/Desktop/chac/src/modules/chat/types.ts": {
+    "mtime": 1783708958.4487348,
+    "ast_hash": "64a722e032019d3538fa8e2e18d92cae",
+    "semantic_hash": "64a722e032019d3538fa8e2e18d92cae"
+  },
+  "/home/user/Desktop/chac/src/modules/documents/service.ts": {
+    "mtime": 1783688537.1035736,
+    "ast_hash": "3d7a1493a72f674baf8a8f5b9effdc32",
+    "semantic_hash": "3d7a1493a72f674baf8a8f5b9effdc32"
+  },
+  "/home/user/Desktop/chac/src/modules/documents/types.ts": {
+    "mtime": 1783623779.2001843,
+    "ast_hash": "210d8e886155926905f9e924dadb902d",
+    "semantic_hash": "210d8e886155926905f9e924dadb902d"
+  },
+  "/home/user/Desktop/chac/src/modules/llm/service.ts": {
+    "mtime": 1783688466.0634277,
+    "ast_hash": "f0392a01806632fa21b938cb2b4db004",
+    "semantic_hash": "f0392a01806632fa21b938cb2b4db004"
+  },
+  "/home/user/Desktop/chac/src/modules/llm/types.ts": {
+    "mtime": 1783682595.3027658,
+    "ast_hash": "4260daa632948fdb6201991dba02e387",
+    "semantic_hash": "4260daa632948fdb6201991dba02e387"
+  },
+  "/home/user/Desktop/chac/src/modules/router/api.ts": {
+    "mtime": 1783711132.0723588,
+    "ast_hash": "738af13a96d1b8974c7017bb5cebcf6c",
+    "semantic_hash": "738af13a96d1b8974c7017bb5cebcf6c"
+  },
+  "/home/user/Desktop/chac/src/modules/router/index.ts": {
+    "mtime": 1783686036.3482163,
+    "ast_hash": "6a5a4a86f779cec1c6b93a051376712c",
+    "semantic_hash": "6a5a4a86f779cec1c6b93a051376712c"
+  },
+  "/home/user/Desktop/chac/src/modules/router/static.ts": {
+    "mtime": 1783622652.6701458,
+    "ast_hash": "257c01626afce26035a2319ba03094ec",
+    "semantic_hash": "257c01626afce26035a2319ba03094ec"
+  },
+  "/home/user/Desktop/chac/src/modules/settings/service.ts": {
+    "mtime": 1783688702.2110665,
+    "ast_hash": "5bff8cc162c68b2d660a57ab67edb83e",
+    "semantic_hash": "5bff8cc162c68b2d660a57ab67edb83e"
+  },
+  "/home/user/Desktop/chac/src/modules/settings/types.ts": {
+    "mtime": 1783678569.4174085,
+    "ast_hash": "7be574839063aefcef3d7033bfb2e976",
+    "semantic_hash": "7be574839063aefcef3d7033bfb2e976"
+  },
+  "/home/user/Desktop/chac/src/modules/wiki/service.ts": {
+    "mtime": 1783682633.8763537,
+    "ast_hash": "082c3403a33201132c226a2627166c07",
+    "semantic_hash": "082c3403a33201132c226a2627166c07"
+  },
+  "/home/user/Desktop/chac/src/modules/wiki/types.ts": {
+    "mtime": 1783624199.4307964,
+    "ast_hash": "bbd2fffa719f72e672b9d05324d4dd2a",
+    "semantic_hash": "bbd2fffa719f72e672b9d05324d4dd2a"
+  },
+  "/home/user/Desktop/chac/src/platform/binaries.ts": {
+    "mtime": 1783688702.1800678,
+    "ast_hash": "178b662ab5a7815f20e417a522812557",
+    "semantic_hash": "178b662ab5a7815f20e417a522812557"
+  },
+  "/home/user/Desktop/chac/src/platform/detect.ts": {
+    "mtime": 1783622616.491449,
+    "ast_hash": "11605dc2472b917bfcec551200b3cbb3",
+    "semantic_hash": "11605dc2472b917bfcec551200b3cbb3"
+  },
+  "/home/user/Desktop/chac/src/platform/paths.ts": {
+    "mtime": 1783690189.7977629,
+    "ast_hash": "62dc20938d8ccb01d3d3ee607556012c",
+    "semantic_hash": "62dc20938d8ccb01d3d3ee607556012c"
+  },
+  "/home/user/Desktop/chac/src/public/app.js": {
+    "mtime": 1783715436.8853374,
+    "ast_hash": "896753602a00e0155869de7f9496c89f",
+    "semantic_hash": "896753602a00e0155869de7f9496c89f"
+  },
+  "/home/user/Desktop/chac/src/utils/chunking.ts": {
+    "mtime": 1783686037.8271637,
+    "ast_hash": "5338b796ad44abb59af5827de015bc59",
+    "semantic_hash": "5338b796ad44abb59af5827de015bc59"
+  },
+  "/home/user/Desktop/chac/src/utils/hash.ts": {
+    "mtime": 1783682595.3107655,
+    "ast_hash": "ef2e046f21cbbacaac618bba4d5f471b",
+    "semantic_hash": "ef2e046f21cbbacaac618bba4d5f471b"
+  },
+  "/home/user/Desktop/chac/src/utils/id.ts": {
+    "mtime": 1783623069.219104,
+    "ast_hash": "1310a87737d7777d380aa4f4f3043795",
+    "semantic_hash": "1310a87737d7777d380aa4f4f3043795"
+  },
+  "/home/user/Desktop/chac/src/utils/vector.ts": {
+    "mtime": 1783688636.9376202,
+    "ast_hash": "a55b1e9d814010edbb6157049c870d2a",
+    "semantic_hash": "a55b1e9d814010edbb6157049c870d2a"
+  },
+  "/home/user/Desktop/chac/tests/e2e/app.test.ts": {
+    "mtime": 1783683230.3536613,
+    "ast_hash": "7565ae06b598c17368968286a87e6914",
+    "semantic_hash": "7565ae06b598c17368968286a87e6914"
+  },
+  "/home/user/Desktop/chac/tests/helpers/setup.ts": {
+    "mtime": 1783623609.6584213,
+    "ast_hash": "83715f4213aa3b2070a22818e91cb06b",
+    "semantic_hash": "83715f4213aa3b2070a22818e91cb06b"
+  },
+  "/home/user/Desktop/chac/tests/integration/documents-ingest.test.ts": {
+    "mtime": 1783682745.1233828,
+    "ast_hash": "97eef9a62e59a4ba7eb8a917949092fa",
+    "semantic_hash": "97eef9a62e59a4ba7eb8a917949092fa"
+  },
+  "/home/user/Desktop/chac/tests/mocks/llama-cpp.ts": {
+    "mtime": 1783686095.573185,
+    "ast_hash": "24ae79f745d91a361d1aaa52bce759e0",
+    "semantic_hash": "24ae79f745d91a361d1aaa52bce759e0"
+  },
+  "/home/user/Desktop/chac/tests/unit/database/migrations.test.ts": {
+    "mtime": 1783705570.0481637,
+    "ast_hash": "2d16ee6fbc0e854bdd4ea4d128e5f53c",
+    "semantic_hash": "2d16ee6fbc0e854bdd4ea4d128e5f53c"
+  },
+  "/home/user/Desktop/chac/tests/unit/kernel.test.ts": {
+    "mtime": 1783682745.084294,
+    "ast_hash": "29de14f99e0c1828d6fc7fc6d50ab7a5",
+    "semantic_hash": "29de14f99e0c1828d6fc7fc6d50ab7a5"
+  },
+  "/home/user/Desktop/chac/tests/unit/modules/api-routes.test.ts": {
+    "mtime": 1783688850.1933517,
+    "ast_hash": "a82cd01fc2a293788b462d64043e64ec",
+    "semantic_hash": "a82cd01fc2a293788b462d64043e64ec"
+  },
+  "/home/user/Desktop/chac/tests/unit/modules/chat-context.test.ts": {
+    "mtime": 1783682745.0914848,
+    "ast_hash": "5e127f0e836aa273451fac4ed96ea568",
+    "semantic_hash": "5e127f0e836aa273451fac4ed96ea568"
+  },
+  "/home/user/Desktop/chac/tests/unit/modules/chat.test.ts": {
+    "mtime": 1783709023.5544298,
+    "ast_hash": "b2bdaa0f4c0264db6a93e346c43b5fab",
+    "semantic_hash": "b2bdaa0f4c0264db6a93e346c43b5fab"
+  },
+  "/home/user/Desktop/chac/tests/unit/modules/settings-api.test.ts": {
+    "mtime": 1783683230.3527184,
+    "ast_hash": "202cbdba1e482c91e769543af3321731",
+    "semantic_hash": "202cbdba1e482c91e769543af3321731"
+  },
+  "/home/user/Desktop/chac/tests/unit/modules/settings.test.ts": {
+    "mtime": 1783689077.2357364,
+    "ast_hash": "6382cbebc9e931c112f8c319bf6b7bbe",
+    "semantic_hash": "6382cbebc9e931c112f8c319bf6b7bbe"
+  },
+  "/home/user/Desktop/chac/tests/unit/modules/wiki.test.ts": {
+    "mtime": 1783682745.0879157,
+    "ast_hash": "389c4186f0fe739fde78de84bba533fd",
+    "semantic_hash": "389c4186f0fe739fde78de84bba533fd"
+  },
+  "/home/user/Desktop/chac/tests/unit/platform/detect.test.ts": {
+    "mtime": 1783682745.0782943,
+    "ast_hash": "2c2496c0fbaf50368667ec592936b2c4",
+    "semantic_hash": "2c2496c0fbaf50368667ec592936b2c4"
+  },
+  "/home/user/Desktop/chac/tests/unit/platform/paths.test.ts": {
+    "mtime": 1783682745.0826118,
+    "ast_hash": "74c4c27feee61471bb919de8799965f8",
+    "semantic_hash": "74c4c27feee61471bb919de8799965f8"
+  },
+  "/home/user/Desktop/chac/tests/unit/utils/chunking.test.ts": {
+    "mtime": 1783683343.8426287,
+    "ast_hash": "c227958f41e33a7f874f8f1e5e4fd571",
+    "semantic_hash": "c227958f41e33a7f874f8f1e5e4fd571"
+  },
+  "/home/user/Desktop/chac/tests/unit/utils/hash.test.ts": {
+    "mtime": 1783682745.115944,
+    "ast_hash": "19ae2e5004a8217545b5c99fe83973ef",
+    "semantic_hash": "19ae2e5004a8217545b5c99fe83973ef"
+  },
+  "/home/user/Desktop/chac/tests/unit/utils/vector.test.ts": {
+    "mtime": 1783683344.724597,
+    "ast_hash": "f6d96641c49b20d09db21135e2c02de9",
+    "semantic_hash": "f6d96641c49b20d09db21135e2c02de9"
+  },
+  "/home/user/Desktop/chac/tsconfig.json": {
+    "mtime": 1783682902.695565,
+    "ast_hash": "cc792ee80dc4a2cd235ae9cc559a6217",
+    "semantic_hash": "cc792ee80dc4a2cd235ae9cc559a6217"
+  },
+  "/home/user/Desktop/chac/usb-drive/launchers/start.sh": {
+    "mtime": 1783644698.5527623,
+    "ast_hash": "e7d20ae9815d940d5276dc19bf351bcd",
+    "semantic_hash": "e7d20ae9815d940d5276dc19bf351bcd"
+  },
+  "/home/user/Desktop/chac/usb-drive/setup/download-llama.sh": {
+    "mtime": 1783648662.6958532,
+    "ast_hash": "99b0acedd232c5b0af99946b1706e47b",
+    "semantic_hash": "99b0acedd232c5b0af99946b1706e47b"
+  },
+  "/home/user/Desktop/chac/usb-drive/setup/download-models.sh": {
+    "mtime": 1783649678.5546708,
+    "ast_hash": "5b753f52ae41866f712b86206d052ad8",
+    "semantic_hash": "5b753f52ae41866f712b86206d052ad8"
+  },
+  "/home/user/Desktop/chac/usb-drive/setup/install.sh": {
+    "mtime": 1783644262.1047676,
+    "ast_hash": "a5cf009b7b9f2cfcaa06e129c73d9aa9",
+    "semantic_hash": "a5cf009b7b9f2cfcaa06e129c73d9aa9"
+  },
+  "/home/user/Desktop/chac/usb-drive/setup/setup-all.sh": {
+    "mtime": 1783644437.7270641,
+    "ast_hash": "3c7ead7d5d72efb713a812925f03deb5",
+    "semantic_hash": "3c7ead7d5d72efb713a812925f03deb5"
+  },
+  "/home/user/Desktop/chac/BENCHMARK.md": {
+    "mtime": 1783681079.04357,
+    "ast_hash": "e081286fe7caca125ce0431ab9a59a28",
+    "semantic_hash": "e081286fe7caca125ce0431ab9a59a28"
+  },
+  "/home/user/Desktop/chac/Docs/Karpathy.md": {
+    "mtime": 1783652416.9511666,
+    "ast_hash": "8843468b765cd39e83f9bee6a4f4c6fd",
+    "semantic_hash": "8843468b765cd39e83f9bee6a4f4c6fd"
+  },
+  "/home/user/Desktop/chac/Docs/MoE.md": {
+    "mtime": 1783683681.397489,
+    "ast_hash": "7960cefc24c15d29b7c5d6aadd28ba7b",
+    "semantic_hash": "7960cefc24c15d29b7c5d6aadd28ba7b"
+  },
+  "/home/user/Desktop/chac/Docs/Swarm.md": {
+    "mtime": 1783651964.3969083,
+    "ast_hash": "331831805b9d04b44c248c0ffafc50e2",
+    "semantic_hash": "331831805b9d04b44c248c0ffafc50e2"
+  },
+  "/home/user/Desktop/chac/FAQ.md": {
+    "mtime": 1783696463.225168,
+    "ast_hash": "810ec79769f5fe582bfea159fc12b230",
+    "semantic_hash": "810ec79769f5fe582bfea159fc12b230"
+  },
+  "/home/user/Desktop/chac/README.md": {
+    "mtime": 1783709289.2250044,
+    "ast_hash": "287d5c984c642ef84cebee2fc6cafd08",
+    "semantic_hash": "287d5c984c642ef84cebee2fc6cafd08"
+  },
+  "/home/user/Desktop/chac/launchers/README.txt": {
+    "mtime": 1783624626.1892245,
+    "ast_hash": "14284633246c4f0ad7bc55bdcfa4ec75",
+    "semantic_hash": "14284633246c4f0ad7bc55bdcfa4ec75"
+  },
+  "/home/user/Desktop/chac/src/public/index.html": {
+    "mtime": 1783709653.9550323,
+    "ast_hash": "79269c358f6bfff22761f24130885b56",
+    "semantic_hash": "79269c358f6bfff22761f24130885b56"
+  },
+  "/home/user/Desktop/chac/usb-drive/README.md": {
+    "mtime": 1783688986.6241565,
+    "ast_hash": "4d770008b8c40d474b6bc85ea061034e",
+    "semantic_hash": "4d770008b8c40d474b6bc85ea061034e"
+  }
+}

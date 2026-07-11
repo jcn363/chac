@@ -1,5 +1,5 @@
 import type { Kernel } from "../../kernel/types";
-import type { LlmInstance, LlmService, ChatCompletionOptions, EmbeddingOptions, EmbeddingResponse } from "./types";
+import type { LlmInstance, LlmService, ChatCompletionOptions, EmbeddingOptions, EmbeddingResponse, ModelCapabilities } from "./types";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { getAppRoot } from "../../platform/paths";
@@ -42,6 +42,31 @@ export class LlmServiceImpl implements LlmService {
     return `http://127.0.0.1:${instance.port}`;
   }
 
+  getModelInfo(modelType: string): ModelCapabilities | null {
+    const instance = this.instances.get(modelType);
+    return instance?.capabilities ?? null;
+  }
+
+  async restartInstance(modelType: string): Promise<void> {
+    const instance = this.instances.get(modelType);
+    if (!instance) return;
+
+    console.log(`Restarting ${modelType} model...`);
+    try {
+      instance.process.kill("SIGTERM");
+      await Bun.sleep(1000);
+      if (instance.process.exitCode === null) {
+        instance.process.kill("SIGKILL");
+      }
+    } catch {
+      // process already dead
+    }
+    this.instances.delete(modelType);
+
+    // Re-spawn on next request
+    console.log(`${modelType} model stopped. Will restart on next request.`);
+  }
+
   private async ensureInstance(id: string, modelType: "chat" | "embed" | "vision"): Promise<string> {
     if (this.devMode) return "";
 
@@ -49,7 +74,7 @@ export class LlmServiceImpl implements LlmService {
       return this.getUrl(id);
     }
 
-    const settings = this.kernel.get<{ get: (key: string) => unknown }>("settings");
+    const settings = this.kernel.get<{ get: (key: string) => unknown; set: (key: string, value: unknown) => void }>("settings");
     const ctxSize = (settings.get("llm.chat.ctx_size") as number) ?? 4096;
     const threads = (settings.get("llm.chat.threads") as number) ?? 4;
     const gpuLayers = (settings.get("llm.gpu.layers") as number) ?? 0;
@@ -73,7 +98,6 @@ export class LlmServiceImpl implements LlmService {
       args.push("--threads", String(threads));
     }
 
-    // GPU acceleration
     if (gpuLayers !== 0) {
       args.push("-ngl", String(gpuLayers));
     }
@@ -84,7 +108,6 @@ export class LlmServiceImpl implements LlmService {
       args.push("--split-mode", splitMode);
     }
 
-    // MTP speculative decoding
     if (mtpEnabled && modelType === "chat") {
       args.push("--spec-type", "draft-mtp");
       if (mtpDraftNgl > 0) {
@@ -99,10 +122,19 @@ export class LlmServiceImpl implements LlmService {
       stderr: "pipe",
     });
 
-    this.instances.set(id, { process: subprocess, port, modelType, modelPath: `models/${modelType}.gguf` });
+    const instance: LlmInstance = {
+      process: subprocess,
+      port,
+      modelType,
+      modelPath: `models/${modelType}.gguf`,
+      capabilities: null,
+    };
+    this.instances.set(id, instance);
 
     try {
       await this.waitForReady(port);
+      instance.capabilities = await this.queryModelInfo(port, modelType);
+      this.autoDetectContext(instance);
     } catch (e) {
       subprocess.kill("SIGKILL");
       this.instances.delete(id);
@@ -125,6 +157,37 @@ export class LlmServiceImpl implements LlmService {
     throw new Error(`llama.cpp on port ${port} failed to start within ${timeout}ms`);
   }
 
+  private async queryModelInfo(port: number, modelType: string): Promise<ModelCapabilities> {
+    try {
+      const res = await fetch(`http://127.0.0.1:${port}/v1/models`);
+      if (!res.ok) return { contextLength: 0, architecture: "unknown", supportsVision: false };
+      const data = await res.json() as { data?: Array<{ id?: string; object?: string }> };
+      const model = data.data?.[0];
+      return {
+        contextLength: 0,
+        architecture: model?.id ?? "unknown",
+        supportsVision: modelType === "vision",
+      };
+    } catch {
+      return { contextLength: 0, architecture: "unknown", supportsVision: modelType === "vision" };
+    }
+  }
+
+  private autoDetectContext(instance: LlmInstance): void {
+    if (instance.modelType !== "chat") return;
+    const settings = this.kernel.get<{ get: (key: string) => unknown; set: (key: string, value: unknown) => void }>("settings");
+    const autoDetect = settings.get("llm.chat.ctx_size.auto") as boolean;
+    if (!autoDetect) return;
+
+    const currentCtx = settings.get("llm.chat.ctx_size") as number;
+    if (currentCtx !== 4096) return;
+
+    if (instance.capabilities && instance.capabilities.contextLength > 0) {
+      settings.set("llm.chat.ctx_size", instance.capabilities.contextLength);
+      console.log(`Auto-detected context size: ${instance.capabilities.contextLength}`);
+    }
+  }
+
   private async *chatCompletions(options: ChatCompletionOptions): AsyncGenerator<string> {
     if (this.devMode) {
       yield* this.mockChatCompletions(options);
@@ -132,7 +195,7 @@ export class LlmServiceImpl implements LlmService {
     }
 
     const url = await this.ensureInstance("chat", "chat");
-    const settings = this.kernel.get<{ get: (key: string) => unknown }>("settings");
+    const settings = this.kernel.get<{ get: (key: string) => unknown; set: (key: string, value: unknown) => void }>("settings");
 
     const response = await fetch(`${url}/v1/chat/completions`, {
       method: "POST",
@@ -221,7 +284,6 @@ export class LlmServiceImpl implements LlmService {
     if (!options.input || options.input.length === 0) {
       return { data: [{ embedding: new Array(768).fill(0) }] };
     }
-    // Deterministic mock embedding based on content hash
     const embedding = new Array(768).fill(0).map((_, i) => {
       const charCode = options.input.charCodeAt(i % options.input.length) || 0;
       return (charCode / 255) * 2 - 1;
@@ -230,7 +292,7 @@ export class LlmServiceImpl implements LlmService {
   }
 
   status(): { chat: boolean; embed: boolean; vision: boolean; gpu: boolean; mtp: boolean } {
-    const settings = this.kernel.get<{ get: (key: string) => unknown }>("settings");
+    const settings = this.kernel.get<{ get: (key: string) => unknown; set: (key: string, value: unknown) => void }>("settings");
     return {
       chat: this.devMode || this.instances.has("chat"),
       embed: this.devMode || this.instances.has("embed"),

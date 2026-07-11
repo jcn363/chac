@@ -4,6 +4,7 @@ import { SettingsService } from "../../src/modules/settings/service";
 import { DocumentsService } from "../../src/modules/documents/service";
 import { ChatService } from "../../src/modules/chat/service";
 import { WikiService } from "../../src/modules/wiki/service";
+import { MemoryService } from "../../src/modules/memory/service";
 import { createMockLlmService } from "../mocks/llama-cpp";
 import { createKernel } from "../../src/kernel";
 import type { Kernel } from "../../src/kernel/types";
@@ -19,5 +20,6 @@ export function createTestKernel(): Kernel {
   kernel.provide("docs", new DocumentsService(kernel));
   kernel.provide("chat", new ChatService(kernel));
   kernel.provide("wiki", new WikiService(kernel));
+  kernel.provide("memory", new MemoryService(kernel));
   return kernel;
 }

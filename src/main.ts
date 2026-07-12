@@ -98,7 +98,7 @@ wiki.compile = async function () {
   return result;
 };
 
-// Step 5: Router
+// Step 6: Router
 const router = createRouter(kernel);
 
 const rawPort = parseInt(process.env.PORT || "3000", 10);

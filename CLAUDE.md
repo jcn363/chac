@@ -30,14 +30,16 @@ Microkernel with dependency injection. The kernel (`src/kernel/`) provides servi
 - `chat` — ChatService (sessions, messages, RAG retrieval)
 - `wiki` — WikiService (Karpathy Method compilation)
 - `memory` — MemoryService (cross-session user memory)
+- `scheduler` — SchedulerService (background tasks: memory consolidation, cleanup, index checks)
 
 ### Source layout
 
 ```
 src/
   main.ts              # Entry point: kernel init, service wiring, server start
+  errors.ts            # AppError hierarchy (NotFound, Validation, Security, ExternalService)
   kernel/              # DI container (Kernel interface, Module lifecycle)
-  database/            # SQLite init, migrations, schema
+  database/            # SQLite init, migrations (inline schema, v6)
   modules/
     settings/          # SettingsService — DB-backed with in-memory cache
     llm/               # LlmServiceImpl — llama.cpp subprocess, streaming
@@ -45,10 +47,11 @@ src/
     chat/              # ChatService — sessions, messages, RAG retrieval
     memory/            # MemoryService — cross-session user memory
     wiki/              # WikiService — Karpathy Method wiki compilation
-    router/            # Hono HTTP server, REST API routes
-  platform/            # OS-specific paths (getAppRoot)
-  utils/               # Shared utilities (chunking, hashing, IDs, vectors, VectorIndex)
-  public/              # Static frontend files (HTML, CSS, JS)
+    scheduler/         # SchedulerService — background tasks
+    router/            # Hono HTTP server, REST API routes, WebSocket, OpenAPI
+  platform/            # OS-specific paths (getAppRoot), binary resolution
+  utils/               # Shared utilities (chunking, hashing, IDs, vectors, VectorIndex, cache, citations, document-parser)
+  public/              # Static frontend files (HTML, CSS, JS + componentized js/)
 tests/
   helpers/setup.ts     # createTestKernel() for test isolation
   mocks/               # Mock LLM service (no llama.cpp needed)
@@ -97,7 +100,7 @@ Hono framework. Routes defined in `src/modules/router/`. All responses return JS
 
 Plain HTML/CSS/JS in `src/public/`. No framework — vanilla DOM manipulation. Markdown rendering via `marked`, sanitization via `dompurify`.
 
-Settings tab renders interactive controls (selects, inputs, checkboxes) from `DEFAULT_SETTINGS`. Model presets defined in `MODEL_PRESETS` in `app.js`. Changes saved via `PUT /api/settings`.
+Settings tab renders interactive controls (selects, inputs, checkboxes) from `DEFAULT_SETTINGS`. Model presets defined in `MODEL_PRESETS` in `js/components/settings.js`. Changes saved via `PUT /api/settings`.
 
 Memory tab manages cross-session memory via `GET/PUT/DELETE /api/memory`. Entries organized by category (preference, topic, fact, summary).
 
@@ -159,7 +162,7 @@ describe("MyModule", () => {
 - WebSocket streaming: real-time chat token delivery via `/ws` endpoint with POST fallback
 - Frontend: componentized into `js/components/` (chat, documents, wiki, memory, settings, help) + `js/lib/` (api, dom, state)
 - Service worker: offline-first caching for static assets, network-first for API calls
-- OpenAPI 3.1 spec at `/api/openapi.json` documenting all 34 paths / 47 endpoints
+- OpenAPI 3.1 spec at `/api/openapi.json` documenting all 35 paths / 47 endpoints
 
 ## Build & Deploy
 

@@ -174,7 +174,6 @@ When `llama.cpp` binaries aren't available, Chac runs in **dev mode** with mock 
 
 ```
 chac/
-├── .editorconfig                    # Editor settings (indent, charset, EOL)
 ├── src/
 │   ├── main.ts                      # Entry point — boots kernel, starts server, wires WebSocket
 │   ├── errors.ts                    # AppError hierarchy (NotFound, Validation, Security, ExternalService)
@@ -182,79 +181,79 @@ chac/
 │   │   ├── index.ts                 # Kernel: module registry, lifecycle, DI
 │   │   └── types.ts                 # Module contract (interface)
 │   ├── database/
-│   │   ├── index.ts                 # DB connection, WAL mode, foreign keys
-│   │   ├── schema.sql               # Single source of truth for all tables
-│   │   └── migrations.ts            # Version-tracked migration runner (v6)
+│   │   ├── index.ts                 # DB connection, WAL mode, foreign keys, backup/restore
+│   │   └── migrations.ts            # Schema (inline) + version-tracked migration runner (v6)
 │   ├── platform/
 │   │   ├── detect.ts                # OS/arch detection (SSOT)
-│   │   ├── paths.ts                 # Portable path resolution
+│   │   ├── paths.ts                 # Portable path resolution (compiled binary vs dev mode)
 │   │   └── binaries.ts              # External binary loader (llama.cpp)
 │   ├── modules/
 │   │   ├── settings/
-│   │   │   ├── service.ts           # Settings CRUD (SSOT: settings table)
-│   │   │   └── types.ts             # Setting defaults, types, SettingsServiceType interface
+│   │   │   ├── service.ts           # Settings CRUD with in-memory cache
+│   │   │   └── types.ts             # DEFAULT_SETTINGS (34 keys), SettingsServiceType
 │   │   ├── llm/
-│   │   │   ├── service.ts           # Process manager + mock fallback
-│   │   │   └── types.ts             # LLM service interface
+│   │   │   ├── service.ts           # llama.cpp subprocess manager + mock fallback
+│   │   │   └── types.ts             # LlmService interface, LlmInstance, ChatCompletionOptions
 │   │   ├── documents/
-│   │   │   ├── service.ts           # Ingest, chunk, embed, search
-│   │   │   └── types.ts             # Document and search result types
+│   │   │   ├── service.ts           # Ingest, chunk, embed, search, tags, suggest
+│   │   │   └── types.ts             # Document, SearchResult, IngestResult, BatchIngestResult
 │   │   ├── wiki/
-│   │   │   ├── service.ts           # Wiki compilation (Karpathy Method)
-│   │   │   └── types.ts             # Wiki page types
+│   │   │   ├── service.ts           # Wiki compilation (Karpathy Method + multi-agent synthesis)
+│   │   │   └── types.ts             # WikiPage
 │   │   ├── chat/
-│   │   │   ├── service.ts           # Chat sessions, ranked fusion retrieval
-│   │   │   └── types.ts             # Chat session and message types
+│   │   │   ├── service.ts           # Chat sessions, RRF fusion, token-aware context
+│   │   │   └── types.ts             # ChatSession, ChatMessage, SendMessageOptions
 │   │   ├── memory/
-│   │   │   ├── service.ts           # Cross-session memory, extraction
-│   │   │   └── types.ts             # Memory entry types
+│   │   │   ├── service.ts           # Cross-session memory, LLM extraction
+│   │   │   └── types.ts             # MemoryEntry
+│   │   ├── scheduler/
+│   │   │   ├── service.ts           # Background task scheduler (memory consolidation, cleanup)
+│   │   │   └── types.ts             # ScheduledTask, TaskStatus
 │   │   └── router/
 │   │       ├── index.ts             # Hono app setup, global error handler
-│   │       ├── api.ts               # All API route definitions (wrap() error handling)
-│   │       ├── openapi.ts           # OpenAPI 3.1 spec (35 endpoints)
+│   │       ├── api.ts               # All 35 API paths / 47 endpoint methods
+│   │       ├── openapi.ts           # OpenAPI 3.1 spec
 │   │       ├── ws.ts                # WebSocket handler (real-time chat streaming)
 │   │       └── static.ts            # Frontend asset serving
 │   ├── public/
-│   │   ├── index.html               # Main HTML (tabs: Chat, Documents, Wiki, Settings)
+│   │   ├── index.html               # Main HTML (tabs: Chat, Documents, Wiki, Memory, Settings)
 │   │   ├── styles.css               # CSS with dark mode via prefers-color-scheme
 │   │   ├── sw.js                    # Service worker (offline-first caching)
-│   │   ├── app.js                   # Frontend orchestrator (loads component modules)
+│   │   ├── app.js                   # Frontend orchestrator (tab switching, theme, keyboard nav)
 │   │   └── js/
 │   │       ├── components/
-│   │       │   ├── chat.js          # Chat UI (WebSocket streaming + POST fallback)
-│   │       │   ├── documents.js     # Document management
-│   │       │   ├── wiki.js          # Wiki viewer
-│   │       │   ├── memory.js        # Memory management
-│   │       │   ├── settings.js      # Settings controls
-│   │       │   └── help.js          # Help overlay
+│   │       │   ├── chat.js          # Chat UI (WebSocket streaming + POST fallback, search, export)
+│   │       │   ├── documents.js     # Document management (ingest, list)
+│   │       │   ├── wiki.js          # Wiki viewer (compile, list)
+│   │       │   ├── memory.js        # Memory management (CRUD)
+│   │       │   ├── settings.js      # Settings controls (MODEL_PRESETS, grouped UI)
+│   │       │   └── help.js          # Help overlay (system status, keyboard shortcuts)
 │   │       └── lib/
-│   │           ├── api.js           # Fetch helpers (GET, PUT, POST, DELETE)
-│   │           ├── dom.js           # DOM utilities (showToast, loading states)
-│   │           └── state.js         # Global state management
+│   │           ├── api.js           # Fetch helpers (GET, PUT, POST, DELETE) + WebSocket
+│   │           ├── dom.js           # DOM utilities (escapeHtml, showToast, toggleEmptyState)
+│   │           └── state.js         # Global state (currentSession)
 │   └── utils/
 │       ├── chunking.ts              # Text chunking (character + semantic modes)
-│       ├── vector.ts                # Cosine similarity, BLOB conversion
-│       ├── vector-index.ts          # HNSW ANNS with SQLite persistence (v6)
-│       ├── llm-helpers.ts           # Shared: createEmbedding, collectLlmResponse, extractJson, embedAndInsertChunks, estimateTokens
-│       ├── citations.ts             # Shared: generateCitation, formatCitation
+│       ├── vector.ts                # Cosine similarity, embeddingToBlob, blobToEmbedding
+│       ├── vector-index.ts          # HNSW ANNS with SQLite persistence (migration v6)
+│       ├── llm-helpers.ts           # createEmbedding, collectLlmResponse, extractJsonFromLlm, embedAndInsertChunks, estimateTokens
+│       ├── citations.ts             # generateCitation, formatCitation
+│       ├── cache.ts                 # MemoryCache<T> with TTL, stats, embedding cache
+│       ├── document-parser.ts       # PDF, DOCX, Markdown, HTML, text parsing
 │       ├── hash.ts                  # SHA-256 content hashing
-│       └── id.ts                    # UUID generation
+│       └── id.ts                    # UUID generation (crypto.randomUUID)
 ├── tests/
-│   ├── unit/                        # Unit tests per module
-│   │   ├── database/migrations.test.ts
-│   │   └── modules/*.test.ts
-│   ├── integration/                 # Cross-module integration tests
-│   │   ├── vector-persistence.test.ts
-│   │   ├── error-handling.test.ts
-│   │   └── documents-ingest.test.ts
-│   ├── e2e/                         # End-to-end tests (excluded by default)
-│   ├── mocks/                       # Mock LLM for testing
+│   ├── unit/                        # Unit tests per module (31 test files)
+│   ├── integration/                 # Cross-module integration tests (4 files)
+│   ├── e2e/                         # End-to-end tests
+│   ├── benchmarks/                  # Performance benchmarks
+│   ├── mocks/                       # Mock LLM (no llama.cpp needed)
 │   │   └── llama-cpp.ts
 │   └── helpers/
-│       └── setup.ts                 # Test kernel with in-memory DB + mock LLM
-├── Docs/                            # Reference documentation
-├── launchers/                       # USB drive launcher scripts
-├── build.ts                         # Cross-compilation build script
+│       └── setup.ts                 # createTestKernel() for test isolation
+├── Docs/                            # Reference documentation (10 markdown + 2 PDF)
+├── launchers/                       # USB drive launcher scripts (start.sh, start.command, start.bat)
+├── build.ts                         # Cross-compilation build script (8 targets)
 ├── CLAUDE.md                        # Agent context (coding rules, architecture)
 └── package.json
 ```
@@ -347,7 +346,7 @@ Full OpenAPI 3.1 documentation is available at:
 GET /api/openapi.json
 ```
 
-This spec covers all 34 API paths with 47 method definitions across settings, documents, chat, wiki, LLM, memory, search history, tags, suggestions, cache, scheduler, and backup/restore.
+This spec covers all 35 API paths with 47 method definitions across settings, documents, chat, wiki, LLM, memory, search history, tags, suggestions, cache, scheduler, and backup/restore.
 
 ### Status
 
@@ -372,10 +371,14 @@ This spec covers all 34 API paths with 47 method definitions across settings, do
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | `GET` | `/api/documents?page=1&per_page=20` | List documents (paginated) |
+| `GET` | `/api/documents/status` | Document count and stats |
 | `GET` | `/api/documents/:id` | Get document by ID |
 | `POST` | `/api/documents` | Ingest a document |
 | `DELETE` | `/api/documents/:id` | Delete a document |
-| `POST` | `/api/documents/search` | Search documents by vector similarity |
+| `POST` | `/api/documents/:id/reingest` | Re-chunk and re-embed a document |
+| `POST` | `/api/documents/search` | Semantic search (with optional rerank/expand) |
+| `POST` | `/api/documents/batch` | Batch ingest (max 50 files) |
+| `POST` | `/api/documents/batch/delete` | Batch delete by IDs |
 
 **POST /api/documents body:**
 ```json
@@ -384,8 +387,31 @@ This spec covers all 34 API paths with 47 method definitions across settings, do
 
 **POST /api/documents/search body:**
 ```json
-{ "query": "machine learning", "limit": 5 }
+{ "query": "machine learning", "limit": 5, "rerank": false, "expand": false }
 ```
+
+### Tags
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/tags` | List all tags with document counts |
+| `GET` | `/api/tags/:tag/documents` | Get documents by tag |
+| `PUT` | `/api/documents/:id/tags` | Replace all tags on a document |
+| `POST` | `/api/documents/:id/tags` | Add tags to a document |
+| `DELETE` | `/api/documents/:id/tags` | Remove tags from a document |
+
+### Search History
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/search/history` | Get search history |
+| `DELETE` | `/api/search/history` | Clear search history |
+
+### Suggested Questions
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/suggest?documentId=...&count=5` | Generate suggested questions (LLM)
 
 ### Chat
 
@@ -398,6 +424,10 @@ This spec covers all 34 API paths with 47 method definitions across settings, do
 | `DELETE` | `/api/chat/sessions/:id` | Delete a session and its messages |
 | `GET` | `/api/chat/sessions/:id/messages` | Get messages for a session |
 | `POST` | `/api/chat` | Send a message (returns response) |
+| `GET` | `/api/chat/sessions/:id/export` | Export session + messages as JSON |
+| `POST` | `/api/chat/import` | Import a conversation |
+| `PUT` | `/api/chat/messages/:id` | Edit a message |
+| `DELETE` | `/api/chat/messages/:id` | Delete a message |
 
 **POST /api/chat/sessions body:**
 ```json
@@ -443,6 +473,27 @@ This spec covers all 34 API paths with 47 method definitions across settings, do
 { "category": "preference", "key": "language", "value": "English" }
 ```
 
+### Cache
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/cache/stats` | Embedding and search cache statistics |
+| `POST` | `/api/cache/clear` | Clear all caches |
+
+### Scheduler
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/scheduler/status` | List scheduled tasks with status |
+| `POST` | `/api/scheduler/run/:name` | Manually trigger a scheduled task |
+
+### Backup/Restore
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/backup` | Export full database as JSON |
+| `POST` | `/api/restore` | Import database from JSON |
+
 ---
 
 ## WebSocket Protocol
@@ -452,25 +503,25 @@ Connect to `ws://localhost:3000/ws` for real-time chat streaming.
 ### Client → Server
 
 ```json
-{ "type": "start", "sessionId": "uuid", "message": "What is ML?" }
+{ "type": "chat", "sessionId": "uuid", "message": "What is ML?" }
 ```
 
 ### Server → Client
 
 ```json
-{ "type": "start", "messageId": "msg-uuid" }
-{ "type": "chunk", "content": "Machine" }
-{ "type": "chunk", "content": " learning" }
-{ "type": "chunk", "content": " is..." }
-{ "type": "done", "messageId": "msg-uuid", "contextChunks": [...] }
-{ "type": "error", "error": "Failed to generate response" }
+{ "type": "chat:start", "sessionId": "uuid" }
+{ "type": "chat:chunk", "content": "Machine" }
+{ "type": "chat:chunk", "content": " learning" }
+{ "type": "chat:chunk", "content": " is..." }
+{ "type": "chat:done", "message": { "id": "msg-uuid", "content": "Machine learning is...", ... } }
+{ "type": "chat:error", "error": "Failed to generate response" }
 ```
 
 ---
 
 ## Database Schema
 
-**Single source of truth:** `src/database/schema.sql`
+**Single source of truth:** `src/database/migrations.ts` (inline SCHEMA_SQL)
 
 ### Tables
 
@@ -481,11 +532,12 @@ Connect to `ws://localhost:3000/ws` for real-time chat streaming.
 | `chat_sessions` | Conversation groups | `id`, `title`, `system_prompt`, `sort_order` |
 | `chat_messages` | Individual messages | `session_id`, `role`, `content`, `context_chunks` (JSON), `citations` (JSON) |
 | `wiki_pages` | LLM-synthesized entries | `id`, `title`, `slug`, `content`, `embedding` (BLOB) |
-| `settings` | App configuration | `key`, `value` (JSON), `category` |
+| `settings` | App configuration (34 keys) | `key`, `value` (JSON), `category` |
 | `document_tags` | Many-to-many tags | `document_id`, `tag` |
 | `usage_log` | Monitoring | `event_type`, `tokens_used`, `latency_ms` |
 | `user_memory` | Cross-session memory | `category`, `key`, `value`, `source`, `confidence` |
-| `vector_index_cache` | HNSW graph persistence | `id`, `graph_json`, `updated_at` |
+| `search_history` | Search analytics | `query`, `results_count`, `expanded_query`, `reranked` |
+| `vector_index_cache` | HNSW index persistence | `table_name`, `entry_id`, `content`, `embedding`, `embedding_norm` |
 
 ### SQLite PRAGMAs (set in code)
 
@@ -500,12 +552,12 @@ PRAGMA busy_timeout = 5000;       -- USB latency tolerance
 
 | Version | Migration | Description |
 |---------|-----------|-------------|
-| v1 | Initial schema | All core tables |
-| v2 | Document tags | Many-to-many tagging |
-| v3 | Usage log | Monitoring events |
-| v4 | User memory | Cross-session persistence |
-| v5 | Chat citations | Context chunk citations per message |
-| v6 | Vector index cache | HNSW graph persistence for fast cold starts |
+| v1 | Initial schema | All core tables: documents, chunks, chat_sessions, chat_messages, wiki_pages, settings, document_tags, usage_log |
+| v2 | Session ordering | `chat_sessions.sort_order` for drag-and-drop reorder |
+| v3 | User memory | `user_memory` table for cross-session preferences/topics/facts |
+| v4 | Search history | `search_history` table for search analytics |
+| v5 | Chat citations | `chat_messages.citations` column for source tracking |
+| v6 | Vector index cache | `vector_index_cache` table for HNSW persistence (fast cold starts) |
 
 ---
 

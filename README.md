@@ -14,6 +14,7 @@
 - [Project Structure](#project-structure)
 - [How It Works](#how-it-works)
 - [API Reference](#api-reference)
+- [WebSocket Protocol](#websocket-protocol)
 - [Database Schema](#database-schema)
 - [Configuration](#configuration)
 - [Development](#development)
@@ -31,6 +32,7 @@
 - **Ranked Fusion Retrieval** — merges wiki and chunk results via Reciprocal Rank Fusion (K=60)
 - **Semantic Chunking** — splits text at sentence/paragraph boundaries (configurable)
 - **HNSW Vector Search** — O(log n) approximate nearest neighbor search (O(n) fallback for small indexes)
+- **Persistent VectorIndex** — HNSW graph cached to SQLite (migration v6) for fast cold starts
 - **Token-Aware Context** — fills context window up to model's capacity, not fixed message count
 - **Cross-Session Memory** — user preferences and facts remembered across chat sessions
 - **Knowledge Compounding** — high-value answers auto-feed back into wiki pages
@@ -38,6 +40,9 @@
 - **Wiki (Karpathy Method)** — compile documents into structured wiki entries using LLM
 - **Model Selection** — choose from preset models (1B–7B) with auto-configured settings
 - **Model Hot-Swap** — change models in Settings without restarting
+- **Streaming Responses** — real-time streaming from `llama.cpp`
+- **WebSocket Streaming** — real-time chat token delivery via WebSocket with POST fallback
+- **Offline Support** — service worker for static asset caching, network-first API calls
 - **Markdown Rendering** — messages render markdown (bold, italic, code blocks, lists, tables, links)
 - **Chat Export** — download session history as markdown files
 - **Chat Search** — search and highlight messages within a session
@@ -48,7 +53,6 @@
 - **Vision Model** — multimodal support via `llm.vision.model` setting
 - **Portable & Cross-Platform** — runs on any OS via USB drive (Windows, macOS, Linux)
 - **Document Ingestion** — chunk, embed, and store any text file
-- **Streaming Responses** — real-time streaming from `llama.cpp`
 - **Dark Mode** — toggle between system/light/dark themes
 - **Help System** — in-app help overlay with quick start, keyboard shortcuts, tips, troubleshooting, and live system status
 - **Toasts** — non-intrusive notifications for success/error feedback
@@ -58,6 +62,8 @@
 - **Accessibility** — focus rings, ARIA labels, reduced-motion support, touch targets
 - **Responsive** — adapts to mobile screens (sidebar hides on narrow viewports)
 - **Dev Mode** — mock LLM responses for development without `llama.cpp`
+- **OpenAPI 3.1** — full API documentation at `/api/openapi.json`
+- **Structured Error Handling** — AppError hierarchy with typed HTTP responses
 
 ---
 
@@ -118,7 +124,7 @@ Chac uses a **microkernel architecture** with dependency injection. A minimal ke
 
 | Principle | How It's Applied |
 |-----------|-----------------|
-| **DRY** | Single schema file, single platform detector, single path resolver |
+| **DRY** | Shared utilities (`llm-helpers.ts`, `citations.ts`) eliminate duplicated LLM and embedding logic |
 | **SSOT** | Settings table = config source of truth. `schema.sql` = data shape source of truth |
 | **Microkernel** | Kernel handles lifecycle and DI. No business logic in kernel |
 | **Modularity** | Each module has its own service + types. Communication via DI container |
@@ -168,60 +174,88 @@ When `llama.cpp` binaries aren't available, Chac runs in **dev mode** with mock 
 
 ```
 chac/
+├── .editorconfig                    # Editor settings (indent, charset, EOL)
 ├── src/
-│   ├── main.ts                          # Entry point — boots kernel, starts server
+│   ├── main.ts                      # Entry point — boots kernel, starts server, wires WebSocket
+│   ├── errors.ts                    # AppError hierarchy (NotFound, Validation, Security, ExternalService)
 │   ├── kernel/
-│   │   ├── index.ts                     # Kernel: module registry, lifecycle, DI
-│   │   └── types.ts                     # Module contract (interface)
+│   │   ├── index.ts                 # Kernel: module registry, lifecycle, DI
+│   │   └── types.ts                 # Module contract (interface)
 │   ├── database/
-│   │   ├── index.ts                     # DB connection, WAL mode, foreign keys
-│   │   ├── schema.sql                   # Single source of truth for all tables
-│   │   └── migrations.ts                # Version-tracked migration runner
+│   │   ├── index.ts                 # DB connection, WAL mode, foreign keys
+│   │   ├── schema.sql               # Single source of truth for all tables
+│   │   └── migrations.ts            # Version-tracked migration runner (v6)
 │   ├── platform/
-│   │   ├── detect.ts                    # OS/arch detection (SSOT)
-│   │   ├── paths.ts                     # Portable path resolution
-│   │   └── binaries.ts                  # External binary loader (llama.cpp)
+│   │   ├── detect.ts                # OS/arch detection (SSOT)
+│   │   ├── paths.ts                 # Portable path resolution
+│   │   └── binaries.ts              # External binary loader (llama.cpp)
 │   ├── modules/
 │   │   ├── settings/
-│   │   │   ├── service.ts               # Settings CRUD (SSOT: settings table)
-│   │   │   └── types.ts                 # Setting defaults and types
+│   │   │   ├── service.ts           # Settings CRUD (SSOT: settings table)
+│   │   │   └── types.ts             # Setting defaults, types, SettingsServiceType interface
 │   │   ├── llm/
-│   │   │   ├── service.ts               # Process manager + mock fallback
-│   │   │   └── types.ts                 # LLM service interface
+│   │   │   ├── service.ts           # Process manager + mock fallback
+│   │   │   └── types.ts             # LLM service interface
 │   │   ├── documents/
-│   │   │   ├── service.ts               # Ingest, chunk, embed, search
-│   │   │   └── types.ts                 # Document and search result types
+│   │   │   ├── service.ts           # Ingest, chunk, embed, search
+│   │   │   └── types.ts             # Document and search result types
 │   │   ├── wiki/
-│   │   │   ├── service.ts               # Wiki compilation (Karpathy Method)
-│   │   │   └── types.ts                 # Wiki page types
+│   │   │   ├── service.ts           # Wiki compilation (Karpathy Method)
+│   │   │   └── types.ts             # Wiki page types
 │   │   ├── chat/
-│   │   │   ├── service.ts               # Chat sessions, ranked fusion retrieval
-│   │   │   └── types.ts                 # Chat session and message types
+│   │   │   ├── service.ts           # Chat sessions, ranked fusion retrieval
+│   │   │   └── types.ts             # Chat session and message types
 │   │   ├── memory/
-│   │   │   ├── service.ts               # Cross-session memory, extraction
-│   │   │   └── types.ts                 # Memory entry types
+│   │   │   ├── service.ts           # Cross-session memory, extraction
+│   │   │   └── types.ts             # Memory entry types
 │   │   └── router/
-│   │       ├── index.ts                 # Hono app setup
-│   │       ├── api.ts                   # All API route definitions
-│   │       └── static.ts               # Frontend asset serving
+│   │       ├── index.ts             # Hono app setup, global error handler
+│   │       ├── api.ts               # All API route definitions (wrap() error handling)
+│   │       ├── openapi.ts           # OpenAPI 3.1 spec (35 endpoints)
+│   │       ├── ws.ts                # WebSocket handler (real-time chat streaming)
+│   │       └── static.ts            # Frontend asset serving
 │   ├── public/
-│   │   ├── index.html                   # Main HTML (tabs: Chat, Documents, Wiki, Settings)
-│   │   ├── styles.css                   # CSS with dark mode via prefers-color-scheme
-│   │   └── app.js                       # Frontend JavaScript
+│   │   ├── index.html               # Main HTML (tabs: Chat, Documents, Wiki, Settings)
+│   │   ├── styles.css               # CSS with dark mode via prefers-color-scheme
+│   │   ├── sw.js                    # Service worker (offline-first caching)
+│   │   ├── app.js                   # Frontend orchestrator (loads component modules)
+│   │   └── js/
+│   │       ├── components/
+│   │       │   ├── chat.js          # Chat UI (WebSocket streaming + POST fallback)
+│   │       │   ├── documents.js     # Document management
+│   │       │   ├── wiki.js          # Wiki viewer
+│   │       │   ├── memory.js        # Memory management
+│   │       │   ├── settings.js      # Settings controls
+│   │       │   └── help.js          # Help overlay
+│   │       └── lib/
+│   │           ├── api.js           # Fetch helpers (GET, PUT, POST, DELETE)
+│   │           ├── dom.js           # DOM utilities (showToast, loading states)
+│   │           └── state.js         # Global state management
 │   └── utils/
-│       ├── chunking.ts                  # Text chunking (character + semantic modes)
-│       ├── vector.ts                    # Cosine similarity, BLOB conversion
-│       ├── vector-index.ts              # HNSW approximate nearest neighbor search
-│       ├── hash.ts                      # SHA-256 content hashing
-│       └── id.ts                        # UUID generation
+│       ├── chunking.ts              # Text chunking (character + semantic modes)
+│       ├── vector.ts                # Cosine similarity, BLOB conversion
+│       ├── vector-index.ts          # HNSW ANNS with SQLite persistence (v6)
+│       ├── llm-helpers.ts           # Shared: createEmbedding, collectLlmResponse, extractJson, embedAndInsertChunks, estimateTokens
+│       ├── citations.ts             # Shared: generateCitation, formatCitation
+│       ├── hash.ts                  # SHA-256 content hashing
+│       └── id.ts                    # UUID generation
 ├── tests/
-│   ├── unit/                            # 158 tests across 21 files
-│   ├── integration/                     # Document ingest integration tests
-│   ├── e2e/                             # End-to-end tests (excluded by default)
-│   ├── mocks/                           # Mock LLM for testing
-│   └── helpers/                         # Test setup utilities
-├── launchers/                           # USB drive launcher scripts
-├── build.ts                             # Cross-compilation build script
+│   ├── unit/                        # Unit tests per module
+│   │   ├── database/migrations.test.ts
+│   │   └── modules/*.test.ts
+│   ├── integration/                 # Cross-module integration tests
+│   │   ├── vector-persistence.test.ts
+│   │   ├── error-handling.test.ts
+│   │   └── documents-ingest.test.ts
+│   ├── e2e/                         # End-to-end tests (excluded by default)
+│   ├── mocks/                       # Mock LLM for testing
+│   │   └── llama-cpp.ts
+│   └── helpers/
+│       └── setup.ts                 # Test kernel with in-memory DB + mock LLM
+├── Docs/                            # Reference documentation
+├── launchers/                       # USB drive launcher scripts
+├── build.ts                         # Cross-compilation build script
+├── CLAUDE.md                        # Agent context (coding rules, architecture)
 └── package.json
 ```
 
@@ -248,23 +282,25 @@ User selects file
   → Compute SHA-256 hash (dedup check)
   → If hash exists → skip (already ingested)
   → Split into chunks (character-based or semantic, configurable)
-  → For each chunk:
+  → For each chunk (batched 8 at a time):
     → Call embed server (POST /v1/embeddings)
     → Store chunk + embedding BLOB in DB
   → Update document.chunk_count
+  → Invalidate VectorIndex
 ```
 
 ### Wiki Compilation
 
 ```
 User clicks "Compile Wiki"
-  → For each document:
+  → For each document (4 in parallel):
     → Get all chunks for document
     → Concatenate content (limit 4000 chars)
     → LLM synthesizes structured wiki entry (single-pass or multi-agent, configurable)
     → Generate embedding for wiki content
     → Store in wiki_pages table
-  → Cross-document synthesis pass (clusters related pages)
+  → Cross-document synthesis pass (clusters related pages by embedding similarity)
+  → Invalidate VectorIndex
 ```
 
 ### Ranked Fusion Retrieval (Chat Query)
@@ -287,7 +323,7 @@ User sends message
   → Fill history (newest first) until budget exhausted
   → Fill RAG context (highest score first)
 
-  → Stream response via chat server
+  → Stream response via WebSocket (or POST fallback)
   → Save message + context chunks to DB
   → Extract user memory (cross-session)
   → Compound knowledge into wiki (if enabled)
@@ -302,6 +338,16 @@ User sends message
 ```
 http://localhost:3000
 ```
+
+### OpenAPI Spec
+
+Full OpenAPI 3.1 documentation is available at:
+
+```
+GET /api/openapi.json
+```
+
+This spec covers all 34 API paths with 47 method definitions across settings, documents, chat, wiki, LLM, memory, search history, tags, suggestions, cache, scheduler, and backup/restore.
 
 ### Status
 
@@ -399,6 +445,29 @@ http://localhost:3000
 
 ---
 
+## WebSocket Protocol
+
+Connect to `ws://localhost:3000/ws` for real-time chat streaming.
+
+### Client → Server
+
+```json
+{ "type": "start", "sessionId": "uuid", "message": "What is ML?" }
+```
+
+### Server → Client
+
+```json
+{ "type": "start", "messageId": "msg-uuid" }
+{ "type": "chunk", "content": "Machine" }
+{ "type": "chunk", "content": " learning" }
+{ "type": "chunk", "content": " is..." }
+{ "type": "done", "messageId": "msg-uuid", "contextChunks": [...] }
+{ "type": "error", "error": "Failed to generate response" }
+```
+
+---
+
 ## Database Schema
 
 **Single source of truth:** `src/database/schema.sql`
@@ -410,12 +479,13 @@ http://localhost:3000
 | `documents` | Ingested source files | `id`, `title`, `content_hash` (dedup), `chunk_count` |
 | `chunks` | Text segments + embeddings | `document_id`, `content`, `embedding` (BLOB) |
 | `chat_sessions` | Conversation groups | `id`, `title`, `system_prompt`, `sort_order` |
-| `chat_messages` | Individual messages | `session_id`, `role`, `content`, `context_chunks` (JSON) |
+| `chat_messages` | Individual messages | `session_id`, `role`, `content`, `context_chunks` (JSON), `citations` (JSON) |
 | `wiki_pages` | LLM-synthesized entries | `id`, `title`, `slug`, `content`, `embedding` (BLOB) |
 | `settings` | App configuration | `key`, `value` (JSON), `category` |
 | `document_tags` | Many-to-many tags | `document_id`, `tag` |
 | `usage_log` | Monitoring | `event_type`, `tokens_used`, `latency_ms` |
 | `user_memory` | Cross-session memory | `category`, `key`, `value`, `source`, `confidence` |
+| `vector_index_cache` | HNSW graph persistence | `id`, `graph_json`, `updated_at` |
 
 ### SQLite PRAGMAs (set in code)
 
@@ -425,6 +495,17 @@ PRAGMA synchronous = NORMAL;      -- USB flash performance
 PRAGMA foreign_keys = ON;         -- Referential integrity
 PRAGMA busy_timeout = 5000;       -- USB latency tolerance
 ```
+
+### Migrations
+
+| Version | Migration | Description |
+|---------|-----------|-------------|
+| v1 | Initial schema | All core tables |
+| v2 | Document tags | Many-to-many tagging |
+| v3 | Usage log | Monitoring events |
+| v4 | User memory | Cross-session persistence |
+| v5 | Chat citations | Context chunk citations per message |
+| v6 | Vector index cache | HNSW graph persistence for fast cold starts |
 
 ---
 
@@ -438,6 +519,7 @@ All settings are stored in the `settings` table and accessible via the API.
 |-----|---------|----------|-------------|
 | `llm.chat.model` | `"openbmb/MiniCPM5-1B"` | llm | Chat model name |
 | `llm.chat.ctx_size` | `4096` | llm | Context window size |
+| `llm.chat.ctx_size.auto` | `true` | llm | Auto-detect context size from model |
 | `llm.chat.temperature` | `0.7` | llm | Sampling temperature |
 | `llm.chat.threads` | `4` | llm | CPU threads for inference |
 | `llm.embed.model` | `"nomic-ai/nomic-embed-text-v2-moe"` | llm | Embedding model name |
@@ -456,9 +538,10 @@ All settings are stored in the `settings` table and accessible via the API.
 | `rag.max_wiki_chars` | `4000` | rag | Max chars for wiki synthesis input |
 | `rag.wiki_synthesis_threshold` | `0.6` | rag | Min similarity for cross-doc synthesis |
 | `rag.auto_compound` | `false` | rag | Auto-feedback answers into wiki |
+| `rag.expand` | `false` | rag | LLM query expansion before embedding |
+| `rag.rerank` | `false` | rag | LLM reranking of RRF fusion results |
 | `wiki.agents_enabled` | `false` | rag | Multi-agent wiki compilation |
 | `memory.enabled` | `true` | memory | Cross-session memory |
-| `llm.chat.ctx_size.auto` | `true` | llm | Auto-detect context size from model |
 | `ui.dark_mode` | `"system"` | ui | "system", "light", or "dark" |
 | `ui.documents_per_page` | `20` | ui | Pagination size |
 | `server.port` | `3000` | server | HTTP server port |
@@ -479,10 +562,12 @@ curl -X PUT http://localhost:3000/api/settings \
 ### Commands
 
 ```bash
+bun install          # Install dependencies
 bun run dev          # Start dev server with hot reload
+bun run typecheck    # Type-check without emitting
 bun test             # Run all tests
-bun run test:watch   # Run tests in watch mode
-bun run test:coverage # Run tests with coverage report
+bun test --watch     # Run tests in watch mode
+bun test --coverage  # Run tests with coverage report
 bun run build        # Cross-compile for all platforms
 ```
 
@@ -530,34 +615,46 @@ interface Kernel {
 
 ```
 tests/
-├── unit/                      # One test file per source file
+├── unit/                            # Unit tests per module
 │   ├── kernel.test.ts
-│   ├── database/migrations.test.ts
-│   ├── modules/settings.test.ts
-│   ├── modules/settings-api.test.ts
-│   ├── modules/chat.test.ts
-│   ├── modules/chat-context.test.ts
-│   ├── modules/wiki.test.ts
-│   ├── modules/api-routes.test.ts
-│   ├── platform/detect.test.ts
-│   ├── platform/paths.test.ts
-│   └── utils/{chunking,vector,hash}.test.ts
-├── integration/               # Cross-module with real DB
-│   └── documents-ingest.test.ts
-├── e2e/                       # End-to-end (excluded by default)
+│   ├── database/
+│   │   └── migrations.test.ts
+│   ├── modules/
+│   │   ├── settings.test.ts
+│   │   ├── settings-api.test.ts
+│   │   ├── chat.test.ts
+│   │   ├── chat-context.test.ts
+│   │   ├── wiki.test.ts
+│   │   ├── memory.test.ts
+│   │   ├── documents.test.ts
+│   │   ├── api-routes.test.ts
+│   │   └── rag-quality.test.ts
+│   ├── platform/
+│   │   ├── detect.test.ts
+│   │   └── paths.test.ts
+│   └── utils/
+│       ├── chunking.test.ts
+│       ├── vector.test.ts
+│       └── hash.test.ts
+├── integration/                     # Cross-module with real DB
+│   ├── documents-ingest.test.ts
+│   ├── vector-persistence.test.ts
+│   └── error-handling.test.ts
+├── e2e/                             # End-to-end (excluded by default)
 │   └── app.test.ts
 ├── mocks/
-│   └── llama-cpp.ts           # Mock LLM for unit tests
+│   └── llama-cpp.ts                 # Mock LLM for unit tests
 └── helpers/
-    └── setup.ts               # Test kernel with in-memory DB + mock LLM
+    └── setup.ts                     # Test kernel with in-memory DB + mock LLM
 ```
 
 ### Running Tests
 
 ```bash
-bun test                      # Run all unit + integration tests
-bun test tests/unit/          # Unit tests only
-bun test tests/integration/   # Integration tests only
+bun test                          # Run all unit + integration tests
+bun test tests/unit/              # Unit tests only
+bun test tests/integration/       # Integration tests only
+bun test tests/integration/error-handling.test.ts  # Single file
 ```
 
 ### Writing Tests
@@ -719,6 +816,8 @@ if "%PROCESSOR_ARCHITECTURE%"=="AMD64" (
 | "Command not found" | Launcher script not executable | Run `chmod +x start.sh` (Linux/macOS) |
 | "No binary found for llama.cpp" | llama.cpp not installed | App runs in dev mode with mock LLM |
 | `blob.readFloatLE is not a function` | Bun SQLite returns Uint8Array | Already fixed in `src/utils/vector.ts` |
+| WebSocket not connecting | Server not started or wrong URL | Check `ws://localhost:3000/ws`, ensure server is running |
+| Offline mode not caching | Service worker not registered | Check browser console for SW registration errors |
 
 ---
 

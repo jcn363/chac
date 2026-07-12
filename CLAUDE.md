@@ -159,7 +159,7 @@ describe("MyModule", () => {
 - WebSocket streaming: real-time chat token delivery via `/ws` endpoint with POST fallback
 - Frontend: componentized into `js/components/` (chat, documents, wiki, memory, settings, help) + `js/lib/` (api, dom, state)
 - Service worker: offline-first caching for static assets, network-first for API calls
-- OpenAPI 3.1 spec at `/api/openapi.json` documenting all 35 endpoints
+- OpenAPI 3.1 spec at `/api/openapi.json` documenting all 34 paths / 47 endpoints
 
 ## Build & Deploy
 

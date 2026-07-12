@@ -1,5 +1,42 @@
 # Changelog
 
+## [1.11.0] - 2026-07-12
+
+### Added
+
+**Shared Utilities**
+- `src/utils/db-helpers.ts`: `deleteById()`, `countRows()`, `parsePagination()`, `extractErrorMessage()`
+- `src/types/llm.ts`: shared `ChatCompletionLLM` type for cross-service LLM interface
+- `src/modules/router/utils.ts`: shared `wrap()` error handler and `safeInt()` helper
+
+**Settings Event System**
+- `SettingsService.onChange()` — subscribe to setting changes (replaces monkey-patching)
+- `DocumentsService.onIngest()` — callback after document ingestion
+- `WikiService.onCompile()` — callback after wiki compilation
+
+**Route Modularization** (api.ts: 424 lines → 31 lines)
+- 13 domain route files under `src/modules/router/routes/`: status, settings, llm, documents, search-history, tags, suggest, chat, wiki, memory, cache, scheduler, backup
+
+**Service Extraction**
+- `src/modules/chat/rag.ts`: `RagRetriever` — RAG retrieval, context building, history budget
+- `src/modules/documents/tags.ts`: `DocumentTagsService` — document tag CRUD
+- `src/modules/documents/search-history.ts`: `SearchHistoryService` — search analytics
+- `src/modules/documents/search.ts`: `DocumentSearchService` — semantic search, query expansion, reranking
+- `src/modules/wiki/synthesizer.ts`: `WikiSynthesizer` — Union-Find clustering + LLM synthesis
+- `src/modules/wiki/compiler.ts`: `WikiCompiler` — single-pass and multi-agent wiki compilation
+- `src/modules/scheduler/tasks.ts`: `registerDefaultTasks()` — scheduler task definitions (moved from main.ts)
+
+### Changed
+
+- **Eliminated monkey-patching**: `main.ts` no longer reassigns `settings.set`, `docs.ingest`, or `wiki.compile` — uses event/callback patterns instead
+- **Deduplicated inline types**: 13 inline `{ get: (key: string) => unknown }` annotations replaced with `SettingsServiceType` import
+- **Deduplicated estimateTokens**: removed duplicate from `chunking.ts`, canonical in `llm-helpers.ts`
+- **Services throw typed errors**: `NotFoundError`/`ValidationError` instead of plain `Error` with string matching
+- **Route handlers use wrap()**: consistent error handling across all 47 endpoints
+- **DocumentsService focused**: removed tags, search, search-history methods — now handles only document lifecycle (ingest/delete/list)
+- **ChatService focused**: RAG retrieval extracted to `RagRetriever` — `sendMessage()` is now a thin orchestrator
+- **WikiService focused**: compilation and synthesis extracted to `WikiCompiler` and `WikiSynthesizer`
+
 ## [1.10.0] - 2026-07-12
 
 ### Changed

@@ -24,11 +24,14 @@ Microkernel with dependency injection. The kernel (`src/kernel/`) provides servi
 ### Service tokens (registered in `src/main.ts`)
 
 - `db` — Bun SQLite database
-- `settings` — SettingsService (in-memory cached, reads from DB)
+- `settings` — SettingsService (in-memory cached, reads from DB, onChange events)
 - `llm` — LlmServiceImpl (llama.cpp subprocess management)
-- `docs` — DocumentsService (chunking, embedding, ingestion)
-- `chat` — ChatService (sessions, messages, RAG retrieval)
-- `wiki` — WikiService (Karpathy Method compilation)
+- `docs` — DocumentsService (ingest, chunk, embed — document lifecycle only)
+- `tags` — DocumentTagsService (document tag CRUD)
+- `searchHistory` — SearchHistoryService (search analytics)
+- `search` — DocumentSearchService (semantic search, query expansion, reranking)
+- `chat` — ChatService (sessions, messages — delegates RAG to RagRetriever)
+- `wiki` — WikiService (delegates compilation to WikiCompiler)
 - `memory` — MemoryService (cross-session user memory)
 - `scheduler` — SchedulerService (background tasks: memory consolidation, cleanup, index checks)
 

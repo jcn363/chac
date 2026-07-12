@@ -64,6 +64,7 @@
 - **Dev Mode** — mock LLM responses for development without `llama.cpp`
 - **OpenAPI 3.1** — full API documentation at `/api/openapi.json`
 - **Structured Error Handling** — AppError hierarchy with typed HTTP responses
+- **Modular Architecture** — domain-specific route files, focused service modules, shared utilities
 - **Context Auto-Detection** — automatically detects model context length from llama-server `/v1/props`
 - **Concurrency-Safe LLM** — prevents duplicate process spawns on concurrent requests
 - **Parallel Ingestion** — bulk file ingestion processes multiple files concurrently (batches of 4)

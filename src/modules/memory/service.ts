@@ -2,6 +2,7 @@ import type { Database } from "bun:sqlite";
 import type { Kernel } from "../../kernel/types";
 import { generateId } from "../../utils/id";
 import { collectLlmResponse, extractJsonFromLlm } from "../../utils/llm-helpers";
+import { deleteById } from "../../utils/db-helpers";
 import type { MemoryEntry } from "./types";
 import type { LlmService } from "../llm/types";
 
@@ -54,8 +55,7 @@ export class MemoryService {
   }
 
   delete(id: string): boolean {
-    const result = this.db.query("DELETE FROM user_memory WHERE id = ?").run(id);
-    return result.changes > 0;
+    return deleteById(this.db, "user_memory", id);
   }
 
   buildContextString(): string {

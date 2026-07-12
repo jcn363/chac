@@ -44,13 +44,22 @@ src/
     settings/          # SettingsService — DB-backed with in-memory cache
     llm/               # LlmServiceImpl — llama.cpp subprocess, streaming
     documents/         # DocumentsService — chunk, embed, ingest files
+                         search.ts — Semantic search with reranking/expansion
+                         search-history.ts — Search analytics
+                         tags.ts — Document tag CRUD
     chat/              # ChatService — sessions, messages, RAG retrieval
+                         rag.ts — RAG retrieval pipeline
     memory/            # MemoryService — cross-session user memory
     wiki/              # WikiService — Karpathy Method wiki compilation
+                         compiler.ts — Wiki compilation logic
+                         synthesizer.ts — Cross-document synthesis
     scheduler/         # SchedulerService — background tasks
+                         tasks.ts — Task definitions and execution
     router/            # Hono HTTP server, REST API routes, WebSocket, OpenAPI
+                         utils.ts — wrap() error handler, safeInt() helper
+                         routes/ — Individual route modules (13 files)
   platform/            # OS-specific paths (getAppRoot), binary resolution
-  utils/               # Shared utilities (chunking, hashing, IDs, vectors, VectorIndex, cache, citations, document-parser)
+  utils/               # Shared utilities (chunking, hashing, IDs, vectors, VectorIndex, cache, citations, document-parser, db-helpers)
   public/              # Static frontend files (HTML, CSS, JS + componentized js/)
 tests/
   helpers/setup.ts     # createTestKernel() for test isolation
@@ -169,6 +178,8 @@ describe("MyModule", () => {
 - Frontend: componentized into `js/components/` (chat, documents, wiki, memory, settings, help) + `js/lib/` (api, dom, state)
 - Service worker: offline-first caching for static assets, network-first for API calls
 - OpenAPI 3.1 spec at `/api/openapi.json` documenting all 35 paths / 47 endpoints
+- Route handlers use `wrap()` for automatic error handling — `AppError` passes through, others become 500
+- Services throw typed errors (`NotFoundError`, `ValidationError`) — no string matching in route handlers
 
 ## Build & Deploy
 

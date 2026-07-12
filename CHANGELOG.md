@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.10.0] - 2026-07-12
+
+### Changed
+
+- **Structured error handling in routes**: All route handlers now use `wrap()` for automatic error handling. `AppError` subclasses (`NotFoundError`, `ValidationError`) pass through as typed HTTP responses; unhandled errors become 500.
+- **Services throw typed errors**: `DocumentsService.reingest()` and `DocumentTagsService` now throw `NotFoundError` instead of plain `Error` with string matching.
+- **Removed manual try/catch in route handlers**: `routes/documents.ts` (reingest), `routes/tags.ts` (set/add tags), and `routes/backup.ts` (restore) no longer catch errors manually — they rely on `wrap()` + the global error handler.
+- **Wrapped async route handlers**: `routes/suggest.ts` (suggest questions) and `routes/documents.ts` (search) now use `wrap()` for consistent error handling.
+
 ## [1.9.0] - 2026-07-12
 
 ### Fixed

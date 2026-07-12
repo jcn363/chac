@@ -9,6 +9,7 @@ export interface SettingsServiceType {
   get(key: string): unknown;
   getAll(): SettingRow[];
   set(key: string, value: unknown): { success: boolean; error?: string };
+  onChange(handler: (key: string, value: unknown) => void): void;
 }
 
 export interface SettingRow {

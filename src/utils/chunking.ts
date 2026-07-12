@@ -1,3 +1,5 @@
+import { estimateTokens } from "./llm-helpers";
+
 export interface Chunk {
   index: number;
   content: string;
@@ -129,8 +131,4 @@ function splitSentences(text: string): string[] {
   }
 
   return sentences;
-}
-
-export function estimateTokens(text: string): number {
-  return Math.ceil(text.length / 4);
 }

@@ -1,10 +1,13 @@
 import type { Database } from "bun:sqlite";
 import { DEFAULT_SETTINGS, SETTING_VALIDATORS, type SettingRow } from "./types";
 
+type SettingsChangeHandler = (key: string, value: unknown) => void;
+
 /** DB-backed settings with in-memory cache and JSON parsing. */
 export class SettingsService {
   private db: Database;
   private cache = new Map<string, unknown>();
+  private changeHandlers: SettingsChangeHandler[] = [];
 
   constructor(db: Database) {
     this.db = db;
@@ -80,7 +83,18 @@ export class SettingsService {
         .run(key, jsonValue);
     }
     this.cache.set(key, value);
+    for (const handler of this.changeHandlers) {
+      try {
+        handler(key, value);
+      } catch (e) {
+        console.error('Settings change handler error:', e);
+      }
+    }
     return { success: true };
+  }
+
+  onChange(handler: SettingsChangeHandler): void {
+    this.changeHandlers.push(handler);
   }
 
   getAll(): SettingRow[] {

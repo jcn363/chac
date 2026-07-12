@@ -1,18 +1,18 @@
 import { describe, it, expect, beforeEach } from "bun:test";
 import { createTestKernel } from "../../helpers/setup";
 import { createRouter } from "../../../src/modules/router";
-import { DocumentsService } from "../../../src/modules/documents/service";
+import { DocumentTagsService } from "../../../src/modules/documents/tags";
 import type { Kernel } from "../../../src/kernel/types";
 import type { Database } from "bun:sqlite";
 
 let kernel: Kernel;
 let app: ReturnType<typeof createRouter>;
-let docs: DocumentsService;
+let tags: DocumentTagsService;
 let db: Database;
 
 beforeEach(() => {
   kernel = createTestKernel();
-  docs = kernel.get<DocumentsService>("docs");
+  tags = kernel.get<DocumentTagsService>("tags");
   db = kernel.get<Database>("db");
   app = createRouter(kernel);
 });
@@ -25,82 +25,82 @@ function insertDoc(id: string, title: string) {
 
 // --- Service-level tests ---
 
-describe("DocumentsService tag methods", () => {
+describe("DocumentTagsService", () => {
   it("addTags adds tags to a document", () => {
     insertDoc("d1", "Doc 1");
-    docs.addTags("d1", ["python", "tutorial"]);
-    expect(docs.getDocumentTags("d1")).toEqual(["python", "tutorial"]);
+    tags.addTags("d1", ["python", "tutorial"]);
+    expect(tags.getDocumentTags("d1")).toEqual(["python", "tutorial"]);
   });
 
   it("addTags normalizes tags to lowercase and trims", () => {
     insertDoc("d1", "Doc 1");
-    docs.addTags("d1", ["  Python  ", "TUTORIAL"]);
-    expect(docs.getDocumentTags("d1")).toEqual(["python", "tutorial"]);
+    tags.addTags("d1", ["  Python  ", "TUTORIAL"]);
+    expect(tags.getDocumentTags("d1")).toEqual(["python", "tutorial"]);
   });
 
   it("addTags ignores duplicates", () => {
     insertDoc("d1", "Doc 1");
-    docs.addTags("d1", ["python"]);
-    docs.addTags("d1", ["python", "java"]);
-    const tags = docs.getDocumentTags("d1");
-    expect(tags).toEqual(["java", "python"]);
+    tags.addTags("d1", ["python"]);
+    tags.addTags("d1", ["python", "java"]);
+    const result = tags.getDocumentTags("d1");
+    expect(result).toEqual(["java", "python"]);
   });
 
   it("addTags throws for non-existent document", () => {
-    expect(() => docs.addTags("nonexistent", ["tag"])).toThrow("not found");
+    expect(() => tags.addTags("nonexistent", ["tag"])).toThrow("not found");
   });
 
   it("addTags filters empty tags", () => {
     insertDoc("d1", "Doc 1");
-    docs.addTags("d1", ["python", "", "  ", "java"]);
-    expect(docs.getDocumentTags("d1")).toEqual(["java", "python"]);
+    tags.addTags("d1", ["python", "", "  ", "java"]);
+    expect(tags.getDocumentTags("d1")).toEqual(["java", "python"]);
   });
 
   it("removeTags removes specific tags", () => {
     insertDoc("d1", "Doc 1");
-    docs.addTags("d1", ["python", "java", "go"]);
-    docs.removeTags("d1", ["java"]);
-    expect(docs.getDocumentTags("d1")).toEqual(["go", "python"]);
+    tags.addTags("d1", ["python", "java", "go"]);
+    tags.removeTags("d1", ["java"]);
+    expect(tags.getDocumentTags("d1")).toEqual(["go", "python"]);
   });
 
   it("removeTags is idempotent for missing tags", () => {
     insertDoc("d1", "Doc 1");
-    docs.addTags("d1", ["python"]);
-    docs.removeTags("d1", ["nonexistent"]);
-    expect(docs.getDocumentTags("d1")).toEqual(["python"]);
+    tags.addTags("d1", ["python"]);
+    tags.removeTags("d1", ["nonexistent"]);
+    expect(tags.getDocumentTags("d1")).toEqual(["python"]);
   });
 
   it("setDocumentTags replaces all tags", () => {
     insertDoc("d1", "Doc 1");
-    docs.addTags("d1", ["old1", "old2"]);
-    docs.setDocumentTags("d1", ["new1", "new2"]);
-    expect(docs.getDocumentTags("d1")).toEqual(["new1", "new2"]);
+    tags.addTags("d1", ["old1", "old2"]);
+    tags.setDocumentTags("d1", ["new1", "new2"]);
+    expect(tags.getDocumentTags("d1")).toEqual(["new1", "new2"]);
   });
 
   it("setDocumentTags with empty array clears all tags", () => {
     insertDoc("d1", "Doc 1");
-    docs.addTags("d1", ["python"]);
-    docs.setDocumentTags("d1", []);
-    expect(docs.getDocumentTags("d1")).toEqual([]);
+    tags.addTags("d1", ["python"]);
+    tags.setDocumentTags("d1", []);
+    expect(tags.getDocumentTags("d1")).toEqual([]);
   });
 
   it("setDocumentTags throws for non-existent document", () => {
-    expect(() => docs.setDocumentTags("nonexistent", ["tag"])).toThrow("not found");
+    expect(() => tags.setDocumentTags("nonexistent", ["tag"])).toThrow("not found");
   });
 
   it("getDocumentTags returns empty for untagged document", () => {
     insertDoc("d1", "Doc 1");
-    expect(docs.getDocumentTags("d1")).toEqual([]);
+    expect(tags.getDocumentTags("d1")).toEqual([]);
   });
 
   it("listTags returns all tags with document counts", () => {
     insertDoc("d1", "Doc 1");
     insertDoc("d2", "Doc 2");
-    docs.addTags("d1", ["python", "tutorial"]);
-    docs.addTags("d2", ["python", "reference"]);
+    tags.addTags("d1", ["python", "tutorial"]);
+    tags.addTags("d2", ["python", "reference"]);
 
-    const tags = docs.listTags();
-    expect(tags).toEqual([
+    const result = tags.listTags();
+    expect(result).toEqual([
       { tag: "python", documentCount: 2 },
       { tag: "reference", documentCount: 1 },
       { tag: "tutorial", documentCount: 1 },
@@ -108,35 +108,35 @@ describe("DocumentsService tag methods", () => {
   });
 
   it("listTags returns empty when no tags exist", () => {
-    expect(docs.listTags()).toEqual([]);
+    expect(tags.listTags()).toEqual([]);
   });
 
   it("getDocumentsByTag returns documents with specific tag", () => {
     insertDoc("d1", "Doc 1");
     insertDoc("d2", "Doc 2");
     insertDoc("d3", "Doc 3");
-    docs.addTags("d1", ["python"]);
-    docs.addTags("d2", ["python", "java"]);
-    docs.addTags("d3", ["java"]);
+    tags.addTags("d1", ["python"]);
+    tags.addTags("d2", ["python", "java"]);
+    tags.addTags("d3", ["java"]);
 
-    const result = docs.getDocumentsByTag("python");
+    const result = tags.getDocumentsByTag("python");
     expect(result.total).toBe(2);
-    expect(result.documents.map((d) => d.id).sort()).toEqual(["d1", "d2"]);
+    expect(result.documents.map((d: { id: string }) => d.id).sort()).toEqual(["d1", "d2"]);
   });
 
   it("getDocumentsByTag normalizes tag", () => {
     insertDoc("d1", "Doc 1");
-    docs.addTags("d1", ["Python"]);
+    tags.addTags("d1", ["Python"]);
 
-    const result = docs.getDocumentsByTag("PYTHON");
+    const result = tags.getDocumentsByTag("PYTHON");
     expect(result.total).toBe(1);
   });
 
   it("getDocumentsByTag returns empty for non-existent tag", () => {
     insertDoc("d1", "Doc 1");
-    docs.addTags("d1", ["python"]);
+    tags.addTags("d1", ["python"]);
 
-    const result = docs.getDocumentsByTag("java");
+    const result = tags.getDocumentsByTag("java");
     expect(result.total).toBe(0);
     expect(result.documents).toEqual([]);
   });
@@ -144,14 +144,14 @@ describe("DocumentsService tag methods", () => {
   it("getDocumentsByTag supports pagination", () => {
     for (let i = 0; i < 5; i++) {
       insertDoc(`d${i}`, `Doc ${i}`);
-      docs.addTags(`d${i}`, ["common"]);
+      tags.addTags(`d${i}`, ["common"]);
     }
 
-    const page1 = docs.getDocumentsByTag("common", { page: 1, perPage: 2 });
+    const page1 = tags.getDocumentsByTag("common", { page: 1, perPage: 2 });
     expect(page1.total).toBe(5);
     expect(page1.documents).toHaveLength(2);
 
-    const page3 = docs.getDocumentsByTag("common", { page: 3, perPage: 2 });
+    const page3 = tags.getDocumentsByTag("common", { page: 3, perPage: 2 });
     expect(page3.documents).toHaveLength(1);
   });
 });
@@ -169,8 +169,8 @@ describe("GET /api/tags", () => {
   it("returns tags with counts", async () => {
     insertDoc("d1", "Doc 1");
     insertDoc("d2", "Doc 2");
-    docs.addTags("d1", ["python"]);
-    docs.addTags("d2", ["python", "java"]);
+    tags.addTags("d1", ["python"]);
+    tags.addTags("d2", ["python", "java"]);
 
     const res = await app.request("/api/tags");
     expect(res.status).toBe(200);
@@ -184,7 +184,7 @@ describe("GET /api/tags", () => {
 describe("GET /api/tags/:tag/documents", () => {
   it("returns documents with tag", async () => {
     insertDoc("d1", "Doc 1");
-    docs.addTags("d1", ["python"]);
+    tags.addTags("d1", ["python"]);
 
     const res = await app.request("/api/tags/python/documents");
     expect(res.status).toBe(200);
@@ -204,7 +204,7 @@ describe("GET /api/tags/:tag/documents", () => {
 describe("PUT /api/documents/:id/tags", () => {
   it("replaces all tags", async () => {
     insertDoc("d1", "Doc 1");
-    docs.addTags("d1", ["old"]);
+    tags.addTags("d1", ["old"]);
 
     const res = await app.request("/api/documents/d1/tags", {
       method: "PUT",
@@ -239,7 +239,7 @@ describe("PUT /api/documents/:id/tags", () => {
 describe("POST /api/documents/:id/tags", () => {
   it("adds tags without removing existing", async () => {
     insertDoc("d1", "Doc 1");
-    docs.addTags("d1", ["existing"]);
+    tags.addTags("d1", ["existing"]);
 
     const res = await app.request("/api/documents/d1/tags", {
       method: "POST",
@@ -265,7 +265,7 @@ describe("POST /api/documents/:id/tags", () => {
 describe("DELETE /api/documents/:id/tags", () => {
   it("removes specific tags", async () => {
     insertDoc("d1", "Doc 1");
-    docs.addTags("d1", ["python", "java", "go"]);
+    tags.addTags("d1", ["python", "java", "go"]);
 
     const res = await app.request("/api/documents/d1/tags", {
       method: "DELETE",

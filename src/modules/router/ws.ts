@@ -1,5 +1,6 @@
 import type { Kernel } from "../../kernel/types";
 import type { ChatService } from "../chat/service";
+import { extractErrorMessage } from "../../utils/db-helpers";
 
 interface WsClient {
   ws: Bun.ServerWebSocket<undefined>;
@@ -44,7 +45,7 @@ async function handleChatMessage(
   } catch (err) {
     client.ws.send(JSON.stringify({
       type: "chat:error",
-      error: err instanceof Error ? err.message : "Unknown error",
+      error: extractErrorMessage(err),
     }));
   }
 }

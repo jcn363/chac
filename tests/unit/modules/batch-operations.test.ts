@@ -132,9 +132,9 @@ describe("POST /api/documents/:id/reingest", () => {
     const res = await app.request("/api/documents/d1/reingest", {
       method: "POST",
     });
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(404);
     const data = await res.json() as { error: string };
-    expect(data.error).toContain("source path");
+    expect(data.error).toContain("not found");
   });
 
   it("returns error for missing source file", async () => {
@@ -144,7 +144,7 @@ describe("POST /api/documents/:id/reingest", () => {
     const res = await app.request("/api/documents/d1/reingest", {
       method: "POST",
     });
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(404);
     const data = await res.json() as { error: string };
     expect(data.error).toContain("not found");
   });

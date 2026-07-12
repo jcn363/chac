@@ -3,8 +3,11 @@ import { Database } from "bun:sqlite";
 import { runMigrations } from "../../src/database/migrations";
 import { SettingsService } from "../../src/modules/settings/service";
 import { DocumentsService } from "../../src/modules/documents/service";
+import { DocumentSearchService } from "../../src/modules/documents/search";
 import { ChatService } from "../../src/modules/chat/service";
 import { WikiService } from "../../src/modules/wiki/service";
+import { WikiSynthesizer } from "../../src/modules/wiki/synthesizer";
+import { WikiCompiler } from "../../src/modules/wiki/compiler";
 import { MemoryService } from "../../src/modules/memory/service";
 import { createMockLlmService } from "../mocks/llama-cpp";
 import { createKernel } from "../../src/kernel";
@@ -24,12 +27,24 @@ beforeEach(() => {
   db = new Database(":memory:");
   db.exec("PRAGMA foreign_keys = ON");
   runMigrations(db);
+  const settings = new SettingsService(db);
+  const llm = createMockLlmService();
   kernel.provide("db", db);
-  kernel.provide("settings", new SettingsService(db));
-  kernel.provide("llm", createMockLlmService());
-  kernel.provide("docs", new DocumentsService(kernel));
+  kernel.provide("settings", settings);
+  kernel.provide("llm", llm);
+  const docs = new DocumentsService(kernel);
+  kernel.provide("docs", docs);
+  const chunkIndex = new VectorIndex(db, "chunks");
+  kernel.provide("search", new DocumentSearchService(db, llm, chunkIndex, settings));
   kernel.provide("chat", new ChatService(kernel));
-  kernel.provide("wiki", new WikiService(kernel));
+
+  const wikiIndex = new VectorIndex(db, "wiki_pages");
+  const wikiSynthesizer = new WikiSynthesizer(db, llm, wikiIndex, settings);
+  const wikiCompiler = new WikiCompiler(db, llm, docs, settings, wikiSynthesizer);
+  const wiki = new WikiService(kernel);
+  wiki.setCompiler(wikiCompiler);
+  kernel.provide("wiki", wiki);
+
   kernel.provide("memory", new MemoryService(kernel));
 
   testDir = join(import.meta.dir, "../../.bench-tmp");

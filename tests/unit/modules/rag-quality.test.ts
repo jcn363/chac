@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from "bun:test";
 import { createTestKernel } from "../../helpers/setup";
 import { DocumentsService } from "../../../src/modules/documents/service";
+import { DocumentSearchService } from "../../../src/modules/documents/search";
 import { ChatService } from "../../../src/modules/chat/service";
 import type { Kernel } from "../../../src/kernel/types";
 import { mkdirSync, writeFileSync, rmSync, existsSync } from "node:fs";
@@ -9,11 +10,13 @@ import { join } from "node:path";
 describe("RAG Quality", () => {
   let kernel: Kernel;
   let docs: DocumentsService;
+  let search: DocumentSearchService;
   let testDir: string;
 
   beforeEach(() => {
     kernel = createTestKernel();
-    docs = new DocumentsService(kernel);
+    docs = kernel.get<DocumentsService>("docs");
+    search = kernel.get<DocumentSearchService>("search");
     testDir = join(import.meta.dir, "../../.test-rag");
     mkdirSync(testDir, { recursive: true });
   });
@@ -33,14 +36,14 @@ describe("RAG Quality", () => {
 
   describe("Query Expansion", () => {
     it("expands a query using LLM", async () => {
-      const result = await docs.expandQuery("What is machine learning?");
+      const result = await search.expandQuery("What is machine learning?");
       expect(result.original).toBe("What is machine learning?");
       expect(result.expanded).toBeDefined();
       expect(typeof result.expanded).toBe("string");
     });
 
     it("returns original query on LLM failure", async () => {
-      const result = await docs.expandQuery("test query");
+      const result = await search.expandQuery("test query");
       expect(result.original).toBe("test query");
       expect(result.keywords).toBeInstanceOf(Array);
     });
@@ -51,7 +54,7 @@ describe("RAG Quality", () => {
       const path = createTestFile("cite-test.txt", "Machine learning is a subset of artificial intelligence.");
       await docs.ingest(path);
 
-      const results = await docs.search("machine learning");
+      const results = await search.search("machine learning");
       expect(results.length).toBeGreaterThan(0);
       expect(results[0]!.citation).toBeDefined();
       expect(results[0]!.citation).toContain("Source:");
@@ -61,7 +64,7 @@ describe("RAG Quality", () => {
       const path = createTestFile("title-test.txt", "This document covers deep learning topics.");
       await docs.ingest(path);
 
-      const results = await docs.search("deep learning");
+      const results = await search.search("deep learning");
       expect(results.length).toBeGreaterThan(0);
       expect(results[0]!.documentTitle).toBeDefined();
     });
@@ -77,7 +80,7 @@ describe("RAG Quality", () => {
       await docs.ingest(path2);
       await docs.ingest(path3);
 
-      const results = await docs.search("data science programming", { rerank: true });
+      const results = await search.search("data science programming", { rerank: true });
       expect(results.length).toBeGreaterThan(0);
     });
 
@@ -85,8 +88,8 @@ describe("RAG Quality", () => {
       const path = createTestFile("no-rerank.txt", "Neural networks are used in deep learning.");
       await docs.ingest(path);
 
-      const withRerank = await docs.search("neural networks", { rerank: true });
-      const withoutRerank = await docs.search("neural networks", { rerank: false });
+      const withRerank = await search.search("neural networks", { rerank: true });
+      const withoutRerank = await search.search("neural networks", { rerank: false });
 
       expect(withRerank.length).toBe(withoutRerank.length);
     });
@@ -97,7 +100,7 @@ describe("RAG Quality", () => {
       const path = createTestFile("combined.txt", "Transformer models use self-attention mechanisms.");
       await docs.ingest(path);
 
-      const results = await docs.search("attention mechanism", { expand: true, rerank: true });
+      const results = await search.search("attention mechanism", { expand: true, rerank: true });
       expect(results.length).toBeGreaterThan(0);
     });
   });

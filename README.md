@@ -202,25 +202,34 @@ chac/
 │   │   │   └── types.ts             # LlmService interface, LlmInstance, ChatCompletionOptions
 │   │   ├── documents/
 │   │   │   ├── service.ts           # Ingest, chunk, embed, search, tags, suggest
+│   │   │   ├── search.ts            # Semantic search with reranking and expansion
+│   │   │   ├── search-history.ts    # Search analytics and history tracking
+│   │   │   ├── tags.ts              # Document tag CRUD
 │   │   │   └── types.ts             # Document, SearchResult, IngestResult, BatchIngestResult
 │   │   ├── wiki/
 │   │   │   ├── service.ts           # Wiki compilation (Karpathy Method + multi-agent synthesis)
+│   │   │   ├── compiler.ts          # Wiki compilation logic
+│   │   │   ├── synthesizer.ts       # Cross-document synthesis
 │   │   │   └── types.ts             # WikiPage
 │   │   ├── chat/
 │   │   │   ├── service.ts           # Chat sessions, RRF fusion, token-aware context
+│   │   │   ├── rag.ts               # RAG retrieval pipeline
 │   │   │   └── types.ts             # ChatSession, ChatMessage, SendMessageOptions
 │   │   ├── memory/
 │   │   │   ├── service.ts           # Cross-session memory, LLM extraction
 │   │   │   └── types.ts             # MemoryEntry
 │   │   ├── scheduler/
 │   │   │   ├── service.ts           # Background task scheduler (memory consolidation, cleanup)
+│   │   │   ├── tasks.ts             # Task definitions and execution
 │   │   │   └── types.ts             # ScheduledTask, TaskStatus
 │   │   └── router/
 │   │       ├── index.ts             # Hono app setup, global error handler
-│   │       ├── api.ts               # All 35 API paths / 47 endpoint methods
+│   │       ├── api.ts               # Route setup orchestration
+│   │       ├── utils.ts             # wrap() error handler, safeInt() helper
 │   │       ├── openapi.ts           # OpenAPI 3.1 spec
 │   │       ├── ws.ts                # WebSocket handler (real-time chat streaming)
-│   │       └── static.ts            # Frontend asset serving
+│   │       ├── static.ts            # Frontend asset serving
+│   │       └── routes/              # Individual route modules (13 files)
 │   ├── public/
 │   │   ├── index.html               # Main HTML (tabs: Chat, Documents, Wiki, Memory, Settings)
 │   │   ├── styles.css               # CSS with dark mode via prefers-color-scheme
@@ -246,6 +255,7 @@ chac/
 │       ├── citations.ts             # generateCitation, formatCitation
 │       ├── cache.ts                 # MemoryCache<T> with TTL, stats, embedding cache
 │       ├── document-parser.ts       # PDF, DOCX, Markdown, HTML, text parsing
+│       ├── db-helpers.ts            # deleteById, countRows, parsePagination, extractErrorMessage
 │       ├── hash.ts                  # SHA-256 content hashing
 │       └── id.ts                    # UUID generation (crypto.randomUUID)
 ├── tests/
@@ -253,6 +263,7 @@ chac/
 │   ├── integration/                 # Cross-module integration tests (4 files)
 │   ├── e2e/                         # End-to-end tests
 │   ├── benchmarks/                  # Performance benchmarks
+│   ├── fixtures/                    # Test fixture data
 │   ├── mocks/                       # Mock LLM (no llama.cpp needed)
 │   │   └── llama-cpp.ts
 │   └── helpers/

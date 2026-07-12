@@ -1,13 +1,14 @@
 import { describe, it, expect, beforeEach, afterEach } from "bun:test";
 import { createTestKernel } from "../../helpers/setup";
-import { WikiService } from "../../../src/modules/wiki/service";
+import type { Kernel } from "../../../src/kernel/types";
+import type { WikiService } from "../../../src/modules/wiki/service";
 
-let kernel: ReturnType<typeof createTestKernel>;
+let kernel: Kernel;
 let wiki: WikiService;
 
 beforeEach(() => {
   kernel = createTestKernel();
-  wiki = new WikiService(kernel);
+  wiki = kernel.get<WikiService>("wiki");
 });
 
 afterEach(() => {

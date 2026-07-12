@@ -1,23 +1,15 @@
 import type { Database } from "bun:sqlite";
 import type { Kernel } from "../../kernel/types";
+import type { ChatCompletionLLM } from "../../types/llm";
 import { generateId } from "../../utils/id";
 import { VectorIndex } from "../../utils/vector-index";
-import { createEmbedding } from "../../utils/llm-helpers";
-import { generateCitation } from "../../utils/citations";
-import { estimateTokens } from "../../utils/llm-helpers";
+import { deleteById } from "../../utils/db-helpers";
 import type { ChatSession, ChatMessage, SendMessageOptions } from "./types";
-import type { DocumentsService } from "../documents/service";
-import type { LlmService } from "../llm/types";
+import type { DocumentSearchService } from "../documents/search";
+import type { SettingsServiceType } from "../settings/types";
+import { RagRetriever, type RagResult } from "./rag";
 
-const RRF_K = 60;
-
-export interface ContextChunk {
-  chunkId: string;
-  content: string;
-  score: number;
-  citation?: string;
-  documentTitle?: string;
-}
+export type ContextChunk = RagResult;
 
 /** Chat sessions, messages, and RAG context retrieval with ranked fusion. */
 export class ChatService {
@@ -25,12 +17,21 @@ export class ChatService {
   private kernel: Kernel;
   private wikiIndex: VectorIndex;
   private chunkIndex: VectorIndex;
+  private ragRetriever: RagRetriever;
 
   constructor(kernel: Kernel) {
     this.kernel = kernel;
     this.db = kernel.get<Database>("db");
     this.wikiIndex = new VectorIndex(this.db, "wiki_pages");
     this.chunkIndex = new VectorIndex(this.db, "chunks");
+    this.ragRetriever = new RagRetriever(
+      this.db,
+      kernel.get<ChatCompletionLLM>("llm"),
+      kernel.get<DocumentSearchService>("search"),
+      this.wikiIndex,
+      this.chunkIndex,
+      kernel.get<SettingsServiceType>("settings")
+    );
   }
 
   createSession(options: { title?: string; systemPrompt?: string } = {}): ChatSession {
@@ -53,8 +54,7 @@ export class ChatService {
   }
 
   deleteSession(id: string): boolean {
-    const result = this.db.query("DELETE FROM chat_sessions WHERE id = ?").run(id);
-    return result.changes > 0;
+    return deleteById(this.db, "chat_sessions", id);
   }
 
   updateSession(id: string, title: string): ChatSession | undefined {
@@ -69,8 +69,7 @@ export class ChatService {
   }
 
   deleteMessage(id: string): boolean {
-    const result = this.db.query("DELETE FROM chat_messages WHERE id = ?").run(id);
-    return result.changes > 0;
+    return deleteById(this.db, "chat_messages", id);
   }
 
   reorderSessions(ids: string[]): void {
@@ -94,9 +93,6 @@ export class ChatService {
   ): Promise<ChatMessage> {
     const startTime = Date.now();
 
-    // Fused retrieval
-    const contextChunks = await this.retrieveContextFused(content);
-
     // Build messages for LLM
     const session = this.getSession(sessionId);
     if (!session) throw new Error("Session not found");
@@ -116,26 +112,24 @@ export class ChatService {
       messages.push({ role: "system", content: session.system_prompt });
     }
 
-    if (contextChunks.length > 0) {
-      const contextBlock = contextChunks
-        .map((c, i) => `[${i + 1}] ${c.content}`)
-        .join("\n\n");
-      const citations = contextChunks
-        .filter((c) => c.citation)
-        .map((c, i) => `[${i + 1}] ${c.citation}`)
-        .join("\n");
-      const citationFooter = citations ? `\n\nSources:\n${citations}` : "";
+    // RAG context building via RagRetriever
+    const ragResult = await this.ragRetriever.buildContext(
+      content,
+      sessionId,
+      memoryContext,
+      session.system_prompt
+    );
+    const contextChunks = ragResult.contextChunks;
+
+    if (ragResult.contextBlock) {
       messages.push({
         role: "system",
-        content: `Context from documents:\n${contextBlock}${citationFooter}\n\nAnswer based on this context when relevant. Cite sources using [1], [2] etc.`,
+        content: `Context from documents:\n${ragResult.contextBlock}${ragResult.citationFooter}\n\nAnswer based on this context when relevant. Cite sources using [1], [2] etc.`,
       });
     }
 
     // Token-aware context budget for history
-    const settings = this.kernel.get<{ get: (key: string) => unknown }>("settings");
-    const ctxSize = settings.get("llm.chat.ctx_size") as number;
-    const history = this.buildHistoryBudget(sessionId, ctxSize, messages);
-    for (const msg of history) {
+    for (const msg of ragResult.history) {
       messages.push(msg);
     }
 
@@ -150,9 +144,7 @@ export class ChatService {
       .run(userMsgId, sessionId, content);
 
     // Stream response
-    const llm = this.kernel.get<{
-      chat: { completions: (opts: { messages: typeof messages; stream: boolean }) => AsyncGenerator<string> };
-    }>("llm");
+    const llm = this.kernel.get<ChatCompletionLLM>("llm");
 
     let fullResponse = "";
     for await (const chunk of llm.chat.completions({ messages, stream: true })) {
@@ -230,9 +222,7 @@ export class ChatService {
         .get(`%"${chunk.document_id}"%`) as { id: string } | undefined;
       if (!wikiPage) continue;
 
-      const llm = this.kernel.get<{
-        chat: { completions: (opts: { messages: Array<{ role: string; content: string }>; stream: boolean }) => AsyncGenerator<string> };
-      }>("llm");
+      const llm = this.kernel.get<ChatCompletionLLM>("llm");
 
       const chunkData = contextChunks.find((c) => c.chunkId === chunkId);
       const chunkContent = chunkData?.content.slice(0, 500) ?? "";
@@ -258,163 +248,6 @@ export class ChatService {
         await wiki.updatePageInsight(wikiPage.id, insight);
       }
     }
-  }
-
-  private async embedQuery(query: string): Promise<Float32Array> {
-    const llm = this.kernel.get<LlmService>("llm");
-    return createEmbedding(llm, query);
-  }
-
-  private async retrieveContextFused(
-    query: string
-  ): Promise<ContextChunk[]> {
-    const settings = this.kernel.get<{ get: (key: string) => unknown }>("settings");
-    const wikiThreshold = settings.get("rag.wiki_threshold") as number;
-    const maxChunks = settings.get("rag.max_chunks") as number;
-    const shouldExpand = settings.get("rag.expand") as boolean;
-    const shouldRerank = settings.get("rag.rerank") as boolean;
-
-    // Optional query expansion
-    let searchQuery = query;
-    if (shouldExpand) {
-      try {
-        const docs = this.kernel.get<DocumentsService>("docs");
-        const expanded = await docs.expandQuery(query);
-        searchQuery = expanded.expanded;
-      } catch {
-        console.warn("Query expansion failed, using original query");
-      }
-    }
-
-    const queryVec = await this.embedQuery(searchQuery);
-
-    const [wikiRaw, chunkRaw] = await Promise.all([
-      this.wikiIndex.search(this.db, "wiki_pages", "id", "content", queryVec, {
-        threshold: wikiThreshold,
-      }),
-      this.chunkIndex.search(this.db, "chunks", "id", "content", queryVec, { limit: maxChunks * 3 }),
-    ]);
-
-    // Deduplicate: skip chunks whose content matches an already-seen wiki entry
-    const seenContent = new Map<string, true>();
-    for (const r of wikiRaw) {
-      seenContent.set(r.content.trim().toLowerCase(), true);
-    }
-    const dedupedChunks = chunkRaw.filter(
-      (r) => !seenContent.has(r.content.trim().toLowerCase()),
-    );
-
-    // Reciprocal Rank Fusion
-    const scores = new Map<string, { chunkId: string; content: string; score: number; source: string }>();
-
-    for (let rank = 0; rank < wikiRaw.length; rank++) {
-      const r = wikiRaw[rank]!;
-      const rrfScore = 1 / (RRF_K + rank + 1);
-      scores.set(`wiki:${r.id}`, {
-        chunkId: r.id,
-        content: r.content,
-        score: rrfScore,
-        source: "wiki",
-      });
-    }
-
-    for (let rank = 0; rank < dedupedChunks.length; rank++) {
-      const r = dedupedChunks[rank]!;
-      const rrfScore = 1 / (RRF_K + rank + 1);
-      const key = `chunk:${r.id}`;
-      const existing = scores.get(key);
-      if (existing) {
-        existing.score += rrfScore;
-      } else {
-        scores.set(key, {
-          chunkId: r.id,
-          content: r.content,
-          score: rrfScore,
-          source: "chunk",
-        });
-      }
-    }
-
-    const fused = Array.from(scores.values());
-    fused.sort((a, b) => b.score - a.score);
-    let results = fused.slice(0, maxChunks * 3);
-
-    // Optional LLM reranking
-    if (shouldRerank && results.length > 1) {
-      try {
-        const docs = this.kernel.get<DocumentsService>("docs");
-        const searchResults = results.map((r) => ({
-          chunkId: r.chunkId,
-          content: r.content,
-          score: r.score,
-          documentId: "",
-          citation: "",
-        }));
-        const reranked = await docs.rerankResults(query, searchResults);
-        results = reranked.map((r) => ({
-          chunkId: r.chunkId,
-          content: r.content,
-          score: r.score,
-          source: "",
-        }));
-      } catch {
-        console.warn("Reranking failed, using original order");
-      }
-    }
-
-    // Generate citations and trim to maxChunks
-    const final = results.slice(0, maxChunks).map((r) => {
-      const citation = this.generateCitationLocal(r.chunkId, r.content);
-      return {
-        chunkId: r.chunkId,
-        content: r.content,
-        score: r.score,
-        citation: citation.citation,
-        documentTitle: citation.documentTitle,
-      };
-    });
-
-    return final;
-  }
-
-  private generateCitationLocal(
-    chunkId: string,
-    content: string,
-  ): { citation: string; documentTitle: string } {
-    return generateCitation(this.db, chunkId, content);
-  }
-
-  private buildHistoryBudget(
-    sessionId: string,
-    ctxSize: number,
-    currentMessages: Array<{ role: string; content: string }>
-  ): Array<{ role: "user" | "assistant"; content: string }> {
-    const responseBuffer = Math.floor(ctxSize * 0.3);
-    const usedTokens = currentMessages.reduce(
-      (sum, m) => sum + estimateTokens(m.content),
-      0
-    );
-    const historyBudget = Math.max(0, ctxSize - responseBuffer - usedTokens - 50);
-
-    const allHistory = this.db
-      .query(
-        "SELECT * FROM chat_messages WHERE session_id = ? AND (role = 'user' OR role = 'assistant') ORDER BY created_at DESC"
-      )
-      .all(sessionId) as ChatMessage[];
-
-    const history: Array<{ role: "user" | "assistant"; content: string }> = [];
-    let tokensUsed = 0;
-
-    for (let i = allHistory.length - 1; i >= 0; i--) {
-      const msg = allHistory[i]!;
-      if (msg.role !== "user" && msg.role !== "assistant") continue;
-      const msgTokens = estimateTokens(msg.content);
-      if (tokensUsed + msgTokens > historyBudget) break;
-      history.unshift({ role: msg.role, content: msg.content });
-      tokensUsed += msgTokens;
-    }
-
-    return history;
   }
 
   exportSession(sessionId: string): { session: ChatSession; messages: ChatMessage[] } | undefined {

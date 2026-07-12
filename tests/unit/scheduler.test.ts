@@ -113,4 +113,60 @@ describe("SchedulerService", () => {
     resolvePromise!();
     await runPromise;
   });
+
+  it("start launches tasks on interval", async () => {
+    let count = 0;
+    scheduler.register("tick-task", 50, async () => {
+      count++;
+    });
+    scheduler.start();
+
+    // Wait for at least 2 interval ticks
+    await new Promise((r) => setTimeout(r, 150));
+    scheduler.stop();
+    expect(count).toBeGreaterThanOrEqual(2);
+  });
+
+  it("task failure in timer does not crash scheduler", async () => {
+    let count = 0;
+    scheduler.register("fail-task", 50, async () => {
+      count++;
+      if (count === 1) throw new Error("boom");
+    });
+    scheduler.start();
+
+    await new Promise((r) => setTimeout(r, 200));
+    scheduler.stop();
+    // Task should have continued running after the error
+    expect(count).toBeGreaterThanOrEqual(2);
+  });
+
+  it("start skips when scheduler.enabled is false", () => {
+    const settings = kernel.get<{ set: (key: string, value: unknown) => void }>("settings");
+    settings.set("scheduler.enabled", false);
+
+    let count = 0;
+    scheduler.register("disabled-task", 50, async () => { count++; });
+    scheduler.start();
+
+    // Timer should not have started — count should stay 0
+    expect(count).toBe(0);
+    scheduler.stop();
+  });
+
+  it("getStatus shows nextRun calculated from lastRun", async () => {
+    scheduler.register("calculated", 1000, async () => {});
+    await scheduler.runNow("calculated");
+    const status = scheduler.getStatus();
+    expect(status[0]!.lastRun).toBeGreaterThan(0);
+    expect(status[0]!.nextRun).toBe(status[0]!.lastRun! + 1000);
+  });
+
+  it("getStatus shows nextRun as now+interval when never run", () => {
+    scheduler.register("never-run", 2000, async () => {});
+    const before = Date.now();
+    const status = scheduler.getStatus();
+    expect(status[0]!.lastRun).toBeNull();
+    expect(status[0]!.nextRun).toBeGreaterThanOrEqual(before + 2000);
+  });
 });

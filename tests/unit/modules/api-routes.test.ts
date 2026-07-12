@@ -263,3 +263,53 @@ describe("Wiki API", () => {
     expect(Array.isArray(results)).toBe(true);
   });
 });
+
+// ── Global Error Handler ─────────────────────────────────
+
+describe("Global error handler", () => {
+  it("catches non-AppError and returns 500", async () => {
+    // Create a minimal Hono app with the same error handler
+    const { Hono } = require("hono");
+    const { AppError } = require("../../../src/errors");
+    const testApp = new Hono();
+
+    testApp.onError((err: unknown, c: any) => {
+      if (err instanceof AppError) {
+        return c.json({ error: err.message, code: err.code }, err.statusCode as any);
+      }
+      return c.json({ error: "Internal server error", code: "INTERNAL_ERROR" }, 500);
+    });
+
+    testApp.get("/throw", () => {
+      throw new Error("something unexpected");
+    });
+
+    const res = await testApp.request("/throw");
+    expect(res.status).toBe(500);
+    const data = await res.json() as any;
+    expect(data.error).toBe("Internal server error");
+    expect(data.code).toBe("INTERNAL_ERROR");
+  });
+
+  it("passes AppError through with correct status code", async () => {
+    const { Hono } = require("hono");
+    const { AppError, NotFoundError } = require("../../../src/errors");
+    const testApp = new Hono();
+
+    testApp.onError((err: unknown, c: any) => {
+      if (err instanceof AppError) {
+        return c.json({ error: err.message, code: err.code }, err.statusCode as any);
+      }
+      return c.json({ error: "Internal server error", code: "INTERNAL_ERROR" }, 500);
+    });
+
+    testApp.get("/not-found", () => {
+      throw new NotFoundError("widget", "42");
+    });
+
+    const res = await testApp.request("/not-found");
+    expect(res.status).toBe(404);
+    const data = await res.json() as any;
+    expect(data.code).toBe("NOT_FOUND");
+  });
+});

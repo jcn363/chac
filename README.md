@@ -131,7 +131,7 @@ Chac uses a **microkernel architecture** with dependency injection. A minimal ke
 | Principle | How It's Applied |
 |-----------|-----------------|
 | **DRY** | Shared utilities (`llm-helpers.ts`, `citations.ts`) eliminate duplicated LLM and embedding logic |
-| **SSOT** | Settings table = config source of truth. `schema.sql` = data shape source of truth |
+| **SSOT** | Settings table = config source of truth. `migrations.ts` (inline SCHEMA_SQL) = data shape source of truth |
 | **Microkernel** | Kernel handles lifecycle and DI. No business logic in kernel |
 | **Modularity** | Each module has its own service + types. Communication via DI container |
 | **Portability** | All paths resolve relative to executable or CWD. Zero system dependencies |
@@ -195,8 +195,8 @@ chac/
 │   │   └── binaries.ts              # External binary loader (llama.cpp)
 │   ├── modules/
 │   │   ├── settings/
-│   │   │   ├── service.ts           # Settings CRUD with in-memory cache
-│   │   │   └── types.ts             # DEFAULT_SETTINGS (34 keys), SettingsServiceType
+│   │   │   ├── service.ts           # Settings CRUD with in-memory cache + validation
+│   │   │   └── types.ts             # DEFAULT_SETTINGS (35 keys), SETTING_VALIDATORS, SettingsServiceType
 │   │   ├── llm/
 │   │   │   ├── service.ts           # llama.cpp subprocess manager + mock fallback
 │   │   │   └── types.ts             # LlmService interface, LlmInstance, ChatCompletionOptions
@@ -249,7 +249,7 @@ chac/
 │       ├── hash.ts                  # SHA-256 content hashing
 │       └── id.ts                    # UUID generation (crypto.randomUUID)
 ├── tests/
-│   ├── unit/                        # Unit tests per module (31 test files)
+│   ├── unit/                        # Unit tests per module (37 test files)
 │   ├── integration/                 # Cross-module integration tests (4 files)
 │   ├── e2e/                         # End-to-end tests
 │   ├── benchmarks/                  # Performance benchmarks
@@ -282,7 +282,7 @@ Chac implements the Karpathy Method for document-based Q&A:
 ### Document Ingestion Pipeline
 
 ```
-User selects file
+User selects file(s)
   → Read file content
   → Compute SHA-256 hash (dedup check)
   → If hash exists → skip (already ingested)
@@ -292,6 +292,11 @@ User selects file
     → Store chunk + embedding BLOB in DB
   → Update document.chunk_count
   → Invalidate VectorIndex
+
+Bulk ingestion:
+  → Files processed in parallel batches of 4
+  → Each file's errors isolated independently
+  → Results returned in original order
 ```
 
 ### Wiki Compilation
@@ -319,8 +324,9 @@ User sends message
   → Raw chunks: cosine similarity (top 5)
 
   Reciprocal Rank Fusion (K=60):
+  → Deduplicate wiki+chunk results by content (wiki entries win ties)
   → Score = Σ(1 / (K + rank)) across both sources
-  → Merge, deduplicate, sort by fused score
+  → Merge, sort by fused score
   → Top results → system prompt
 
   Token-aware context budget:
@@ -600,6 +606,11 @@ All settings are stored in the `settings` table and accessible via the API.
 | `rag.rerank` | `false` | rag | LLM reranking of RRF fusion results |
 | `wiki.agents_enabled` | `false` | rag | Multi-agent wiki compilation |
 | `memory.enabled` | `true` | memory | Cross-session memory |
+| `scheduler.enabled` | `true` | scheduler | Enable background scheduled tasks |
+| `scheduler.memory_consolidation_interval` | `1800000` | scheduler | Memory consolidation interval (ms, default 30min) |
+| `scheduler.session_cleanup_interval` | `3600000` | scheduler | Session cleanup interval (ms, default 1hr) |
+| `scheduler.index_check_interval` | `900000` | scheduler | Index health check interval (ms, default 15min) |
+| `scheduler.session_retention_days` | `30` | scheduler | Keep sessions newer than N days |
 | `ui.dark_mode` | `"system"` | ui | "system", "light", or "dark" |
 | `ui.documents_per_page` | `20` | ui | Pagination size |
 | `server.port` | `3000` | server | HTTP server port |
@@ -612,6 +623,8 @@ curl -X PUT http://localhost:3000/api/settings \
   -H "Content-Type: application/json" \
   -d '{"key": "llm.chat.temperature", "value": 0.9}'
 ```
+
+**Validation**: Settings values are validated against type, range, and enum constraints. Invalid values return HTTP 400 with an error message.
 
 ---
 

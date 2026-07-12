@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.9.0] - 2026-07-12
+
+### Fixed
+
+- **Context auto-detection**: `queryModelInfo()` now queries `/v1/props` for real `n_ctx` value (was always returning 0)
+- **Concurrency guard**: `ensureInstance()` prevents duplicate llama-server process spawns on parallel requests
+
+### Changed
+
+- **Parallel ingestion**: `batchIngest()` processes files in parallel batches of 4 via `Promise.allSettled()` (was sequential)
+- **VectorIndex search**: `searchLevel()` uses O(n) linear scan instead of O(n log n) sort
+- **VectorIndex cache**: `saveToDb()` uses incremental diff-based persistence (insert/update/delete only changed rows)
+- **RAG deduplication**: Wiki and chunk results are deduplicated by content before RRF fusion
+- **Settings validation**: `set()` enforces type, range, and enum constraints via `SETTING_VALIDATORS`
+
 ## [1.8.0] - 2026-07-11
 
 ### Added

@@ -44,4 +44,19 @@ describe("chunkText", () => {
     const chunks = chunkText(text, 100, 0);
     expect(chunks[0]!.tokenCount).toBe(25);
   });
+
+  it("throws when overlap >= chunkSize", () => {
+    expect(() => chunkText("text", 100, 100)).toThrow("chunk overlap must be less than chunk size");
+    expect(() => chunkText("text", 50, 100)).toThrow("chunk overlap must be less than chunk size");
+  });
+
+  it("throws when chunkSize is 0", () => {
+    // overlap check (0 >= 0) fires before chunkSize check
+    expect(() => chunkText("text", 0, 0)).toThrow();
+  });
+
+  it("throws when chunkSize is negative", () => {
+    // overlap >= chunkSize check fires first (0 >= -10 is true)
+    expect(() => chunkText("text", -10, 0)).toThrow();
+  });
 });

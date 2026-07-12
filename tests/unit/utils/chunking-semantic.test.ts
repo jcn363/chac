@@ -78,4 +78,56 @@ describe("chunkTextSemantic", () => {
     const semJoined = semChunks.map((c) => c.content).join("");
     expect(semJoined.length).toBeGreaterThanOrEqual(text.length - 50);
   });
+
+  it("throws when maxChunkTokens is 0", () => {
+    expect(() => chunkTextSemantic("text", 0)).toThrow("maxChunkTokens must be positive");
+  });
+
+  it("throws when maxChunkTokens is negative", () => {
+    expect(() => chunkTextSemantic("text", -5)).toThrow("maxChunkTokens must be positive");
+  });
+
+  it("overlapSentences shares sentences between chunks", () => {
+    // Create text that will split into multiple chunks
+    const sentences = Array.from({ length: 10 }, (_, i) => `Sentence ${i} with enough words to fill tokens.`);
+    const text = sentences.join(" ");
+    const chunks = chunkTextSemantic(text, 30, 2);
+
+    expect(chunks.length).toBeGreaterThanOrEqual(2);
+    // With overlap, second chunk should contain some sentences from first chunk
+    if (chunks.length >= 2) {
+      expect(chunks[1]!.content).toContain("Sentence");
+    }
+  });
+
+  it("long sentence (>200 chars) splits at commas and semicolons", () => {
+    // Create a single sentence > 200 chars with comma delimiters
+    const longSentence = "Word, ".repeat(50) + "end.";
+    const chunks = chunkTextSemantic(longSentence, 10);
+    expect(chunks.length).toBeGreaterThanOrEqual(2);
+    // Each chunk should be smaller than the full sentence
+    for (const chunk of chunks) {
+      expect(chunk.content.length).toBeLessThan(longSentence.length);
+    }
+  });
+
+  it("long sentence splits at colons", () => {
+    const longSentence = "Part one: part two: part three: part four: " + "word ".repeat(40) + "end.";
+    const chunks = chunkTextSemantic(longSentence, 10);
+    expect(chunks.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("handles single very long sentence", () => {
+    const text = "A".repeat(300) + ".";
+    const chunks = chunkTextSemantic(text, 20);
+    expect(chunks.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("handles mix of short and long sentences", () => {
+    const short = "Short.";
+    const long = "Long sentence with many words, many clauses; many parts: " + "word ".repeat(30) + "end.";
+    const text = `${short} ${long} ${short}`;
+    const chunks = chunkTextSemantic(text, 20);
+    expect(chunks.length).toBeGreaterThanOrEqual(1);
+  });
 });

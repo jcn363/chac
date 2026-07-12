@@ -57,4 +57,36 @@ describe("registerDefaultTasks", () => {
     // Should not throw
     await scheduler.runNow("index-check");
   });
+
+  it("session-cleanup deletes old sessions", async () => {
+    const db = kernel.get<import("bun:sqlite").Database>("db");
+    const chat = kernel.get<{ createSession: (opts: { title: string }) => { id: string }; listSessions: () => any[] }>("chat");
+
+    // Create a session
+    chat.createSession({ title: "Recent" });
+    const before = chat.listSessions();
+    expect(before.length).toBe(1);
+
+    // Manually set updated_at to 60 days ago (beyond 30-day retention)
+    const oldDate = new Date(Date.now() - 60 * 86400000).toISOString();
+    db.query("UPDATE chat_sessions SET updated_at = ?").run(oldDate);
+
+    await scheduler.runNow("session-cleanup");
+
+    const after = chat.listSessions();
+    expect(after.length).toBe(0);
+  });
+
+  it("session-cleanup preserves recent sessions", async () => {
+    const chat = kernel.get<{ createSession: (opts: { title: string }) => { id: string }; listSessions: () => any[] }>("chat");
+
+    // Create a session (updated_at = now, within retention)
+    chat.createSession({ title: "Fresh" });
+
+    await scheduler.runNow("session-cleanup");
+
+    const after = chat.listSessions();
+    expect(after.length).toBe(1);
+    expect(after[0]!.title).toBe("Fresh");
+  });
 });

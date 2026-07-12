@@ -15,9 +15,12 @@ interface HnswNode {
   neighbors: Array<Array<number>>;
 }
 
-const M = 16;
-const EF_CONSTRUCTION = 100;
-const EF_SEARCH = 50;
+interface HnswSettings {
+  m?: number;
+  efConstruction?: number;
+  efSearch?: number;
+}
+
 const ML = 1 / Math.LN2;
 const HNSW_THRESHOLD = 100;
 
@@ -29,10 +32,19 @@ export class VectorIndex {
   private hnswEntryIdx = -1;
   private hnswMaxLevel = 0;
 
+  private m: number;
+  private efConstruction: number;
+  private efSearch: number;
+
   constructor(
     private db?: Database,
     private tableName?: string,
-  ) {}
+    hnswSettings?: HnswSettings,
+  ) {
+    this.m = hnswSettings?.m ?? 16;
+    this.efConstruction = hnswSettings?.efConstruction ?? 100;
+    this.efSearch = hnswSettings?.efSearch ?? 50;
+  }
 
   invalidate(): void {
     this.dirty = true;
@@ -193,7 +205,7 @@ export class VectorIndex {
 
     for (let i = 0; i < this.entries.length; i++) {
       const level = this.randomLevel();
-      const maxConn = level === 0 ? M : M * 2;
+      const maxConn = level === 0 ? this.m : this.m * 2;
       const neighbors: Array<Array<number>> = [];
       for (let l = 0; l <= level; l++) {
         neighbors.push(new Array<number>());
@@ -230,9 +242,9 @@ export class VectorIndex {
     }
 
     for (let level = Math.min(node.level, this.hnswMaxLevel); level >= 0; level--) {
-      const candidates = this.searchLevel(entry, currIdx, level, EF_CONSTRUCTION);
+      const candidates = this.searchLevel(entry, currIdx, level, this.efConstruction);
 
-      const maxConn = level === 0 ? M : M * 2;
+      const maxConn = level === 0 ? this.m : this.m * 2;
       const neighbors = candidates.slice(0, maxConn);
       node.neighbors[level] = neighbors;
 
@@ -240,7 +252,7 @@ export class VectorIndex {
         const nNode = this.hnswNodes[nIdx]!;
         if (nNode.neighbors[level] && level < nNode.neighbors.length) {
           nNode.neighbors[level]!.push(insertIdx);
-          const maxConn = level === 0 ? M : M * 2;
+          const maxConn = level === 0 ? this.m : this.m * 2;
           if (nNode.neighbors[level]!.length > maxConn) {
             nNode.neighbors[level] = nNode.neighbors[level]!.slice(0, maxConn);
           }
@@ -392,7 +404,7 @@ export class VectorIndex {
       currIdx = this.greedySearchLevel(queryEntry, currIdx, level, 1);
     }
 
-    const candidates = this.searchLevel(queryEntry, currIdx, 0, EF_SEARCH);
+    const candidates = this.searchLevel(queryEntry, currIdx, 0, this.efSearch);
 
     const results: Array<{ id: string; content: string; score: number }> = [];
     for (const idx of candidates) {

@@ -152,6 +152,7 @@ describe("MyModule", () => {
 
 - `SettingsService.get()` is cached in-memory — no DB hit per call
 - `VectorIndex` uses HNSW graph for O(log n) search (>100 entries), brute-force fallback for small indexes
+- `VectorIndex` HNSW parameters (M, ef_construction, ef_search) are configurable via `rag.hnsw_*` settings
 - `VectorIndex` searchLevel uses O(n) linear scan instead of O(n log n) sort
 - `VectorIndex` saveToDb does incremental diff-based persistence (insert/update/delete only changed rows)
 - Document embeddings process in batches of 8 (not sequential)

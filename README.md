@@ -614,6 +614,9 @@ All settings are stored in the `settings` table and accessible via the API.
 | `rag.max_wiki_chars` | `4000` | rag | Max chars for wiki synthesis input |
 | `rag.wiki_synthesis_threshold` | `0.6` | rag | Min similarity for cross-doc synthesis |
 | `rag.auto_compound` | `false` | rag | Auto-feedback answers into wiki |
+| `rag.hnsw_m` | `16` | rag | HNSW: max connections per node (4–64) |
+| `rag.hnsw_ef_construction` | `100` | rag | HNSW: build-time search width (10–500) |
+| `rag.hnsw_ef_search` | `50` | rag | HNSW: query-time search width (10–500) |
 | `rag.expand` | `false` | rag | LLM query expansion before embedding |
 | `rag.rerank` | `false` | rag | LLM reranking of RRF fusion results |
 | `wiki.agents_enabled` | `false` | rag | Multi-agent wiki compilation |

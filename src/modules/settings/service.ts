@@ -1,5 +1,5 @@
 import type { Database } from "bun:sqlite";
-import { DEFAULT_SETTINGS, type SettingRow } from "./types";
+import { DEFAULT_SETTINGS, SETTING_VALIDATORS, type SettingRow } from "./types";
 
 /** DB-backed settings with in-memory cache and JSON parsing. */
 export class SettingsService {
@@ -50,7 +50,26 @@ export class SettingsService {
     return parsed;
   }
 
-  set(key: string, value: unknown): void {
+  set(key: string, value: unknown): { success: boolean; error?: string } {
+    if (value !== null) {
+      const validator = SETTING_VALIDATORS[key];
+      if (validator) {
+        if (typeof value !== validator.type) {
+          return { success: false, error: `Expected ${validator.type}, got ${typeof value}` };
+        }
+        if (validator.type === 'number') {
+          if (validator.min !== undefined && (value as number) < validator.min) {
+            return { success: false, error: `Minimum value is ${validator.min}` };
+          }
+          if (validator.max !== undefined && (value as number) > validator.max) {
+            return { success: false, error: `Maximum value is ${validator.max}` };
+          }
+        }
+        if (validator.enum && !validator.enum.includes(value as string)) {
+          return { success: false, error: `Must be one of: ${validator.enum.join(', ')}` };
+        }
+      }
+    }
     const jsonValue = JSON.stringify(value);
     const result = this.db
       .query("UPDATE settings SET value = ?, updated_at = datetime('now') WHERE key = ?")
@@ -61,6 +80,7 @@ export class SettingsService {
         .run(key, jsonValue);
     }
     this.cache.set(key, value);
+    return { success: true };
   }
 
   getAll(): SettingRow[] {

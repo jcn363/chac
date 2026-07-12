@@ -18,6 +18,7 @@ function isLlamaCppAvailable(): boolean {
 /** Manages llama.cpp subprocesses for chat, embedding, and vision inference. */
 export class LlmServiceImpl implements LlmService {
   private instances = new Map<string, LlmInstance>();
+  private pendingInstances = new Map<string, Promise<string>>();
   private nextPort = BASE_PORT;
   private kernel: Kernel;
   private devMode: boolean;
@@ -76,6 +77,20 @@ export class LlmServiceImpl implements LlmService {
       return this.getUrl(id);
     }
 
+    // Concurrency guard: if another caller is already spawning this instance, wait for it
+    const pending = this.pendingInstances.get(id);
+    if (pending) return pending;
+
+    const spawnPromise = this.doSpawnInstance(id, modelType);
+    this.pendingInstances.set(id, spawnPromise);
+    try {
+      return await spawnPromise;
+    } finally {
+      this.pendingInstances.delete(id);
+    }
+  }
+
+  private async doSpawnInstance(id: string, modelType: "chat" | "embed" | "vision"): Promise<string> {
     const settings = this.kernel.get<{ get: (key: string) => unknown; set: (key: string, value: unknown) => void }>("settings");
     const ctxSize = (settings.get("llm.chat.ctx_size") as number) ?? 4096;
     const threads = (settings.get("llm.chat.threads") as number) ?? 4;
@@ -160,9 +175,35 @@ export class LlmServiceImpl implements LlmService {
   }
 
   private async queryModelInfo(port: number, modelType: string): Promise<ModelCapabilities> {
+    // Try /v1/props first — it exposes n_ctx via default_generation_settings
+    try {
+      const propsRes = await fetch(`http://127.0.0.1:${port}/v1/props`);
+      if (propsRes.ok) {
+        const props = await propsRes.json() as { default_generation_settings?: { n_ctx?: number } };
+        const nCtx = props.default_generation_settings?.n_ctx;
+        if (nCtx && nCtx > 0) {
+          // Also fetch model name from /v1/models for architecture info
+          let architecture = "unknown";
+          try {
+            const modelsRes = await fetch(`http://127.0.0.1:${port}/v1/models`);
+            if (modelsRes.ok) {
+              const models = await modelsRes.json() as { data?: Array<{ id?: string }> };
+              architecture = models.data?.[0]?.id ?? "unknown";
+            }
+          } catch {
+            // ignore — architecture stays "unknown"
+          }
+          return { contextLength: nCtx, architecture, supportsVision: modelType === "vision" };
+        }
+      }
+    } catch {
+      // fall through to /v1/models
+    }
+
+    // Fallback: /v1/models only gives us the model name, not context length
     try {
       const res = await fetch(`http://127.0.0.1:${port}/v1/models`);
-      if (!res.ok) return { contextLength: 0, architecture: "unknown", supportsVision: false };
+      if (!res.ok) return { contextLength: 0, architecture: "unknown", supportsVision: modelType === "vision" };
       const data = await res.json() as { data?: Array<{ id?: string; object?: string }> };
       const model = data.data?.[0];
       return {

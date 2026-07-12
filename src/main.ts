@@ -27,8 +27,8 @@ kernel.provide("llm", llm);
 // Step 3b: Wire model hot-swap — when model settings change, restart the LLM instance
 const origSet = settings.set.bind(settings);
 settings.set = (key: string, value: unknown) => {
-  origSet(key, value);
-  if (key === "llm.chat.model" || key === "llm.embed.model" || key === "llm.vision.model") {
+  const result = origSet(key, value);
+  if (result.success && (key === "llm.chat.model" || key === "llm.embed.model" || key === "llm.vision.model")) {
     const parts = key.split(".");
     const modelType = parts[1];
     if (modelType) {
@@ -37,6 +37,7 @@ settings.set = (key: string, value: unknown) => {
       });
     }
   }
+  return result;
 };
 
 // Step 4: Services (created once, reused across requests)

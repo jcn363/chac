@@ -137,16 +137,24 @@ export class DocumentsService {
   async batchIngest(filePaths: string[]): Promise<BatchIngestResult> {
     const results: IngestResult[] = [];
     const errors: Array<{ path: string; error: string }> = [];
+    const BATCH_SIZE = 4;
 
-    for (const filePath of filePaths) {
-      try {
-        const result = await this.ingest(filePath);
-        results.push(result);
-      } catch (err) {
-        errors.push({
-          path: filePath,
-          error: err instanceof Error ? err.message : "Unknown error",
-        });
+    for (let i = 0; i < filePaths.length; i += BATCH_SIZE) {
+      const batch = filePaths.slice(i, i + BATCH_SIZE);
+      const batchResults = await Promise.allSettled(
+        batch.map((filePath) => this.ingest(filePath))
+      );
+
+      for (let j = 0; j < batchResults.length; j++) {
+        const outcome = batchResults[j]!;
+        if (outcome.status === "fulfilled") {
+          results.push(outcome.value);
+        } else {
+          errors.push({
+            path: batch[j]!,
+            error: outcome.reason instanceof Error ? outcome.reason.message : "Unknown error",
+          });
+        }
       }
     }
 

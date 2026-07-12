@@ -111,7 +111,7 @@ Memory tab manages cross-session memory via `GET/PUT/DELETE /api/memory`. Entrie
 - **Mock LLM**: `tests/mocks/llama-cpp.ts` provides `createMockLlmService()` — no llama.cpp binary needed
 - **Run pattern**: `bun test` (all), `bun test tests/unit/chat.test.ts` (single file)
 - **New tests**: Add to `tests/unit/<module>/` matching the source module structure
-- **Target**: 329 tests pass, 0 TypeScript errors
+- **Target**: 329 tests pass, 0 TypeScript errors (616 expect() calls across 37 test files)
 
 ### Adding a new test
 
@@ -140,15 +140,20 @@ describe("MyModule", () => {
 
 - `SettingsService.get()` is cached in-memory — no DB hit per call
 - `VectorIndex` uses HNSW graph for O(log n) search (>100 entries), brute-force fallback for small indexes
+- `VectorIndex` searchLevel uses O(n) linear scan instead of O(n log n) sort
+- `VectorIndex` saveToDb does incremental diff-based persistence (insert/update/delete only changed rows)
 - Document embeddings process in batches of 8 (not sequential)
+- Bulk ingestion processes files in parallel batches of 4 via `Promise.allSettled`
 - Wiki compilation runs 4 documents in parallel
 - Chat context fills by token budget (70% of ctx_size) — not fixed message count
 - Ranked fusion retrieval merges wiki and chunk results via RRF (K=60) instead of binary fallback
+- Wiki+chunk deduplication prevents duplicate content in RRF fusion
 - `chunkTextSemantic()` splits at sentence/paragraph boundaries when `rag.chunk_mode = "semantic"`
 - Wiki synthesis creates cross-document entries for related page groups
 - Model hot-swap: changing `llm.*.model` setting auto-restarts the affected llama-server instance
 - `LlmService.getModelInfo()` returns detected capabilities (context length, architecture) after startup
 - Context auto-detection: `llm.chat.ctx_size` auto-updates from model when `llm.chat.ctx_size.auto` is true
+- Concurrency guard: `ensureInstance()` prevents duplicate process spawns on parallel requests
 - Cross-session memory: user preferences/topics/facts persist across chat sessions via `user_memory` table
 - Knowledge compounding: high-value answers auto-feed into wiki pages when `rag.auto_compound` is true
 - Multi-agent wiki: 3 parallel LLM agents (summarizer, fact extractor, connector) when `wiki.agents_enabled` is true
@@ -159,6 +164,7 @@ describe("MyModule", () => {
 - `VectorIndex` persists HNSW cache to `vector_index_cache` table (migration v6) for faster cold starts
 - Shared utilities: `llm-helpers.ts` (createEmbedding, collectLlmResponse, extractJsonFromLlm, embedAndInsertChunks, estimateTokens), `citations.ts` (generateCitation, formatCitation)
 - Error hierarchy: `AppError`, `NotFoundError`, `ValidationError`, `SecurityError`, `ExternalServiceError` in `src/errors.ts`
+- Settings validation: `SETTING_VALIDATORS` in `types.ts` enforces type/range/enum constraints on `set()`
 - WebSocket streaming: real-time chat token delivery via `/ws` endpoint with POST fallback
 - Frontend: componentized into `js/components/` (chat, documents, wiki, memory, settings, help) + `js/lib/` (api, dom, state)
 - Service worker: offline-first caching for static assets, network-first for API calls

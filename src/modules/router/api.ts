@@ -59,7 +59,10 @@ export function setupApiRoutes(app: Hono, kernel: Kernel): void {
     if (!knownKeys.has(body.key)) {
       return c.json({ error: "Unknown setting" }, 400);
     }
-    settings.set(body.key, body.value);
+    const result = settings.set(body.key, body.value);
+    if (!result.success) {
+      return c.json({ error: result.error }, 400);
+    }
     return c.json({ ok: true });
   });
 

@@ -295,6 +295,15 @@ export class ChatService {
       this.chunkIndex.search(this.db, "chunks", "id", "content", queryVec, { limit: maxChunks * 3 }),
     ]);
 
+    // Deduplicate: skip chunks whose content matches an already-seen wiki entry
+    const seenContent = new Map<string, true>();
+    for (const r of wikiRaw) {
+      seenContent.set(r.content.trim().toLowerCase(), true);
+    }
+    const dedupedChunks = chunkRaw.filter(
+      (r) => !seenContent.has(r.content.trim().toLowerCase()),
+    );
+
     // Reciprocal Rank Fusion
     const scores = new Map<string, { chunkId: string; content: string; score: number; source: string }>();
 
@@ -309,8 +318,8 @@ export class ChatService {
       });
     }
 
-    for (let rank = 0; rank < chunkRaw.length; rank++) {
-      const r = chunkRaw[rank]!;
+    for (let rank = 0; rank < dedupedChunks.length; rank++) {
+      const r = dedupedChunks[rank]!;
       const rrfScore = 1 / (RRF_K + rank + 1);
       const key = `chunk:${r.id}`;
       const existing = scores.get(key);

@@ -84,16 +84,49 @@ export class VectorIndex {
   private saveToDb(): void {
     if (!this.db || !this.tableName) return;
     const tableName = this.tableName;
+    const db = this.db;
 
     try {
-      this.db.query("DELETE FROM vector_index_cache WHERE table_name = ?").run(tableName);
+      // Read existing cache entries for incremental update
+      let existingRows: Array<{ entry_id: string; content: string }> = [];
+      try {
+        existingRows = db.query(
+          "SELECT entry_id, content FROM vector_index_cache WHERE table_name = ?"
+        ).all(tableName) as Array<{ entry_id: string; content: string }>;
+      } catch {
+        // Table might not exist yet — treat as empty
+      }
 
-      const stmt = this.db.query(
-        "INSERT INTO vector_index_cache (id, table_name, entry_id, content, embedding, embedding_norm) VALUES (?, ?, ?, ?, ?, ?)"
+      const existingIds = new Set(existingRows.map(r => r.entry_id));
+      const existingContentMap = new Map(existingRows.map(r => [r.entry_id, r.content]));
+      const newIds = new Set(this.entries.map(e => e.id));
+
+      const toDelete = existingRows.filter(r => !newIds.has(r.entry_id));
+      const toInsert = this.entries.filter(e => !existingIds.has(e.id));
+      const toUpdate = this.entries.filter(e =>
+        existingIds.has(e.id) && existingContentMap.get(e.id) !== e.content
       );
-      const insertAll = this.db.transaction(() => {
-        for (const entry of this.entries) {
-          stmt.run(
+
+      if (toDelete.length === 0 && toInsert.length === 0 && toUpdate.length === 0) return;
+
+      db.transaction(() => {
+        const deleteStmt = db.query(
+          "DELETE FROM vector_index_cache WHERE table_name = ? AND entry_id = ?"
+        );
+        for (const r of toDelete) {
+          deleteStmt.run(tableName, r.entry_id);
+        }
+
+        // Delete entries whose content changed (will re-insert)
+        for (const e of toUpdate) {
+          deleteStmt.run(tableName, e.id);
+        }
+
+        const insertStmt = db.query(
+          "INSERT INTO vector_index_cache (id, table_name, entry_id, content, embedding, embedding_norm) VALUES (?, ?, ?, ?, ?, ?)"
+        );
+        for (const entry of [...toInsert, ...toUpdate]) {
+          insertStmt.run(
             generateId(),
             tableName,
             entry.id,
@@ -102,8 +135,7 @@ export class VectorIndex {
             entry.norm,
           );
         }
-      });
-      insertAll();
+      })();
     } catch {
       // Table doesn't exist — skip persistence
     }
@@ -269,8 +301,15 @@ export class VectorIndex {
     visited.add(startIdx);
 
     while (candidates.length > 0) {
-      candidates.sort((a, b) => b.score - a.score);
-      const current = candidates.shift()!;
+      // O(n) linear scan for best candidate instead of O(n log n) sort
+      let bestIdx = 0;
+      for (let i = 1; i < candidates.length; i++) {
+        if (candidates[i]!.score > candidates[bestIdx]!.score) bestIdx = i;
+      }
+      const current = candidates[bestIdx]!;
+      // Swap-and-pop: O(1) removal
+      candidates[bestIdx] = candidates[candidates.length - 1]!;
+      candidates.length--;
 
       if (results.length >= ef && current.score < results[results.length - 1]!.score) {
         break;

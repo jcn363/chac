@@ -1,7 +1,14 @@
+export interface SettingValidator {
+  type: 'string' | 'number' | 'boolean';
+  min?: number;
+  max?: number;
+  enum?: string[];
+}
+
 export interface SettingsServiceType {
   get(key: string): unknown;
   getAll(): SettingRow[];
-  set(key: string, value: unknown): void;
+  set(key: string, value: unknown): { success: boolean; error?: string };
 }
 
 export interface SettingRow {
@@ -51,4 +58,26 @@ export const DEFAULT_SETTINGS: SettingDefaults = {
   "ui.documents_per_page": { value: 20, category: "ui", description: "Pagination size" },
   "server.port": { value: 3000, category: "server", description: "HTTP server port" },
   "server.host": { value: "127.0.0.1", category: "server", description: "HTTP server bind address" },
+};
+
+export const SETTING_VALIDATORS: Record<string, SettingValidator> = {
+  'llm.chat.ctx_size': { type: 'number', min: 512, max: 1048576 },
+  'llm.chat.temperature': { type: 'number', min: 0, max: 2.0 },
+  'llm.chat.threads': { type: 'number', min: 1, max: 128 },
+  'llm.embed.dimensions': { type: 'number', min: 64, max: 4096 },
+  'llm.gpu.layers': { type: 'number', min: 0, max: 200 },
+  'llm.gpu.flash_attn': { type: 'string', enum: ['on', 'off', 'auto'] },
+  'llm.gpu.split_mode': { type: 'string', enum: ['none', 'layer', 'row'] },
+  'llm.mtp.draft_ngl': { type: 'number', min: 0, max: 200 },
+  'rag.chunk_size': { type: 'number', min: 50, max: 10000 },
+  'rag.chunk_overlap': { type: 'number', min: 0, max: 5000 },
+  'rag.wiki_threshold': { type: 'number', min: 0, max: 1.0 },
+  'rag.max_chunks': { type: 'number', min: 1, max: 50 },
+  'rag.max_wiki_chars': { type: 'number', min: 100, max: 100000 },
+  'rag.wiki_synthesis_threshold': { type: 'number', min: 0, max: 1.0 },
+  'scheduler.memory_consolidation_interval': { type: 'number', min: 60000, max: 86400000 },
+  'scheduler.session_cleanup_interval': { type: 'number', min: 60000, max: 86400000 },
+  'scheduler.index_check_interval': { type: 'number', min: 60000, max: 86400000 },
+  'scheduler.session_retention_days': { type: 'number', min: 1, max: 365 },
+  'server.port': { type: 'number', min: 1024, max: 65535 },
 };

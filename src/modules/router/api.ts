@@ -4,7 +4,10 @@ import type { DocumentsService } from "../documents/service";
 import type { ChatService } from "../chat/service";
 import type { WikiService } from "../wiki/service";
 import type { MemoryService } from "../memory/service";
+import type { SchedulerService } from "../scheduler/service";
+import type { ChatSession } from "../chat/types";
 import { DEFAULT_SETTINGS } from "../settings/types";
+import { exportDatabase, importDatabase } from "../../database";
 
 function safeInt(value: string | undefined, fallback: number, max = 100): number {
   if (value === undefined) return fallback;
@@ -18,6 +21,7 @@ export function setupApiRoutes(app: Hono, kernel: Kernel): void {
   const chat = kernel.get<ChatService>("chat");
   const wiki = kernel.get<WikiService>("wiki");
   const memory = kernel.get<MemoryService>("memory");
+  const scheduler = kernel.get<SchedulerService>("scheduler");
 
   // Status
   app.get("/api/status", (c) => {
@@ -58,10 +62,8 @@ export function setupApiRoutes(app: Hono, kernel: Kernel): void {
     return c.json(docs.list({ page, perPage }));
   });
 
-  app.get("/api/documents/:id", (c) => {
-    const doc = docs.get(c.req.param("id"));
-    if (!doc) return c.json({ error: "Not found" }, 404);
-    return c.json(doc);
+  app.get("/api/documents/status", (c) => {
+    return c.json(docs.getStatus());
   });
 
   app.post("/api/documents", async (c) => {
@@ -73,10 +75,48 @@ export function setupApiRoutes(app: Hono, kernel: Kernel): void {
     return c.json(result, 201);
   });
 
+  app.post("/api/documents/batch", async (c) => {
+    const body = await c.req.json<{ paths: string[] }>();
+    if (!body?.paths || !Array.isArray(body.paths) || body.paths.length === 0) {
+      return c.json({ error: "Missing or invalid paths array" }, 400);
+    }
+    if (body.paths.length > 50) {
+      return c.json({ error: "Maximum 50 files per batch" }, 400);
+    }
+    const result = await docs.batchIngest(body.paths);
+    return c.json(result, 201);
+  });
+
+  app.post("/api/documents/batch/delete", async (c) => {
+    const body = await c.req.json<{ ids: string[] }>();
+    if (!body?.ids || !Array.isArray(body.ids) || body.ids.length === 0) {
+      return c.json({ error: "Missing or invalid ids array" }, 400);
+    }
+    const result = docs.batchDelete(body.ids);
+    return c.json(result);
+  });
+
+  app.get("/api/documents/:id", (c) => {
+    const doc = docs.get(c.req.param("id"));
+    if (!doc) return c.json({ error: "Not found" }, 404);
+    return c.json(doc);
+  });
+
   app.delete("/api/documents/:id", (c) => {
     const deleted = docs.delete(c.req.param("id"));
     if (!deleted) return c.json({ error: "Not found" }, 404);
     return c.json({ ok: true });
+  });
+
+  app.post("/api/documents/:id/reingest", async (c) => {
+    try {
+      const result = await docs.reingest(c.req.param("id"));
+      return c.json(result);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Unknown error";
+      if (msg.startsWith("Document not found")) return c.json({ error: msg }, 404);
+      return c.json({ error: msg }, 400);
+    }
   });
 
   app.post("/api/documents/search", async (c) => {
@@ -87,6 +127,75 @@ export function setupApiRoutes(app: Hono, kernel: Kernel): void {
     const limit = body.limit ? safeInt(String(body.limit), 5) : 5;
     const results = await docs.search(body.query, { limit });
     return c.json(results);
+  });
+
+  // Search History
+  app.get("/api/search/history", (c) => {
+    const limit = safeInt(c.req.query("limit"), 50);
+    return c.json(docs.getSearchHistory({ limit }));
+  });
+
+  app.delete("/api/search/history", (c) => {
+    docs.clearSearchHistory();
+    return c.json({ ok: true });
+  });
+
+  // Tags
+  app.get("/api/tags", (c) => {
+    return c.json(docs.listTags());
+  });
+
+  app.get("/api/tags/:tag/documents", (c) => {
+    const page = safeInt(c.req.query("page"), 1);
+    const perPage = safeInt(c.req.query("per_page"), 20);
+    return c.json(docs.getDocumentsByTag(c.req.param("tag"), { page, perPage }));
+  });
+
+  app.put("/api/documents/:id/tags", async (c) => {
+    const body = await c.req.json<{ tags: string[] }>();
+    if (!body?.tags || !Array.isArray(body.tags)) {
+      return c.json({ error: "Missing or invalid tags array" }, 400);
+    }
+    try {
+      docs.setDocumentTags(c.req.param("id"), body.tags);
+      return c.json({ tags: docs.getDocumentTags(c.req.param("id")) });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Unknown error";
+      if (msg.startsWith("Document not found")) return c.json({ error: msg }, 404);
+      return c.json({ error: msg }, 400);
+    }
+  });
+
+  app.post("/api/documents/:id/tags", async (c) => {
+    const body = await c.req.json<{ tags: string[] }>();
+    if (!body?.tags || !Array.isArray(body.tags)) {
+      return c.json({ error: "Missing or invalid tags array" }, 400);
+    }
+    try {
+      docs.addTags(c.req.param("id"), body.tags);
+      return c.json({ tags: docs.getDocumentTags(c.req.param("id")) });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Unknown error";
+      if (msg.startsWith("Document not found")) return c.json({ error: msg }, 404);
+      return c.json({ error: msg }, 400);
+    }
+  });
+
+  app.delete("/api/documents/:id/tags", async (c) => {
+    const body = await c.req.json<{ tags: string[] }>();
+    if (!body?.tags || !Array.isArray(body.tags)) {
+      return c.json({ error: "Missing or invalid tags array" }, 400);
+    }
+    docs.removeTags(c.req.param("id"), body.tags);
+    return c.json({ tags: docs.getDocumentTags(c.req.param("id")) });
+  });
+
+  // Suggested Questions
+  app.get("/api/suggest", async (c) => {
+    const documentId = c.req.query("documentId") || undefined;
+    const count = safeInt(c.req.query("count"), 5, 20);
+    const questions = await docs.suggestQuestions(documentId, count);
+    return c.json({ questions });
   });
 
   // Chat
@@ -215,5 +324,80 @@ export function setupApiRoutes(app: Hono, kernel: Kernel): void {
     const deleted = memory.delete(c.req.param("id"));
     if (!deleted) return c.json({ error: "Not found" }, 404);
     return c.json({ ok: true });
+  });
+
+  // Conversation Export/Import
+  app.get("/api/chat/sessions/:id/export", (c) => {
+    const data = chat.exportSession(c.req.param("id"));
+    if (!data) return c.json({ error: "Session not found" }, 404);
+    return c.json(data);
+  });
+
+  app.post("/api/chat/import", async (c) => {
+    const body = await c.req.json<{ session: Record<string, unknown>; messages: Array<Record<string, unknown>> }>();
+    if (!body?.messages || !Array.isArray(body.messages)) {
+      return c.json({ error: "Missing or invalid messages array" }, 400);
+    }
+    const validRoles = ["user", "assistant", "system", "tool"];
+    const messages = body.messages.map((m) => ({
+      role: (validRoles.includes(m.role as string) ? m.role : "user") as "user" | "assistant" | "system" | "tool",
+      content: (m.content as string) ?? "",
+      context_chunks: m.context_chunks as string | null,
+      context_scores: m.context_scores as string | null,
+      prompt_tokens: m.prompt_tokens as number | null,
+      completion_tokens: m.completion_tokens as number | null,
+      total_tokens: m.total_tokens as number | null,
+      model: m.model as string | null,
+      latency_ms: m.latency_ms as number | null,
+      metadata: m.metadata as string | null,
+      created_at: m.created_at as string | undefined,
+    }));
+    const session = chat.importSession({
+      session: body.session as Partial<ChatSession>,
+      messages,
+    });
+    return c.json(session, 201);
+  });
+
+  // Cache
+  app.get("/api/cache/stats", (c) => {
+    return c.json(docs.getCacheStats());
+  });
+
+  app.post("/api/cache/clear", (c) => {
+    docs.clearCache();
+    return c.json({ ok: true });
+  });
+
+  // Scheduler
+  app.get("/api/scheduler/status", (c) => {
+    return c.json(scheduler.getStatus());
+  });
+
+  app.post("/api/scheduler/run/:name", async (c) => {
+    const name = c.req.param("name");
+    const success = await scheduler.runNow(name);
+    if (!success) return c.json({ error: "Task not found or already running" }, 400);
+    return c.json({ ok: true });
+  });
+
+  // Backup/Restore
+  app.get("/api/backup", (c) => {
+    const data = exportDatabase();
+    return c.json(data);
+  });
+
+  app.post("/api/restore", async (c) => {
+    const body = await c.req.json<{ tables: Record<string, unknown[][]>; version?: string; timestamp?: string }>();
+    if (!body?.tables || typeof body.tables !== "object") {
+      return c.json({ error: "Missing or invalid backup data" }, 400);
+    }
+    try {
+      importDatabase({ version: body.version ?? "1.0.0", timestamp: body.timestamp ?? new Date().toISOString(), tables: body.tables });
+      chat.invalidateIndexes();
+      return c.json({ ok: true, message: "Database restored successfully" });
+    } catch (err) {
+      return c.json({ error: `Restore failed: ${err instanceof Error ? err.message : "Unknown error"}` }, 500);
+    }
   });
 }

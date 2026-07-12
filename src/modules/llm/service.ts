@@ -4,6 +4,7 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { getAppRoot } from "../../platform/paths";
 import { detectPlatform } from "../../platform/detect";
+import { embeddingCache } from "../../utils/cache";
 
 const BASE_PORT = 8080;
 
@@ -262,6 +263,11 @@ export class LlmServiceImpl implements LlmService {
       return this.mockEmbedding(options);
     }
 
+    const cached = embeddingCache.get(options.input);
+    if (cached) {
+      return { data: [{ embedding: Array.from(cached) }] };
+    }
+
     const url = await this.ensureInstance("embed", "embed");
 
     const response = await fetch(`${url}/v1/embeddings`, {
@@ -277,7 +283,11 @@ export class LlmServiceImpl implements LlmService {
       throw new Error(`Embedding error: ${response.status}`);
     }
 
-    return response.json() as Promise<EmbeddingResponse>;
+    const result = await response.json() as EmbeddingResponse;
+    if (result.data[0]?.embedding) {
+      embeddingCache.set(options.input, new Float32Array(result.data[0].embedding));
+    }
+    return result;
   }
 
   private mockEmbedding(options: EmbeddingOptions): EmbeddingResponse {

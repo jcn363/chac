@@ -33,12 +33,13 @@ describe("runMigrations", () => {
     expect(names).toContain("document_tags");
     expect(names).toContain("usage_log");
     expect(names).toContain("user_memory");
+    expect(names).toContain("search_history");
   });
 
-  it("sets version to 3", () => {
+  it("sets version to 4", () => {
     runMigrations(db);
     const row = db.query("SELECT value FROM schema_meta WHERE key = 'version'").get() as { value: string };
-    expect(row.value).toBe("3");
+    expect(row.value).toBe("4");
   });
 
   it("adds sort_order column to chat_sessions", () => {
@@ -51,6 +52,6 @@ describe("runMigrations", () => {
     runMigrations(db);
     runMigrations(db);
     const row = db.query("SELECT value FROM schema_meta WHERE key = 'version'").get() as { value: string };
-    expect(row.value).toBe("3");
+    expect(row.value).toBe("4");
   });
 });

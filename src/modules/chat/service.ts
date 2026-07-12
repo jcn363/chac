@@ -332,6 +332,49 @@ export class ChatService {
     return history;
   }
 
+  exportSession(sessionId: string): { session: ChatSession; messages: ChatMessage[] } | undefined {
+    const session = this.getSession(sessionId);
+    if (!session) return undefined;
+    const messages = this.getMessages(sessionId);
+    return { session, messages };
+  }
+
+  importSession(data: { session: Partial<ChatSession>; messages: Array<Partial<ChatMessage>> }): ChatSession {
+    const newSession = this.createSession({
+      title: data.session.title ?? "Imported Conversation",
+      systemPrompt: data.session.system_prompt ?? undefined,
+    });
+
+    for (const msg of data.messages) {
+      const id = generateId();
+      const validRoles = ["user", "assistant", "system", "tool"] as const;
+      const role: "user" | "assistant" | "system" | "tool" =
+        msg.role && validRoles.includes(msg.role as "user") ? msg.role as "user" | "assistant" | "system" | "tool" : "user";
+      this.db
+        .query(
+          "INSERT INTO chat_messages (id, session_id, role, content, context_chunks, context_scores, prompt_tokens, completion_tokens, total_tokens, model, latency_ms, metadata, created_at) " +
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        )
+        .run(
+          id,
+          newSession.id,
+          role,
+          msg.content ?? "",
+          msg.context_chunks ?? null,
+          msg.context_scores ?? null,
+          msg.prompt_tokens ?? null,
+          msg.completion_tokens ?? null,
+          msg.total_tokens ?? null,
+          msg.model ?? null,
+          msg.latency_ms ?? null,
+          msg.metadata ?? null,
+          msg.created_at ?? new Date().toISOString()
+        );
+    }
+
+    return newSession;
+  }
+
   invalidateIndexes(): void {
     this.wikiIndex.invalidate();
     this.chunkIndex.invalidate();

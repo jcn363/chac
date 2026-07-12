@@ -29,10 +29,46 @@ export interface SearchResult {
   content: string;
   score: number;
   documentId: string;
+  documentTitle?: string;
+  citation?: string;
 }
 
 export interface IngestResult {
   id: string;
   title: string;
   chunkCount: number;
+}
+
+export interface BatchIngestResult {
+  results: IngestResult[];
+  errors: Array<{ path: string; error: string }>;
+  total: number;
+  succeeded: number;
+  failed: number;
+}
+
+export interface BatchDeleteResult {
+  deleted: number;
+  notFound: string[];
+}
+
+export interface DocumentStatus {
+  total: number;
+  totalChunks: number;
+  lastIngestedAt: string | null;
+}
+
+export interface ExpandedQuery {
+  original: string;
+  expanded: string;
+  keywords: string[];
+}
+
+export interface TagInfo {
+  tag: string;
+  documentCount: number;
+}
+
+export interface DocumentWithTags extends Document {
+  tags: string[];
 }

@@ -140,6 +140,20 @@ const MIGRATIONS: Migration[] = [
       CREATE UNIQUE INDEX IF NOT EXISTS idx_user_memory_key ON user_memory(category, key);
     `,
   },
+  {
+    version: 4,
+    up: `
+      CREATE TABLE IF NOT EXISTS search_history (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        query TEXT NOT NULL,
+        results_count INTEGER DEFAULT 0,
+        expanded_query TEXT,
+        reranked INTEGER DEFAULT 0,
+        created_at TEXT DEFAULT (datetime('now'))
+      );
+      CREATE INDEX IF NOT EXISTS idx_search_history_created ON search_history(created_at DESC);
+    `,
+  },
 ];
 
 function ensureMetaTable(db: Database): void {

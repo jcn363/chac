@@ -1,5 +1,68 @@
 # Changelog
 
+## [1.8.0] - 2026-07-11
+
+### Added
+
+**Caching**
+- Generic in-memory cache with TTL support (`MemoryCache<T>`)
+- Embedding cache — caches embeddings for 10 minutes (avoids redundant LLM calls)
+- Search cache — caches search results for 2 minutes
+- Automatic cleanup of expired entries
+- Cache statistics (size, hit/miss tracking)
+
+**Suggested Questions**
+- AI-powered question generation based on document content
+- Generate questions for a specific document or across all documents
+- Configurable count (1-20 questions)
+- API endpoint: `GET /api/suggest?documentId=...&count=5`
+
+**Search History**
+- Track all document searches with query, result count, expanded query, and reranking status
+- Database table `search_history` with automatic timestamping
+- API endpoint: `GET /api/search/history` — retrieve search history
+- API endpoint: `DELETE /api/search/history` — clear search history
+- Methods: `logSearch()`, `getSearchHistory()`, `clearSearchHistory()`
+
+**Backup/Restore**
+- Export entire database as JSON with all tables and data
+- Import database from JSON backup, clearing existing data first
+- API endpoint: `GET /api/backup` — export database as JSON
+- API endpoint: `POST /api/restore` — import database from JSON backup
+- Database backup utility functions: `exportDatabase()`, `importDatabase()`, `exportToFile()`, `importFromFile()`
+
+**Document Format Support**
+- PDF parsing — extract text, page count, title, author from PDF files
+- DOCX parsing — extract text from Microsoft Word documents
+- HTML parsing — extract text content, strip scripts/styles
+- Markdown parsing — convert to plain text with structure preservation
+- Auto-detection of file format by extension
+
+**RAG Quality Improvements**
+- Citation tracking — search results include source document title and content preview
+- Query expansion — LLM expands queries with synonyms and related terms for better retrieval
+- Reranking — LLM reranks initial search results by relevance
+- Search API options: `expand: true` for query expansion, `rerank: true` for LLM reranking
+
+**Conversation Export/Import**
+- Export chat sessions to JSON with full message history
+- Import JSON conversations with automatic ID regeneration
+- API endpoint: `GET /api/chat/sessions/:id/export` — export session as JSON
+- API endpoint: `POST /api/chat/import` — import conversation from JSON
+
+## [1.1.0] - 2026-07-11
+
+### Added
+
+**Background Scheduler**
+- SchedulerService for periodic background tasks with configurable intervals
+- Memory consolidation task — deduplicates similar memory entries (default: 30min)
+- Session cleanup task — archives sessions older than retention period (default: 1hr, 30 days retention)
+- Index health check task — verifies vector index consistency (default: 15min)
+- API endpoint: `GET /api/scheduler/status` — returns task states and schedules
+- API endpoint: `POST /api/scheduler/run/:name` — manual task trigger
+- 5 new settings: `scheduler.enabled`, `scheduler.memory_consolidation_interval`, `scheduler.session_cleanup_interval`, `scheduler.index_check_interval`, `scheduler.session_retention_days`
+
 ## [1.0.0] - 2026-07-11
 
 First production release after comprehensive analysis and implementation across 10 phases.

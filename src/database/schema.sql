@@ -57,6 +57,7 @@ CREATE TABLE IF NOT EXISTS chat_messages (
   total_tokens INTEGER,
   model TEXT,
   latency_ms INTEGER,
+  citations TEXT,
   metadata TEXT,
   created_at TEXT DEFAULT (datetime('now'))
 );

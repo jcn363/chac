@@ -34,12 +34,13 @@ describe("runMigrations", () => {
     expect(names).toContain("usage_log");
     expect(names).toContain("user_memory");
     expect(names).toContain("search_history");
+    expect(names).toContain("vector_index_cache");
   });
 
-  it("sets version to 4", () => {
+  it("sets version to 6", () => {
     runMigrations(db);
     const row = db.query("SELECT value FROM schema_meta WHERE key = 'version'").get() as { value: string };
-    expect(row.value).toBe("4");
+    expect(row.value).toBe("6");
   });
 
   it("adds sort_order column to chat_sessions", () => {
@@ -48,10 +49,16 @@ describe("runMigrations", () => {
     expect(cols.some((c) => c.name === "sort_order")).toBe(true);
   });
 
+  it("adds citations column to chat_messages", () => {
+    runMigrations(db);
+    const cols = db.query("PRAGMA table_info(chat_messages)").all() as { name: string }[];
+    expect(cols.some((c) => c.name === "citations")).toBe(true);
+  });
+
   it("is idempotent", () => {
     runMigrations(db);
     runMigrations(db);
     const row = db.query("SELECT value FROM schema_meta WHERE key = 'version'").get() as { value: string };
-    expect(row.value).toBe("4");
+    expect(row.value).toBe("6");
   });
 });

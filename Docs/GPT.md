@@ -2,7 +2,7 @@
 
 > "The transformer is the foundation. Everything else is an optimization."
 
-**See also:** [Sub-Quadratic Attention](./Sub-quadratic.md) · [MLA Deep-Dive](./MLA.md) · [SSA Deep-Dive](./SSA.md) · [Mixture of Experts](./MoE.md) · [README](../README.md) · [FAQ](../FAQ.md) · [BENCHMARK](../BENCHMARK.md)
+**See also:** [Sub-Quadratic Attention](./Sub-quadratic.md) · [MLA Deep-Dive](./MLA.md) · [SSA Deep-Dive](./SSA.md) · [SubQ-1.1-Small](./Subq.md) · [Mixture of Experts](./MoE.md) · [Swarm Intelligence](./Swarm.md) · [DSpark](./Dspark.md) · [README](../README.md) · [FAQ](../FAQ.md) · [BENCHMARK](../BENCHMARK.md)
 
 ## Table of Contents
 

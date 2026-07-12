@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import type { Context } from "hono";
 import type { Kernel } from "../../kernel/types";
 import type { DocumentsService } from "../documents/service";
 import type { ChatService } from "../chat/service";
@@ -6,8 +7,9 @@ import type { WikiService } from "../wiki/service";
 import type { MemoryService } from "../memory/service";
 import type { SchedulerService } from "../scheduler/service";
 import type { ChatSession } from "../chat/types";
-import { DEFAULT_SETTINGS } from "../settings/types";
+import { DEFAULT_SETTINGS, type SettingsServiceType } from "../settings/types";
 import { exportDatabase, importDatabase } from "../../database";
+import { AppError } from "../../errors";
 
 function safeInt(value: string | undefined, fallback: number, max = 100): number {
   if (value === undefined) return fallback;
@@ -15,8 +17,20 @@ function safeInt(value: string | undefined, fallback: number, max = 100): number
   return Number.isFinite(n) && n > 0 ? Math.min(n, max) : fallback;
 }
 
+/** Wrap an async route handler with error handling. AppError passes through; others become 500. */
+function wrap(fn: (c: Context) => Promise<Response> | Response) {
+  return async (c: Context) => {
+    try {
+      return await fn(c);
+    } catch (err) {
+      if (err instanceof AppError) throw err;
+      throw new AppError(err instanceof Error ? err.message : "Unknown error", "INTERNAL_ERROR", 500);
+    }
+  };
+}
+
 export function setupApiRoutes(app: Hono, kernel: Kernel): void {
-  const settings = kernel.get<{ get: (key: string) => unknown; getAll: () => unknown[]; set: (key: string, value: unknown) => void }>("settings");
+  const settings = kernel.get<SettingsServiceType>("settings");
   const docs = kernel.get<DocumentsService>("docs");
   const chat = kernel.get<ChatService>("chat");
   const wiki = kernel.get<WikiService>("wiki");
@@ -66,16 +80,16 @@ export function setupApiRoutes(app: Hono, kernel: Kernel): void {
     return c.json(docs.getStatus());
   });
 
-  app.post("/api/documents", async (c) => {
+  app.post("/api/documents", wrap(async (c) => {
     const body = await c.req.json<{ path: string }>();
     if (!body?.path || typeof body.path !== "string") {
       return c.json({ error: "Missing or invalid path" }, 400);
     }
     const result = await docs.ingest(body.path);
     return c.json(result, 201);
-  });
+  }));
 
-  app.post("/api/documents/batch", async (c) => {
+  app.post("/api/documents/batch", wrap(async (c) => {
     const body = await c.req.json<{ paths: string[] }>();
     if (!body?.paths || !Array.isArray(body.paths) || body.paths.length === 0) {
       return c.json({ error: "Missing or invalid paths array" }, 400);
@@ -85,7 +99,7 @@ export function setupApiRoutes(app: Hono, kernel: Kernel): void {
     }
     const result = await docs.batchIngest(body.paths);
     return c.json(result, 201);
-  });
+  }));
 
   app.post("/api/documents/batch/delete", async (c) => {
     const body = await c.req.json<{ ids: string[] }>();
@@ -120,12 +134,16 @@ export function setupApiRoutes(app: Hono, kernel: Kernel): void {
   });
 
   app.post("/api/documents/search", async (c) => {
-    const body = await c.req.json<{ query: string; limit?: number }>();
+    const body = await c.req.json<{ query: string; limit?: number; rerank?: boolean; expand?: boolean }>();
     if (!body?.query || typeof body.query !== "string") {
       return c.json({ error: "Missing or invalid query" }, 400);
     }
     const limit = body.limit ? safeInt(String(body.limit), 5) : 5;
-    const results = await docs.search(body.query, { limit });
+    const results = await docs.search(body.query, {
+      limit,
+      rerank: body.rerank ?? false,
+      expand: body.expand ?? false,
+    });
     return c.json(results);
   });
 
@@ -256,7 +274,7 @@ export function setupApiRoutes(app: Hono, kernel: Kernel): void {
     return c.json({ ok: true });
   });
 
-  app.post("/api/chat", async (c) => {
+  app.post("/api/chat", wrap(async (c) => {
     const body = await c.req.json<{ sessionId: string; message: string }>();
     if (!body?.sessionId || typeof body.sessionId !== "string") {
       return c.json({ error: "Missing or invalid sessionId" }, 400);
@@ -266,7 +284,7 @@ export function setupApiRoutes(app: Hono, kernel: Kernel): void {
     }
     const msg = await chat.sendMessage(body.sessionId, body.message);
     return c.json(msg);
-  });
+  }));
 
   // Wiki
   app.get("/api/wiki", (c) => {
@@ -281,10 +299,10 @@ export function setupApiRoutes(app: Hono, kernel: Kernel): void {
     return c.json(page);
   });
 
-  app.post("/api/wiki/compile", async (c) => {
+  app.post("/api/wiki/compile", wrap(async (c) => {
     const pages = await wiki.compile();
     return c.json({ compiled: pages.length, pages });
-  });
+  }));
 
   app.delete("/api/wiki/:id", (c) => {
     const deleted = wiki.delete(c.req.param("id"));
@@ -292,7 +310,7 @@ export function setupApiRoutes(app: Hono, kernel: Kernel): void {
     return c.json({ ok: true });
   });
 
-  app.post("/api/wiki/search", async (c) => {
+  app.post("/api/wiki/search", wrap(async (c) => {
     const body = await c.req.json<{ query: string; limit?: number }>();
     if (!body?.query || typeof body.query !== "string") {
       return c.json({ error: "Missing or invalid query" }, 400);
@@ -300,7 +318,7 @@ export function setupApiRoutes(app: Hono, kernel: Kernel): void {
     const limit = body.limit ? safeInt(String(body.limit), 5) : 5;
     const results = await wiki.search(body.query, { limit });
     return c.json(results);
-  });
+  }));
 
   // Memory
   app.get("/api/memory", (c) => {

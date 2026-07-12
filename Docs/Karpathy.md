@@ -2,7 +2,7 @@
 
 > "The best way to predict the future is to build it." — Andrej Karpathy
 
-**See also:** [Mixture of Experts](./MoE.md) · [Swarm Intelligence](./Swarm.md) · [Sub-Quadratic Attention](./Sub-quadratic.md) · [README](../README.md) · [FAQ](../FAQ.md) · [BENCHMARK](../BENCHMARK.md)
+**See also:** [Mixture of Experts](./MoE.md) · [Swarm Intelligence](./Swarm.md) · [Sub-Quadratic Attention](./Sub-quadratic.md) · [MLA Deep-Dive](./MLA.md) · [GPT Architecture](./GPT.md) · [ObsidianSA](./ObsidianSA.md) · [README](../README.md) · [FAQ](../FAQ.md) · [BENCHMARK](../BENCHMARK.md)
 
 ## Table of Contents
 
@@ -301,22 +301,37 @@ Query Embedding → Cosine Similarity with Chunk Embeddings → Rank → Take To
 
 ### Decision Logic
 
+The current implementation uses **Reciprocal Rank Fusion (RRF)** to merge wiki and chunk results instead of a binary fallback:
+
 ```typescript
-private async retrieveContext(query: string) {
-  // Try wiki first
-  const wikiResults = await this.searchWiki(query, wikiThreshold);
-  if (wikiResults.length > 0) {
-    return wikiResults.map(r => ({
-      chunkId: r.pageId,
-      content: r.content,
-      score: r.score
-    }));
+private async retrieveContextFused(query: string): Promise<ContextChunk[]> {
+  const queryVec = await this.embedQuery(searchQuery);
+
+  // Search both wiki and chunks in parallel
+  const [wikiResults, chunkResults] = await Promise.all([
+    this.wikiIndex.search(db, "wiki_pages", "id", "content", queryVec, { threshold }),
+    this.chunkIndex.search(db, "chunks", "id", "content", queryVec, { limit: maxChunks * 3 }),
+  ]);
+
+  // Reciprocal Rank Fusion (K=60) merges both result sets
+  const scores = new Map<string, ContextChunk>();
+  for (let rank = 0; rank < wikiResults.length; rank++) {
+    const rrfScore = 1 / (60 + rank + 1);
+    scores.set(`wiki:${r.id}`, { chunkId: r.id, content: r.content, score: rrfScore, source: "wiki" });
+  }
+  for (let rank = 0; rank < chunkResults.length; rank++) {
+    const rrfScore = 1 / (60 + rank + 1);
+    const existing = scores.get(`chunk:${r.id}`);
+    if (existing) existing.score += rrfScore;
+    else scores.set(`chunk:${r.id}`, { chunkId: r.id, content: r.content, score: rrfScore, source: "chunk" });
   }
 
-  // Fallback to raw chunks
-  return this.searchChunks(query, maxChunks);
+  // Sort by fused score, take top results
+  return Array.from(scores.values()).sort((a, b) => b.score - a.score).slice(0, maxChunks);
 }
 ```
+
+This replaces the original binary fallback with a ranked fusion that combines wiki and chunk results by their relative position, weighted by the RRF constant K=60.
 
 ---
 

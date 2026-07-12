@@ -2,7 +2,7 @@
 
 > "The value of SSA is not only that it makes long-context inference cheaper. It makes long-context experimentation cheaper." — Subversive AI, 2026
 
-**See also:** [Sub-Quadratic Attention](./Sub-quadratic.md) · [SSA Deep-Dive](./SSA.md) · [MLA Deep-Dive](./MLA.md) · [GPT Architecture](./GPT.md) · [The Karpathy Method](./Karpathy.md) · [Mixture of Experts](./MoE.md) · [README](../README.md) · [FAQ](../FAQ.md) · [BENCHMARK](../BENCHMARK.md)
+**See also:** [Sub-Quadratic Attention](./Sub-quadratic.md) · [SSA Deep-Dive](./SSA.md) · [MLA Deep-Dive](./MLA.md) · [GPT Architecture](./GPT.md) · [The Karpathy Method](./Karpathy.md) · [Mixture of Experts](./MoE.md) · [DSpark](./Dspark.md) · [README](../README.md) · [FAQ](../FAQ.md) · [BENCHMARK](../BENCHMARK.md)
 
 ## Table of Contents
 

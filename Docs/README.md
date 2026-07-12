@@ -14,6 +14,8 @@ Technical reference docs for the Chac project. Each doc covers a distinct topic 
 | [SSA.md](./SSA.md) | SSA Deep-Dive | ~300 | Technical analysis of Subquadratic Sparse Attention mechanism |
 | [MLA.md](./MLA.md) | MLA Deep-Dive | ~300 | Multi-Head Latent Attention: KV cache compression via low-rank decomposition |
 | [GPT.md](./GPT.md) | GPT Architecture | ~300 | Generative Pre-trained Transformer: decoder-only architecture, scaling, and evolution |
+| [ObsidianSA.md](./ObsidianSA.md) | Obsidian Vault Philosophy | ~280 | Steph Ango's vault structure, linking philosophy, and knowledge management principles |
+| [Dspark.md](./Dspark.md) | DSpark Speculative Decoding | ~300 | DeepSeek's DSpark framework: semi-autoregressive drafting, confidence-scheduled verification, 60–85% inference speedup |
 
 ## Project Docs
 
@@ -30,18 +32,35 @@ Karpathy ←→ MoE        (nomic-embed-text-v2-moe is an MoE model)
 Karpathy ←→ Swarm      (future multi-agent document processing)
 Karpathy ←→ Sub-quad   (sub-quadratic models could replace current LLM)
 Karpathy ←→ GPT        (Chac uses GPT-based models via llama.cpp)
+Karpathy ←→ MLA        (MLA enables longer context for RAG pipelines)
+Karpathy ←→ ObsidianSA (both use bottom-up knowledge organization)
 MoE      ←→ Sub-quad   (MoE + linear attention = efficient scaling)
 MoE      ←→ MLA        (DeepSeek V3 uses MLA + MoE together)
 MoE      ←→ GPT        (MoE extends GPT architecture with expert routing)
+MoE      ←→ DSpark     (DeepSeek-V4 uses MoE; DSpark accelerates its inference)
+MoE      ←→ ObsidianSA (both optimize resource allocation via specialization)
 Swarm    ←→ Sub-quad   (diverse architectures prevent consensus paradox)
+Swarm    ←→ MLA        (swarm agents benefit from KV cache compression)
+Swarm    ←→ ObsidianSA (fractal review parallels multi-agent knowledge maintenance)
 Subq     ←→ SSA        (SSA is the attention mechanism behind SubQ-1.1-Small)
 Subq     ←→ Sub-quad   (SubQ-1.1-Small is a concrete instance of sub-quadratic attention)
+Subq     ←→ DSpark     (speculative decoding can accelerate SSA-based models)
 SSA      ←→ Sub-quad   (SSA is a specific sparse-attention approach)
 SSA      ←→ GPT        (SSA replaces GPT's O(n²) attention)
+SSA      ←→ DSpark     (DSpark can draft for SSA-based target models)
 MLA      ←→ Sub-quad   (MLA compresses KV cache; sub-quadratic reduces compute)
 MLA      ←→ SSA        (complementary: MLA = memory, SSA = compute)
 MLA      ←→ GPT        (MLA compresses GPT's KV cache)
+MLA      ←→ DSpark     (DSpark reduces verification waste on MLA-compressed models)
 GPT      ←→ Sub-quad   (sub-quadratic methods address GPT's quadratic bottleneck)
+GPT      ←→ DSpark     (DSpark accelerates GPT-based model inference)
+ObsidianSA ←→ Karpathy  (both use bottom-up knowledge organization: wiki compilation ↔ linking philosophy)
+ObsidianSA ←→ Swarm     (fractal review parallels multi-agent knowledge maintenance)
+ObsidianSA ←→ MoE       (both optimize resource allocation via specialization)
+DSpark     ←→ MoE       (DeepSeek-V4 uses MoE architecture; DSpark accelerates its inference)
+DSpark     ←→ MLA       (V4 uses MLA for KV cache compression; DSpark reduces verification waste)
+DSpark     ←→ Sub-quad  (speculative decoding complements sub-quadratic attention for speed)
+DSpark     ←→ GPT       (DSpark accelerates GPT-based model inference)
 ```
 
 ## Reading Order
@@ -57,3 +76,5 @@ For a new reader, the recommended order is:
 7. **Subq.md** — SubQ-1.1-Small model card and results
 8. **SSA.md** — technical deep-dive into the SSA mechanism
 9. **Swarm.md** — advanced multi-agent extensions
+10. **ObsidianSA.md** — knowledge management philosophy (optional, for understanding organizational principles)
+11. **Dspark.md** — inference optimization via speculative decoding (optional, for understanding serving efficiency)

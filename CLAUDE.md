@@ -108,7 +108,7 @@ Memory tab manages cross-session memory via `GET/PUT/DELETE /api/memory`. Entrie
 - **Mock LLM**: `tests/mocks/llama-cpp.ts` provides `createMockLlmService()` — no llama.cpp binary needed
 - **Run pattern**: `bun test` (all), `bun test tests/unit/chat.test.ts` (single file)
 - **New tests**: Add to `tests/unit/<module>/` matching the source module structure
-- **Target**: 158 tests pass, 0 TypeScript errors
+- **Target**: 329 tests pass, 0 TypeScript errors
 
 ### Adding a new test
 
@@ -149,7 +149,17 @@ describe("MyModule", () => {
 - Cross-session memory: user preferences/topics/facts persist across chat sessions via `user_memory` table
 - Knowledge compounding: high-value answers auto-feed into wiki pages when `rag.auto_compound` is true
 - Multi-agent wiki: 3 parallel LLM agents (summarizer, fact extractor, connector) when `wiki.agents_enabled` is true
+- Query expansion: LLM expands user query with synonyms/keywords before embedding when `rag.expand` is true
+- LLM reranking: re-ranks RRF fusion results via LLM when `rag.rerank` is true
+- Citation tracking: each context chunk includes source citation (title + preview), saved in `chat_messages.citations`
 - Service singletons are created once at startup, not per-request
+- `VectorIndex` persists HNSW cache to `vector_index_cache` table (migration v6) for faster cold starts
+- Shared utilities: `llm-helpers.ts` (createEmbedding, collectLlmResponse, extractJsonFromLlm, embedAndInsertChunks, estimateTokens), `citations.ts` (generateCitation, formatCitation)
+- Error hierarchy: `AppError`, `NotFoundError`, `ValidationError`, `SecurityError`, `ExternalServiceError` in `src/errors.ts`
+- WebSocket streaming: real-time chat token delivery via `/ws` endpoint with POST fallback
+- Frontend: componentized into `js/components/` (chat, documents, wiki, memory, settings, help) + `js/lib/` (api, dom, state)
+- Service worker: offline-first caching for static assets, network-first for API calls
+- OpenAPI 3.1 spec at `/api/openapi.json` documenting all 35 endpoints
 
 ## Build & Deploy
 

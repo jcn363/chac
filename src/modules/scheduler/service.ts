@@ -1,6 +1,7 @@
 import type { Kernel } from "../../kernel/types";
 import type { ScheduledTask, TaskStatus } from "./types";
 
+/** Background task scheduler for memory consolidation, cleanup, and index checks. */
 export class SchedulerService {
   private kernel: Kernel;
   private tasks = new Map<string, ScheduledTask>();

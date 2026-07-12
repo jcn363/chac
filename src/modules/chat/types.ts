@@ -21,6 +21,7 @@ export interface ChatMessage {
   total_tokens: number | null;
   model: string | null;
   latency_ms: number | null;
+  citations: string | null;
   metadata: string | null;
   created_at: string;
 }

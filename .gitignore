@@ -45,3 +45,6 @@ report.*.json
 data/chac.db
 data/*.db
 .mimocode
+
+# PDFs (reference docs, not source)
+Docs/*.pdf

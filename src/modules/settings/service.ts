@@ -1,6 +1,7 @@
 import type { Database } from "bun:sqlite";
 import { DEFAULT_SETTINGS, type SettingRow } from "./types";
 
+/** DB-backed settings with in-memory cache and JSON parsing. */
 export class SettingsService {
   private db: Database;
   private cache = new Map<string, unknown>();

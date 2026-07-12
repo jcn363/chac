@@ -1,5 +1,6 @@
 import type { Database } from "bun:sqlite";
-import { blobToEmbedding } from "./vector";
+import { blobToEmbedding, cosineSimilarityFast } from "./vector";
+import { generateId } from "./id";
 
 interface IndexEntry {
   id: string;
@@ -28,13 +29,95 @@ export class VectorIndex {
   private hnswEntryIdx = -1;
   private hnswMaxLevel = 0;
 
+  constructor(
+    private db?: Database,
+    private tableName?: string,
+  ) {}
+
   invalidate(): void {
     this.dirty = true;
+    if (this.db && this.tableName) {
+      try {
+        this.db.query("DELETE FROM vector_index_cache WHERE table_name = ?").run(this.tableName);
+      } catch {
+        // Table doesn't exist — ignore
+      }
+    }
+  }
+
+  private loadFromDb(): boolean {
+    if (!this.db || !this.tableName) return false;
+
+    let count: number;
+    try {
+      count = (this.db.query(
+        "SELECT COUNT(*) as c FROM vector_index_cache WHERE table_name = ?"
+      ).get(this.tableName) as { c: number }).c;
+    } catch {
+      return false; // Table doesn't exist yet
+    }
+    if (count === 0) return false;
+
+    const rows = this.db.query(
+      "SELECT entry_id, content, embedding, embedding_norm FROM vector_index_cache WHERE table_name = ?"
+    ).all(this.tableName) as Array<{ entry_id: string; content: string; embedding: Buffer; embedding_norm: number }>;
+
+    this.entries = rows.map(r => ({
+      id: r.entry_id,
+      content: r.content,
+      embedding: blobToEmbedding(r.embedding),
+      norm: r.embedding_norm,
+    }));
+
+    if (this.entries.length >= HNSW_THRESHOLD) {
+      this.buildHnsw();
+    } else {
+      this.hnswNodes = [];
+      this.hnswEntryIdx = -1;
+      this.hnswMaxLevel = 0;
+    }
+
+    this.dirty = false;
+    return true;
+  }
+
+  private saveToDb(): void {
+    if (!this.db || !this.tableName) return;
+    const tableName = this.tableName;
+
+    try {
+      this.db.query("DELETE FROM vector_index_cache WHERE table_name = ?").run(tableName);
+
+      const stmt = this.db.query(
+        "INSERT INTO vector_index_cache (id, table_name, entry_id, content, embedding, embedding_norm) VALUES (?, ?, ?, ?, ?, ?)"
+      );
+      const insertAll = this.db.transaction(() => {
+        for (const entry of this.entries) {
+          stmt.run(
+            generateId(),
+            tableName,
+            entry.id,
+            entry.content,
+            Buffer.from(entry.embedding.buffer),
+            entry.norm,
+          );
+        }
+      });
+      insertAll();
+    } catch {
+      // Table doesn't exist — skip persistence
+    }
   }
 
   private rebuild(db: Database, table: string, idCol: string, contentCol: string): void {
     if (!this.dirty) return;
+    this.db = db;
+    this.tableName = table;
 
+    // Fast path: load from cache
+    if (this.loadFromDb()) return;
+
+    // Slow path: scan raw table + save cache
     const rows = db
       .query(`SELECT ${idCol}, ${contentCol}, embedding FROM ${table} WHERE embedding IS NOT NULL`)
       .all() as Array<Record<string, unknown>>;
@@ -67,17 +150,8 @@ export class VectorIndex {
       this.hnswMaxLevel = 0;
     }
 
+    this.saveToDb();
     this.dirty = false;
-  }
-
-  private cosine(a: Float32Array, aNorm: number, b: Float32Array, bNorm: number): number {
-    let dot = 0;
-    const len = Math.min(a.length, b.length);
-    for (let i = 0; i < len; i++) {
-      dot += a[i]! * b[i]!;
-    }
-    const denom = aNorm * bNorm;
-    return denom === 0 ? 0 : dot / denom;
   }
 
   private buildHnsw(): void {
@@ -147,7 +221,7 @@ export class VectorIndex {
 
   private greedySearchLevel(query: IndexEntry, startIdx: number, level: number, ef: number): number {
     let bestIdx = startIdx;
-    let bestScore = this.cosine(
+    let bestScore = cosineSimilarityFast(
       query.embedding,
       query.norm,
       this.entries[startIdx]!.embedding,
@@ -162,7 +236,7 @@ export class VectorIndex {
 
       for (const nIdx of neighbors) {
         if (nIdx === bestIdx) continue;
-        const score = this.cosine(
+        const score = cosineSimilarityFast(
           query.embedding,
           query.norm,
           this.entries[nIdx]!.embedding,
@@ -184,7 +258,7 @@ export class VectorIndex {
     const candidates: Array<{ idx: number; score: number }> = [];
     const results: Array<{ idx: number; score: number }> = [];
 
-    const startScore = this.cosine(
+    const startScore = cosineSimilarityFast(
       query.embedding,
       query.norm,
       this.entries[startIdx]!.embedding,
@@ -209,7 +283,7 @@ export class VectorIndex {
         if (visited.has(nIdx)) continue;
         visited.add(nIdx);
 
-        const score = this.cosine(
+        const score = cosineSimilarityFast(
           query.embedding,
           query.norm,
           this.entries[nIdx]!.embedding,
@@ -284,7 +358,7 @@ export class VectorIndex {
     const results: Array<{ id: string; content: string; score: number }> = [];
     for (const idx of candidates) {
       const entry = this.entries[idx]!;
-      const score = this.cosine(queryVec, queryNorm, entry.embedding, entry.norm);
+      const score = cosineSimilarityFast(queryVec, queryNorm, entry.embedding, entry.norm);
       if (score >= threshold) {
         results.push({ id: entry.id, content: entry.content, score });
       }
@@ -303,7 +377,7 @@ export class VectorIndex {
     const results: Array<{ id: string; content: string; score: number }> = [];
 
     for (const entry of this.entries) {
-      const score = this.cosine(queryVec, queryNorm, entry.embedding, entry.norm);
+      const score = cosineSimilarityFast(queryVec, queryNorm, entry.embedding, entry.norm);
       if (score >= threshold) {
         results.push({ id: entry.id, content: entry.content, score });
       }

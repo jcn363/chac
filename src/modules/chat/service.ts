@@ -2,19 +2,35 @@ import type { Database } from "bun:sqlite";
 import type { Kernel } from "../../kernel/types";
 import { generateId } from "../../utils/id";
 import { VectorIndex } from "../../utils/vector-index";
+import { createEmbedding } from "../../utils/llm-helpers";
+import { generateCitation } from "../../utils/citations";
+import { estimateTokens } from "../../utils/llm-helpers";
 import type { ChatSession, ChatMessage, SendMessageOptions } from "./types";
+import type { DocumentsService } from "../documents/service";
+import type { LlmService } from "../llm/types";
 
 const RRF_K = 60;
 
+export interface ContextChunk {
+  chunkId: string;
+  content: string;
+  score: number;
+  citation?: string;
+  documentTitle?: string;
+}
+
+/** Chat sessions, messages, and RAG context retrieval with ranked fusion. */
 export class ChatService {
   private db: Database;
   private kernel: Kernel;
-  private wikiIndex = new VectorIndex();
-  private chunkIndex = new VectorIndex();
+  private wikiIndex: VectorIndex;
+  private chunkIndex: VectorIndex;
 
   constructor(kernel: Kernel) {
     this.kernel = kernel;
     this.db = kernel.get<Database>("db");
+    this.wikiIndex = new VectorIndex(this.db, "wiki_pages");
+    this.chunkIndex = new VectorIndex(this.db, "chunks");
   }
 
   createSession(options: { title?: string; systemPrompt?: string } = {}): ChatSession {
@@ -104,9 +120,14 @@ export class ChatService {
       const contextBlock = contextChunks
         .map((c, i) => `[${i + 1}] ${c.content}`)
         .join("\n\n");
+      const citations = contextChunks
+        .filter((c) => c.citation)
+        .map((c, i) => `[${i + 1}] ${c.citation}`)
+        .join("\n");
+      const citationFooter = citations ? `\n\nSources:\n${citations}` : "";
       messages.push({
         role: "system",
-        content: `Context from documents:\n${contextBlock}\n\nAnswer based on this context when relevant.`,
+        content: `Context from documents:\n${contextBlock}${citationFooter}\n\nAnswer based on this context when relevant. Cite sources using [1], [2] etc.`,
       });
     }
 
@@ -145,8 +166,8 @@ export class ChatService {
     const assistantMsgId = generateId();
     this.db
       .query(
-        "INSERT INTO chat_messages (id, session_id, role, content, context_chunks, context_scores, latency_ms) " +
-          "VALUES (?, ?, 'assistant', ?, ?, ?, ?)"
+        "INSERT INTO chat_messages (id, session_id, role, content, context_chunks, context_scores, latency_ms, citations) " +
+          "VALUES (?, ?, 'assistant', ?, ?, ?, ?, ?)"
       )
       .run(
         assistantMsgId,
@@ -154,7 +175,13 @@ export class ChatService {
         fullResponse,
         JSON.stringify(contextChunks.map((c) => c.chunkId)),
         JSON.stringify(contextChunks.map((c) => c.score)),
-        latencyMs
+        latencyMs,
+        JSON.stringify(contextChunks.filter((c) => c.citation).map((c) => ({
+          chunkId: c.chunkId,
+          citation: c.citation,
+          documentTitle: c.documentTitle,
+          score: c.score,
+        })))
       );
 
     // Update session timestamp
@@ -180,7 +207,7 @@ export class ChatService {
   }
 
   private async compoundKnowledge(
-    contextChunks: Array<{ chunkId: string; content: string; score: number }>,
+    contextChunks: ContextChunk[],
     response: string
   ): Promise<void> {
     const settings = this.kernel.get<{ get: (key: string) => unknown }>("settings");
@@ -234,29 +261,38 @@ export class ChatService {
   }
 
   private async embedQuery(query: string): Promise<Float32Array> {
-    const llm = this.kernel.get<{
-      embeddings: { create: (opts: { input: string }) => Promise<{ data: { embedding: number[] }[] }> };
-    }>("llm");
-    const embResult = await llm.embeddings.create({ input: query });
-    const firstEmb = embResult.data[0];
-    if (!firstEmb) throw new Error("No embedding returned");
-    return new Float32Array(firstEmb.embedding);
+    const llm = this.kernel.get<LlmService>("llm");
+    return createEmbedding(llm, query);
   }
 
   private async retrieveContextFused(
     query: string
-  ): Promise<Array<{ chunkId: string; content: string; score: number }>> {
+  ): Promise<ContextChunk[]> {
     const settings = this.kernel.get<{ get: (key: string) => unknown }>("settings");
     const wikiThreshold = settings.get("rag.wiki_threshold") as number;
     const maxChunks = settings.get("rag.max_chunks") as number;
+    const shouldExpand = settings.get("rag.expand") as boolean;
+    const shouldRerank = settings.get("rag.rerank") as boolean;
 
-    const queryVec = await this.embedQuery(query);
+    // Optional query expansion
+    let searchQuery = query;
+    if (shouldExpand) {
+      try {
+        const docs = this.kernel.get<DocumentsService>("docs");
+        const expanded = await docs.expandQuery(query);
+        searchQuery = expanded.expanded;
+      } catch {
+        console.warn("Query expansion failed, using original query");
+      }
+    }
+
+    const queryVec = await this.embedQuery(searchQuery);
 
     const [wikiRaw, chunkRaw] = await Promise.all([
       this.wikiIndex.search(this.db, "wiki_pages", "id", "content", queryVec, {
         threshold: wikiThreshold,
       }),
-      this.chunkIndex.search(this.db, "chunks", "id", "content", queryVec, { limit: maxChunks }),
+      this.chunkIndex.search(this.db, "chunks", "id", "content", queryVec, { limit: maxChunks * 3 }),
     ]);
 
     // Reciprocal Rank Fusion
@@ -292,11 +328,51 @@ export class ChatService {
 
     const fused = Array.from(scores.values());
     fused.sort((a, b) => b.score - a.score);
-    return fused.slice(0, maxChunks).map((r) => ({
-      chunkId: r.chunkId,
-      content: r.content,
-      score: r.score,
-    }));
+    let results = fused.slice(0, maxChunks * 3);
+
+    // Optional LLM reranking
+    if (shouldRerank && results.length > 1) {
+      try {
+        const docs = this.kernel.get<DocumentsService>("docs");
+        const searchResults = results.map((r) => ({
+          chunkId: r.chunkId,
+          content: r.content,
+          score: r.score,
+          documentId: "",
+          citation: "",
+        }));
+        const reranked = await docs.rerankResults(query, searchResults);
+        results = reranked.map((r) => ({
+          chunkId: r.chunkId,
+          content: r.content,
+          score: r.score,
+          source: "",
+        }));
+      } catch {
+        console.warn("Reranking failed, using original order");
+      }
+    }
+
+    // Generate citations and trim to maxChunks
+    const final = results.slice(0, maxChunks).map((r) => {
+      const citation = this.generateCitationLocal(r.chunkId, r.content);
+      return {
+        chunkId: r.chunkId,
+        content: r.content,
+        score: r.score,
+        citation: citation.citation,
+        documentTitle: citation.documentTitle,
+      };
+    });
+
+    return final;
+  }
+
+  private generateCitationLocal(
+    chunkId: string,
+    content: string,
+  ): { citation: string; documentTitle: string } {
+    return generateCitation(this.db, chunkId, content);
   }
 
   private buildHistoryBudget(
@@ -306,7 +382,7 @@ export class ChatService {
   ): Array<{ role: "user" | "assistant"; content: string }> {
     const responseBuffer = Math.floor(ctxSize * 0.3);
     const usedTokens = currentMessages.reduce(
-      (sum, m) => sum + Math.ceil(m.content.length / 4),
+      (sum, m) => sum + estimateTokens(m.content),
       0
     );
     const historyBudget = Math.max(0, ctxSize - responseBuffer - usedTokens - 50);
@@ -323,7 +399,7 @@ export class ChatService {
     for (let i = allHistory.length - 1; i >= 0; i--) {
       const msg = allHistory[i]!;
       if (msg.role !== "user" && msg.role !== "assistant") continue;
-      const msgTokens = Math.ceil(msg.content.length / 4);
+      const msgTokens = estimateTokens(msg.content);
       if (tokensUsed + msgTokens > historyBudget) break;
       history.unshift({ role: msg.role, content: msg.content });
       tokensUsed += msgTokens;
@@ -352,8 +428,8 @@ export class ChatService {
         msg.role && validRoles.includes(msg.role as "user") ? msg.role as "user" | "assistant" | "system" | "tool" : "user";
       this.db
         .query(
-          "INSERT INTO chat_messages (id, session_id, role, content, context_chunks, context_scores, prompt_tokens, completion_tokens, total_tokens, model, latency_ms, metadata, created_at) " +
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+          "INSERT INTO chat_messages (id, session_id, role, content, context_chunks, context_scores, prompt_tokens, completion_tokens, total_tokens, model, latency_ms, citations, metadata, created_at) " +
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
         )
         .run(
           id,
@@ -367,6 +443,7 @@ export class ChatService {
           msg.total_tokens ?? null,
           msg.model ?? null,
           msg.latency_ms ?? null,
+          msg.citations ?? null,
           msg.metadata ?? null,
           msg.created_at ?? new Date().toISOString()
         );

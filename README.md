@@ -75,6 +75,8 @@ Technical reference docs in `Docs/`:
 | [Docs/Subq.md](Docs/Subq.md) | SubQ-1.1-Small | SubQ model card: SSA mechanism, training, results, and implications |
 | [Docs/SSA.md](Docs/SSA.md) | SSA Deep-Dive | Technical analysis of Subquadratic Sparse Attention mechanism |
 | [Docs/MLA.md](Docs/MLA.md) | MLA Deep-Dive | Multi-Head Latent Attention: KV cache compression via low-rank decomposition |
+| [Docs/ObsidianSA.md](Docs/ObsidianSA.md) | Obsidian Vault Philosophy | Steph Ango's vault structure, linking philosophy, and knowledge management principles |
+| [Docs/Dspark.md](Docs/Dspark.md) | DSpark Speculative Decoding | DeepSeek's DSpark framework: semi-autoregressive drafting, confidence-scheduled verification, 60–85% inference speedup |
 | [Docs/README.md](Docs/README.md) | Documentation Index | Full index with cross-reference map and reading order |
 | [FAQ.md](FAQ.md) | FAQ | Common questions: mobile access, llama.cpp setup, IP discovery |
 | [BENCHMARK.md](BENCHMARK.md) | Benchmarks | Performance benchmarks: GPU, CPU, MTP, ingestion, search |

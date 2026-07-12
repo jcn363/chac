@@ -1,3 +1,9 @@
+export interface SettingsServiceType {
+  get(key: string): unknown;
+  getAll(): SettingRow[];
+  set(key: string, value: unknown): void;
+}
+
 export interface SettingRow {
   key: string;
   value: string;
@@ -31,6 +37,8 @@ export const DEFAULT_SETTINGS: SettingDefaults = {
   "rag.max_chunks": { value: 5, category: "rag", description: "Max chunks for LLM context" },
   "rag.max_wiki_chars": { value: 4000, category: "rag", description: "Max chars for wiki synthesis" },
   "rag.wiki_synthesis_threshold": { value: 0.6, category: "rag", description: "Min similarity for cross-doc synthesis" },
+  "rag.rerank": { value: false, category: "rag", description: "LLM-based reranking of search results" },
+  "rag.expand": { value: false, category: "rag", description: "LLM-based query expansion before search" },
   "rag.auto_compound": { value: false, category: "rag", description: "Auto-feedback high-value answers into wiki" },
   "wiki.agents_enabled": { value: false, category: "rag", description: "Multi-agent wiki compilation (slower but richer)" },
   "memory.enabled": { value: true, category: "memory", description: "Enable cross-session memory" },

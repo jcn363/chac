@@ -1,8 +1,11 @@
 import type { Database } from "bun:sqlite";
 import type { Kernel } from "../../kernel/types";
 import { generateId } from "../../utils/id";
+import { collectLlmResponse, extractJsonFromLlm } from "../../utils/llm-helpers";
 import type { MemoryEntry } from "./types";
+import type { LlmService } from "../llm/types";
 
+/** Cross-session user memory with LLM-powered extraction. */
 export class MemoryService {
   private db: Database;
   private kernel: Kernel;
@@ -82,9 +85,7 @@ export class MemoryService {
   ): Promise<void> {
     if (!this.isEnabled()) return;
 
-    const llm = this.kernel.get<{
-      chat: { completions: (opts: { messages: Array<{ role: string; content: string }>; stream: boolean }) => AsyncGenerator<string> };
-    }>("llm");
+    const llm = this.kernel.get<LlmService>("llm");
 
     const messages = [
       {
@@ -100,27 +101,20 @@ export class MemoryService {
       },
     ];
 
-    let response = "";
-    for await (const chunk of llm.chat.completions({ messages, stream: false })) {
-      response += chunk;
-    }
+    const response = await collectLlmResponse(llm, messages);
 
-    try {
-      const jsonMatch = response.match(/\[[\s\S]*\]/);
-      if (!jsonMatch) return;
-      const memories = JSON.parse(jsonMatch[0]) as Array<{
-        category: MemoryEntry["category"];
-        key: string;
-        value: string;
-      }>;
+    const memories = extractJsonFromLlm<Array<{
+      category: MemoryEntry["category"];
+      key: string;
+      value: string;
+    }>>(response, /\[[\s\S]*\]/);
 
+    if (memories) {
       for (const m of memories) {
         if (m.category && m.key && m.value) {
           this.upsert(m.category, m.key, m.value, "chat");
         }
       }
-    } catch {
-      // Failed to parse — skip silently
     }
   }
 }

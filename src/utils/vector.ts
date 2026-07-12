@@ -1,3 +1,14 @@
+/** Cosine similarity with pre-computed norms (faster for bulk search). */
+export function cosineSimilarityFast(a: Float32Array, aNorm: number, b: Float32Array, bNorm: number): number {
+  let dot = 0;
+  const len = Math.min(a.length, b.length);
+  for (let i = 0; i < len; i++) {
+    dot += a[i]! * b[i]!;
+  }
+  const denom = aNorm * bNorm;
+  return denom === 0 ? 0 : dot / denom;
+}
+
 export function cosineSimilarity(a: Float32Array, b: Float32Array): number {
   let dot = 0;
   let normA = 0;

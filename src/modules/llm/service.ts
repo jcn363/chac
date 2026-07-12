@@ -15,6 +15,7 @@ function isLlamaCppAvailable(): boolean {
   return existsSync(binaryPath);
 }
 
+/** Manages llama.cpp subprocesses for chat, embedding, and vision inference. */
 export class LlmServiceImpl implements LlmService {
   private instances = new Map<string, LlmInstance>();
   private nextPort = BASE_PORT;

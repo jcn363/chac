@@ -2,7 +2,7 @@
 
 > "The whole is greater than the sum of its parts — but only if you know which parts to use." — MoE Principle
 
-**See also:** [The Karpathy Method](./Karpathy.md) · [Swarm Intelligence](./Swarm.md) · [Sub-Quadratic Attention](./Sub-quadratic.md) · [MLA Deep-Dive](./MLA.md) · [GPT Architecture](./GPT.md) · [README](../README.md) · [FAQ](../FAQ.md) · [BENCHMARK](../BENCHMARK.md)
+**See also:** [The Karpathy Method](./Karpathy.md) · [Swarm Intelligence](./Swarm.md) · [Sub-Quadratic Attention](./Sub-quadratic.md) · [MLA Deep-Dive](./MLA.md) · [GPT Architecture](./GPT.md) · [DSpark](./Dspark.md) · [ObsidianSA](./ObsidianSA.md) · [README](../README.md) · [FAQ](../FAQ.md) · [BENCHMARK](../BENCHMARK.md)
 
 ## Table of Contents
 
@@ -20,6 +20,7 @@
 12. [Challenges and Open Problems](#challenges-and-open-problems)
 13. [Key Research Papers](#key-research-papers)
 14. [References](#references)
+15. [Relevance to Chac](#relevance-to-chac)
 
 ---
 

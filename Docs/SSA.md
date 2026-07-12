@@ -2,7 +2,7 @@
 
 > "A routing mechanism intended to make long context affordable becomes the dominant long-context cost." — Subversive AI, on DeepSeek's Lightning Indexer
 
-**See also:** [SubQ-1.1-Small](./Subq.md) · [Sub-Quadratic Attention](./Sub-quadratic.md) · [MLA Deep-Dive](./MLA.md) · [GPT Architecture](./GPT.md) · [The Karpathy Method](./Karpathy.md) · [README](../README.md) · [FAQ](../FAQ.md) · [BENCHMARK](../BENCHMARK.md)
+**See also:** [SubQ-1.1-Small](./Subq.md) · [Sub-Quadratic Attention](./Sub-quadratic.md) · [MLA Deep-Dive](./MLA.md) · [GPT Architecture](./GPT.md) · [The Karpathy Method](./Karpathy.md) · [Mixture of Experts](./MoE.md) · [DSpark](./Dspark.md) · [README](../README.md) · [FAQ](../FAQ.md) · [BENCHMARK](../BENCHMARK.md)
 
 ## Table of Contents
 

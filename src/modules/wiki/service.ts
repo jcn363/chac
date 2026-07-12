@@ -2,18 +2,20 @@ import type { Database } from "bun:sqlite";
 import type { Kernel } from "../../kernel/types";
 import { generateId } from "../../utils/id";
 import { contentHash } from "../../utils/hash";
-import { embeddingToBlob, blobToEmbedding } from "../../utils/vector";
+import { embeddingToBlob, blobToEmbedding, cosineSimilarity } from "../../utils/vector";
 import { VectorIndex } from "../../utils/vector-index";
 import type { WikiPage } from "./types";
 
+/** Wiki compilation following the Karpathy Method with multi-agent synthesis. */
 export class WikiService {
   private db: Database;
   private kernel: Kernel;
-  private wikiIndex = new VectorIndex();
+  private wikiIndex: VectorIndex;
 
   constructor(kernel: Kernel) {
     this.kernel = kernel;
     this.db = kernel.get<Database>("db");
+    this.wikiIndex = new VectorIndex(this.db, "wiki_pages");
   }
 
   async compile(): Promise<WikiPage[]> {
@@ -220,17 +222,7 @@ export class WikiService {
       for (let j = i + 1; j < embeddings.length; j++) {
         const a = embeddings[i]!;
         const b = embeddings[j]!;
-        let dot = 0;
-        let normA = 0;
-        let normB = 0;
-        const len = Math.min(a.vec.length, b.vec.length);
-        for (let k = 0; k < len; k++) {
-          dot += a.vec[k]! * b.vec[k]!;
-          normA += a.vec[k]! * a.vec[k]!;
-          normB += b.vec[k]! * b.vec[k]!;
-        }
-        const denom = Math.sqrt(normA) * Math.sqrt(normB);
-        const sim = denom === 0 ? 0 : dot / denom;
+        const sim = cosineSimilarity(a.vec, b.vec);
         if (sim >= threshold) {
           union(i, j);
         }

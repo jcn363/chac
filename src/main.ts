@@ -8,6 +8,7 @@ import { WikiService } from "./modules/wiki/service";
 import { MemoryService } from "./modules/memory/service";
 import { SchedulerService } from "./modules/scheduler/service";
 import { createRouter } from "./modules/router";
+import { setupWebSocket } from "./modules/router/ws";
 
 const kernel = createKernel();
 
@@ -106,9 +107,12 @@ if (!Number.isFinite(rawPort) || rawPort <= 0 || rawPort > 65535) {
 }
 const PORT = rawPort;
 
+const wsHandler = setupWebSocket(kernel);
+
 const server = Bun.serve({
   port: PORT,
   fetch: router.fetch,
+  websocket: wsHandler,
 });
 
 console.log(`Chac running at http://localhost:${server.port}`);

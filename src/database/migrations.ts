@@ -154,6 +154,26 @@ const MIGRATIONS: Migration[] = [
       CREATE INDEX IF NOT EXISTS idx_search_history_created ON search_history(created_at DESC);
     `,
   },
+  {
+    version: 5,
+    up: `ALTER TABLE chat_messages ADD COLUMN citations TEXT;`,
+  },
+  {
+    version: 6,
+    up: `
+      CREATE TABLE IF NOT EXISTS vector_index_cache (
+        id TEXT PRIMARY KEY,
+        table_name TEXT NOT NULL,
+        entry_id TEXT NOT NULL,
+        content TEXT NOT NULL,
+        embedding BLOB NOT NULL,
+        embedding_norm REAL NOT NULL,
+        updated_at TEXT DEFAULT (datetime('now'))
+      );
+      CREATE INDEX IF NOT EXISTS idx_vector_cache_table ON vector_index_cache(table_name);
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_vector_cache_entry ON vector_index_cache(table_name, entry_id);
+    `,
+  },
 ];
 
 function ensureMetaTable(db: Database): void {

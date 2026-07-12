@@ -3,26 +3,30 @@ import type { Kernel } from "../../kernel/types";
 import { generateId } from "../../utils/id";
 import { contentHash } from "../../utils/hash";
 import { chunkText, chunkTextSemantic } from "../../utils/chunking";
-import { embeddingToBlob } from "../../utils/vector";
 import { VectorIndex } from "../../utils/vector-index";
 import { parseDocument, detectFormat } from "../../utils/document-parser";
+import { createEmbedding, collectLlmResponse, extractJsonFromLlm, embedAndInsertChunks } from "../../utils/llm-helpers";
+import { formatCitation } from "../../utils/citations";
 import type { Document, SearchResult, IngestResult, BatchIngestResult, BatchDeleteResult, DocumentStatus, ExpandedQuery, TagInfo, DocumentWithTags } from "./types";
 import { basename, resolve } from "node:path";
 import { getAppRoot } from "../../platform/paths";
 import { embeddingCache } from "../../utils/cache";
 import { MemoryCache } from "../../utils/cache";
 import type { CacheStats } from "../../utils/cache";
+import type { LlmService } from "../llm/types";
 
 const searchCache = new MemoryCache<SearchResult[]>(2 * 60 * 1000);
 
+/** Document ingestion, chunking, embedding, and semantic search. */
 export class DocumentsService {
   private db: Database;
   private kernel: Kernel;
-  private chunkIndex = new VectorIndex();
+  private chunkIndex: VectorIndex;
 
   constructor(kernel: Kernel) {
     this.kernel = kernel;
     this.db = kernel.get<Database>("db");
+    this.chunkIndex = new VectorIndex(this.db, "chunks");
   }
 
   async ingest(filePath: string): Promise<IngestResult> {
@@ -78,38 +82,9 @@ export class DocumentsService {
       )
       .run(docId, title, filePath, hash, file.type, file.size, chunks.length);
 
-    // Insert chunks + embeddings (batched with concurrency limit)
-    const llm = this.kernel.get<{ embeddings: { create: (opts: { input: string }) => Promise<{ data: { embedding: number[] }[] }> } }>("llm");
-
-    const insertChunk = this.db.query(
-      "INSERT INTO chunks (id, document_id, chunk_index, content, token_count, embedding, embedding_model, embedding_dimensions) " +
-        "VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
-    );
-
-    const BATCH_SIZE = 8;
-    for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
-      const batch = chunks.slice(i, i + BATCH_SIZE);
-      const embeddings = await Promise.all(
-        batch.map((chunk) => llm.embeddings.create({ input: chunk.content }))
-      );
-      for (let j = 0; j < batch.length; j++) {
-        const chunk = batch[j]!;
-        const firstEmb = embeddings[j]!.data[0];
-        if (!firstEmb) throw new Error("No embedding returned");
-        const embedding = firstEmb.embedding;
-        const blob = embeddingToBlob(embedding);
-        insertChunk.run(
-          generateId(),
-          docId,
-          chunk.index,
-          chunk.content,
-          chunk.tokenCount,
-          blob,
-          "local",
-          embedding.length
-        );
-      }
-    }
+    // Insert chunks + embeddings
+    const llm = this.kernel.get<LlmService>("llm");
+    await embedAndInsertChunks(this.db, chunks, docId, llm);
 
     return { id: docId, title, chunkCount: chunks.length };
   }
@@ -238,36 +213,8 @@ export class DocumentsService {
       .run(hash, chunks.length, file.size, id);
 
     // Insert new chunks
-    const llm = this.kernel.get<{ embeddings: { create: (opts: { input: string }) => Promise<{ data: { embedding: number[] }[] }> } }>("llm");
-    const insertChunk = this.db.query(
-      "INSERT INTO chunks (id, document_id, chunk_index, content, token_count, embedding, embedding_model, embedding_dimensions) " +
-        "VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
-    );
-
-    const BATCH_SIZE = 8;
-    for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
-      const batch = chunks.slice(i, i + BATCH_SIZE);
-      const embeddings = await Promise.all(
-        batch.map((chunk) => llm.embeddings.create({ input: chunk.content }))
-      );
-      for (let j = 0; j < batch.length; j++) {
-        const chunk = batch[j]!;
-        const firstEmb = embeddings[j]!.data[0];
-        if (!firstEmb) throw new Error("No embedding returned");
-        const embedding = firstEmb.embedding;
-        const blob = embeddingToBlob(embedding);
-        insertChunk.run(
-          generateId(),
-          id,
-          chunk.index,
-          chunk.content,
-          chunk.tokenCount,
-          blob,
-          "local",
-          embedding.length
-        );
-      }
-    }
+    const llm = this.kernel.get<LlmService>("llm");
+    await embedAndInsertChunks(this.db, chunks, id, llm);
 
     return { id: doc.id, title: doc.title, chunkCount: chunks.length };
   }
@@ -368,7 +315,7 @@ export class DocumentsService {
       }
     }
 
-    const llm = this.kernel.get<{ embeddings: { create: (opts: { input: string }) => Promise<{ data: { embedding: number[] }[] }> } }>("llm");
+    const llm = this.kernel.get<LlmService>("llm");
 
     let searchQuery = query;
     let expandedData: ExpandedQuery | null = null;
@@ -378,10 +325,7 @@ export class DocumentsService {
       searchQuery = expandedData.expanded;
     }
 
-    const embResult = await llm.embeddings.create({ input: searchQuery });
-    const firstEmb = embResult.data[0];
-    if (!firstEmb) throw new Error("No embedding returned");
-    const queryVec = new Float32Array(firstEmb.embedding);
+    const queryVec = await createEmbedding(llm, searchQuery);
 
     // Get document mapping for titles
     const docMap = new Map<string, { documentId: string; documentTitle: string }>();
@@ -402,7 +346,7 @@ export class DocumentsService {
         documentId: docInfo?.documentId ?? "",
         documentTitle: docInfo?.documentTitle ?? undefined,
         score: r.score,
-        citation: this.generateCitation(docInfo?.documentTitle, r.content),
+        citation: docInfo?.documentTitle ? formatCitation(docInfo.documentTitle, r.content) : "",
       };
     });
 
@@ -420,16 +364,8 @@ export class DocumentsService {
     return final;
   }
 
-  private generateCitation(title: string | undefined, content: string): string {
-    if (!title) return "";
-    const preview = content.slice(0, 100).replace(/\n/g, " ").trim();
-    return `Source: "${title}" — "${preview}..."`;
-  }
-
   async expandQuery(query: string): Promise<ExpandedQuery> {
-    const llm = this.kernel.get<{
-      chat: { completions: (opts: { messages: Array<{ role: string; content: string }>; stream: boolean }) => AsyncGenerator<string> }
-    }>("llm");
+    const llm = this.kernel.get<LlmService>("llm");
 
     const messages = [
       {
@@ -443,23 +379,15 @@ Return JSON: {"expanded": "...", "keywords": ["...", "..."]}`
       { role: "user", content: query },
     ];
 
-    let response = "";
-    for await (const chunk of llm.chat.completions({ messages, stream: false })) {
-      response += chunk;
-    }
+    const response = await collectLlmResponse(llm, messages);
 
-    try {
-      const match = response.match(/\{[\s\S]*\}/);
-      if (match) {
-        const parsed = JSON.parse(match[0]);
-        return {
-          original: query,
-          expanded: parsed.expanded ?? query,
-          keywords: parsed.keywords ?? [],
-        };
-      }
-    } catch {
-      // Parse error, return original
+    const parsed = extractJsonFromLlm<{ expanded?: string; keywords?: string[] }>(response, /\{[\s\S]*\}/);
+    if (parsed) {
+      return {
+        original: query,
+        expanded: parsed.expanded ?? query,
+        keywords: parsed.keywords ?? [],
+      };
     }
 
     return { original: query, expanded: query, keywords: [] };
@@ -468,9 +396,7 @@ Return JSON: {"expanded": "...", "keywords": ["...", "..."]}`
   async rerankResults(query: string, results: SearchResult[]): Promise<SearchResult[]> {
     if (results.length <= 1) return results;
 
-    const llm = this.kernel.get<{
-      chat: { completions: (opts: { messages: Array<{ role: string; content: string }>; stream: boolean }) => AsyncGenerator<string> }
-    }>("llm");
+    const llm = this.kernel.get<LlmService>("llm");
 
     const chunksSummary = results.map((r, i) => `[${i}] ${r.content.slice(0, 200)}`).join("\n\n");
 
@@ -489,24 +415,16 @@ Return ONLY a JSON array of indices, e.g. [2, 0, 1]`
       { role: "user", content: "Rerank these results by relevance." },
     ];
 
-    let response = "";
-    for await (const chunk of llm.chat.completions({ messages, stream: false })) {
-      response += chunk;
-    }
+    const response = await collectLlmResponse(llm, messages);
 
-    try {
-      const match = response.match(/\[[\d,\s]+\]/);
-      if (match) {
-        const indices = JSON.parse(match[0]) as number[];
-        return indices
-          .filter((i) => i >= 0 && i < results.length)
-          .map((i, rank) => ({
-            ...results[i]!,
-            score: results[i]!.score * (1 - rank * 0.1),
-          }));
-      }
-    } catch {
-      // Parse error, return original order
+    const indices = extractJsonFromLlm<number[]>(response, /\[[\d,\s]+\]/);
+    if (indices) {
+      return indices
+        .filter((i) => i >= 0 && i < results.length)
+        .map((i, rank) => ({
+          ...results[i]!,
+          score: results[i]!.score * (1 - rank * 0.1),
+        }));
     }
 
     return results;
@@ -532,9 +450,7 @@ Return ONLY a JSON array of indices, e.g. [2, 0, 1]`
   }
 
   async suggestQuestions(documentId?: string, count: number = 5): Promise<string[]> {
-    const llm = this.kernel.get<{
-      chat: { completions: (opts: { messages: Array<{ role: string; content: string }>; stream: boolean }) => AsyncGenerator<string> }
-    }>("llm");
+    const llm = this.kernel.get<LlmService>("llm");
 
     let context = "";
     if (documentId) {
@@ -559,21 +475,11 @@ Return ONLY a JSON array of indices, e.g. [2, 0, 1]`
       { role: "user", content: context },
     ];
 
-    let response = "";
-    for await (const chunk of llm.chat.completions({ messages, stream: false })) {
-      response += chunk;
-    }
+    const response = await collectLlmResponse(llm, messages);
 
-    try {
-      const match = response.match(/\[[\s\S]*\]/);
-      if (match) {
-        const questions = JSON.parse(match[0]);
-        if (Array.isArray(questions)) {
-          return questions.filter((q: unknown) => typeof q === "string").slice(0, count);
-        }
-      }
-    } catch {
-      // Parse error
+    const questions = extractJsonFromLlm<string[]>(response, /\[[\s\S]*\]/);
+    if (questions && Array.isArray(questions)) {
+      return questions.filter((q: unknown) => typeof q === "string").slice(0, count);
     }
 
     return [];

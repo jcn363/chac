@@ -166,5 +166,10 @@
   <div id="toast-container" aria-live="polite" aria-atomic="true"></div>
 
   <script type="module" src="/static/app.js"></script>
+  <script>
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("/sw.js");
+    }
+  </script>
 </body>
 </html>

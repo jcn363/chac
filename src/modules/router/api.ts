@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import type { Kernel } from "../../kernel/types";
-import { setupStatusRoutes } from "./routes/status";
+import { setupHealthRoutes } from "./routes/health";
 import { setupSettingsRoutes } from "./routes/settings";
 import { setupLlmRoutes } from "./routes/llm";
 import { setupDocumentRoutes } from "./routes/documents";
@@ -15,7 +15,7 @@ import { setupSchedulerRoutes } from "./routes/scheduler";
 import { setupBackupRoutes } from "./routes/backup";
 
 export function setupApiRoutes(app: Hono, kernel: Kernel): void {
-  setupStatusRoutes(app, kernel);
+  setupHealthRoutes(app, kernel);
   setupSettingsRoutes(app, kernel);
   setupLlmRoutes(app, kernel);
   setupDocumentRoutes(app, kernel);

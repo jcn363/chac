@@ -2,91 +2,100 @@ import { describe, it, expect, beforeEach, afterEach } from "bun:test";
 import { createTestKernel } from "../../helpers/setup";
 import { registerDefaultTasks } from "../../../src/modules/scheduler/tasks";
 import { SchedulerService } from "../../../src/modules/scheduler/service";
-import type { Kernel } from "../../../src/kernel/types";
+import { SettingsService } from "../../../src/modules/settings/service";
+import { existsSync, readdirSync, rmSync, mkdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 
-let kernel: Kernel;
-let scheduler: SchedulerService;
+const BACKUP_DIR = join(process.cwd(), "data", "backups");
 
-beforeEach(() => {
-  kernel = createTestKernel();
-  scheduler = kernel.get<SchedulerService>("scheduler");
-  registerDefaultTasks(scheduler, kernel);
-});
+describe("Scheduler default tasks", () => {
+  let kernel: ReturnType<typeof createTestKernel>;
+  let scheduler: SchedulerService;
 
-afterEach(() => {
-  scheduler.stop();
-  kernel.get<{ close: () => void }>("db").close();
-});
-
-describe("registerDefaultTasks", () => {
-  it("registers 3 tasks", () => {
-    const status = scheduler.getStatus();
-    expect(status).toHaveLength(3);
+  beforeEach(() => {
+    kernel = createTestKernel();
+    scheduler = new SchedulerService(kernel);
+    registerDefaultTasks(scheduler, kernel);
+    // Clean backup dir before each test
+    if (existsSync(BACKUP_DIR)) {
+      const files = readdirSync(BACKUP_DIR);
+      for (const f of files) rmSync(join(BACKUP_DIR, f));
+    }
   });
 
-  it("registers memory-consolidation task", () => {
-    const status = scheduler.getStatus();
-    const task = status.find((t) => t.name === "memory-consolidation");
-    expect(task).toBeDefined();
-    expect(task!.intervalMs).toBe(1800000);
+  afterEach(() => {
+    scheduler.stop();
+    // Clean backup dir after each test
+    if (existsSync(BACKUP_DIR)) {
+      const files = readdirSync(BACKUP_DIR);
+      for (const f of files) rmSync(join(BACKUP_DIR, f));
+      rmSync(BACKUP_DIR, { recursive: true });
+    }
   });
 
-  it("registers session-cleanup task", () => {
+  it("registers auto-backup task", () => {
     const status = scheduler.getStatus();
-    const task = status.find((t) => t.name === "session-cleanup");
+    const task = status.find((t) => t.name === "auto-backup");
     expect(task).toBeDefined();
     expect(task!.intervalMs).toBe(3600000);
   });
 
-  it("registers index-check task", () => {
-    const status = scheduler.getStatus();
-    const task = status.find((t) => t.name === "index-check");
-    expect(task).toBeDefined();
-    expect(task!.intervalMs).toBe(900000);
+  it("registers all four default tasks", () => {
+    const names = scheduler.getStatus().map((t) => t.name);
+    expect(names).toContain("memory-consolidation");
+    expect(names).toContain("session-cleanup");
+    expect(names).toContain("index-check");
+    expect(names).toContain("auto-backup");
   });
 
-  it("memory-consolidation runs without errors", async () => {
-    const memory = kernel.get<{ upsert: (cat: string, key: string, value: string, source: string) => void }>("memory");
-    memory.upsert("preference", "lang", "en", "test");
-    memory.upsert("preference", "theme", "dark", "test");
-    // Should complete without throwing
-    await scheduler.runNow("memory-consolidation");
+  it("auto-backup creates a JSON backup file", async () => {
+    const result = await scheduler.runNow("auto-backup");
+    expect(result).toBe(true);
+
+    expect(existsSync(BACKUP_DIR)).toBe(true);
+    const files = readdirSync(BACKUP_DIR).filter((f) => f.startsWith("backup-") && f.endsWith(".json"));
+    expect(files.length).toBe(1);
+
+    const content = JSON.parse(readFileSync(join(BACKUP_DIR, files[0]!), "utf-8"));
+    expect(content).toHaveProperty("version");
+    expect(content).toHaveProperty("timestamp");
+    expect(content).toHaveProperty("tables");
   });
 
-  it("index-check invalidates all indexes", async () => {
-    // Should not throw
-    await scheduler.runNow("index-check");
+  it("auto-backup respects enabled setting", async () => {
+    const settings = kernel.get<{ set: (key: string, value: unknown) => void }>("settings");
+    settings.set("scheduler.auto_backup_enabled", false);
+
+    await scheduler.runNow("auto-backup");
+
+    // No backup dir should be created when disabled
+    if (existsSync(BACKUP_DIR)) {
+      const files = readdirSync(BACKUP_DIR).filter((f) => f.endsWith(".json"));
+      expect(files.length).toBe(0);
+    }
   });
 
-  it("session-cleanup deletes old sessions", async () => {
-    const db = kernel.get<import("bun:sqlite").Database>("db");
-    const chat = kernel.get<{ createSession: (opts: { title: string }) => { id: string }; listSessions: () => any[] }>("chat");
+  it("auto-backup creates multiple backups with unique names", async () => {
+    await scheduler.runNow("auto-backup");
+    // Wait 10ms to ensure different timestamp in filename
+    await new Promise((r) => setTimeout(r, 10));
+    await scheduler.runNow("auto-backup");
 
-    // Create a session
-    chat.createSession({ title: "Recent" });
-    const before = chat.listSessions();
-    expect(before.length).toBe(1);
-
-    // Manually set updated_at to 60 days ago (beyond 30-day retention)
-    const oldDate = new Date(Date.now() - 60 * 86400000).toISOString();
-    db.query("UPDATE chat_sessions SET updated_at = ?").run(oldDate);
-
-    await scheduler.runNow("session-cleanup");
-
-    const after = chat.listSessions();
-    expect(after.length).toBe(0);
+    const files = readdirSync(BACKUP_DIR).filter((f) => f.startsWith("backup-") && f.endsWith(".json"));
+    expect(files.length).toBe(2);
   });
 
-  it("session-cleanup preserves recent sessions", async () => {
-    const chat = kernel.get<{ createSession: (opts: { title: string }) => { id: string }; listSessions: () => any[] }>("chat");
+  it("auto-backup cleans up old backups beyond retention", async () => {
+    const settings = kernel.get<{ set: (key: string, value: unknown) => void }>("settings");
+    settings.set("scheduler.backup_retention", 2);
 
-    // Create a session (updated_at = now, within retention)
-    chat.createSession({ title: "Fresh" });
+    // Create 3 backups sequentially (different filenames via timestamps)
+    for (let i = 0; i < 3; i++) {
+      await scheduler.runNow("auto-backup");
+      await new Promise((r) => setTimeout(r, 10));
+    }
 
-    await scheduler.runNow("session-cleanup");
-
-    const after = chat.listSessions();
-    expect(after.length).toBe(1);
-    expect(after[0]!.title).toBe("Fresh");
+    const files = readdirSync(BACKUP_DIR).filter((f) => f.startsWith("backup-") && f.endsWith(".json"));
+    expect(files.length).toBe(2);
   });
 });

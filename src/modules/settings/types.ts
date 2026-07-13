@@ -58,10 +58,15 @@ export const DEFAULT_SETTINGS: SettingDefaults = {
   "scheduler.session_cleanup_interval": { value: 3600000, category: "scheduler", description: "Session cleanup interval (ms, default 1hr)" },
   "scheduler.index_check_interval": { value: 900000, category: "scheduler", description: "Index health check interval (ms, default 15min)" },
   "scheduler.session_retention_days": { value: 30, category: "scheduler", description: "Keep sessions newer than N days" },
+  "scheduler.auto_backup_enabled": { value: true, category: "scheduler", description: "Enable automatic database backups" },
+  "scheduler.auto_backup_interval": { value: 3600000, category: "scheduler", description: "Backup interval in ms (default 1hr)" },
+  "scheduler.backup_retention": { value: 7, category: "scheduler", description: "Number of backup files to keep" },
   "ui.dark_mode": { value: "system", category: "ui", description: "Dark mode: system, light, dark" },
   "ui.documents_per_page": { value: 20, category: "ui", description: "Pagination size" },
   "server.port": { value: 3000, category: "server", description: "HTTP server port" },
   "server.host": { value: "127.0.0.1", category: "server", description: "HTTP server bind address" },
+  "server.rate_limit_enabled": { value: true, category: "server", description: "Enable API rate limiting" },
+  "server.rate_limit_max": { value: 100, category: "server", description: "Max requests per minute per IP" },
 };
 
 export const SETTING_VALIDATORS: Record<string, SettingValidator> = {
@@ -86,5 +91,8 @@ export const SETTING_VALIDATORS: Record<string, SettingValidator> = {
   'scheduler.session_cleanup_interval': { type: 'number', min: 60000, max: 86400000 },
   'scheduler.index_check_interval': { type: 'number', min: 60000, max: 86400000 },
   'scheduler.session_retention_days': { type: 'number', min: 1, max: 365 },
+  'scheduler.auto_backup_interval': { type: 'number', min: 300000, max: 86400000 },
+  'scheduler.backup_retention': { type: 'number', min: 1, max: 365 },
   'server.port': { type: 'number', min: 1024, max: 65535 },
+  'server.rate_limit_max': { type: 'number', min: 10, max: 10000 },
 };

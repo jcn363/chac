@@ -65,6 +65,11 @@
 - **OpenAPI 3.1** — full API documentation at `/api/openapi.json`
 - **Structured Error Handling** — AppError hierarchy with typed HTTP responses
 - **Modular Architecture** — domain-specific route files, focused service modules, shared utilities
+- **Rate Limiting** — configurable per-IP rate limiting (default 100 req/min)
+- **Health Check** — detailed system status at `/api/health` (DB stats, LLM status, scheduler)
+- **Request Logging** — structured request/response logging with timing and `/api/logs` endpoint
+- **Auto-Backup** — scheduled database backups with configurable retention
+- **Graceful Shutdown** — drains in-flight requests before stopping (10s deadline)
 - **Context Auto-Detection** — automatically detects model context length from llama-server `/v1/props`
 - **Concurrency-Safe LLM** — prevents duplicate process spawns on concurrent requests
 - **Parallel Ingestion** — bulk file ingestion processes multiple files concurrently (batches of 4)
@@ -630,6 +635,11 @@ All settings are stored in the `settings` table and accessible via the API.
 | `ui.documents_per_page` | `20` | ui | Pagination size |
 | `server.port` | `3000` | server | HTTP server port |
 | `server.host` | `"127.0.0.1"` | server | HTTP server bind address |
+| `server.rate_limit_enabled` | `true` | server | Enable API rate limiting |
+| `server.rate_limit_max` | `100` | server | Max requests per minute per IP |
+| `scheduler.auto_backup_enabled` | `true` | scheduler | Enable automatic database backups |
+| `scheduler.auto_backup_interval` | `3600000` | scheduler | Backup interval (ms, default 1hr) |
+| `scheduler.backup_retention` | `7` | scheduler | Number of backup files to keep |
 
 ### Update a Setting
 

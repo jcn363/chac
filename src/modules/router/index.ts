@@ -1,17 +1,33 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import { logger } from "hono/logger";
 import type { Kernel } from "../../kernel/types";
 import { AppError } from "../../errors";
 import { setupApiRoutes } from "./api";
 import { setupStaticRoutes } from "./static";
 import { setupOpenApi } from "./openapi";
+import { rateLimit, createRateLimitState } from "./rate-limit";
+import { requestLogger } from "./request-logger";
+
+export const rateLimitState = createRateLimitState();
+export const requestTracker = { count: 0 };
 
 export function createRouter(kernel: Kernel): Hono {
   const app = new Hono();
+  const settings = kernel.get<import("../settings/types").SettingsServiceType>("settings");
 
-  app.use("*", logger());
+  app.use("*", requestLogger());
   app.use("*", cors());
+  app.use("*", rateLimit(settings, rateLimitState));
+
+  // Track in-flight requests for graceful shutdown
+  app.use("*", async (c, next) => {
+    requestTracker.count++;
+    try {
+      await next();
+    } finally {
+      requestTracker.count--;
+    }
+  });
 
   setupStaticRoutes(app);
   setupApiRoutes(app, kernel);

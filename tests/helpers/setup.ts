@@ -22,6 +22,7 @@ export function createTestKernel(): Kernel {
   db.exec("PRAGMA foreign_keys = ON");
   runMigrations(db);
   const settings = new SettingsService(db);
+  settings.set("server.rate_limit_enabled", false); // Disable rate limiting in tests
   const llm = createMockLlmService();
   const chunkIndex = new VectorIndex(db, "chunks");
   const wikiIndex = new VectorIndex(db, "wiki_pages");

@@ -1,5 +1,50 @@
 # Changelog
 
+## [1.12.0] - 2026-07-12
+
+### Added
+
+**Rate Limiting**
+- `src/modules/router/rate-limit.ts`: in-memory per-IP rate limiting middleware
+- Settings: `server.rate_limit_enabled` (default true), `server.rate_limit_max` (default 100 req/min)
+- Returns 429 with `Retry-After` header when limit exceeded
+- Configurable via Settings tab or API
+
+**Health Check**
+- `GET /api/health`: detailed system status (DB size, document/chunk/wiki counts, LLM status, scheduler tasks)
+- Replaces simple `GET /api/status` endpoint
+
+**Request Logging**
+- `src/modules/router/request-logger.ts`: structured request logging with timing, status, IP
+- Ring buffer stores last 1000 requests in memory
+- `GET /api/logs`: returns recent request logs (configurable via `?limit=`)
+- Colored console output (skips static assets)
+
+**Auto-Backup**
+- Scheduled task: exports database to `data/backups/backup-<timestamp>.json`
+- Settings: `scheduler.auto_backup_enabled`, `scheduler.auto_backup_interval`, `scheduler.backup_retention`
+- Automatic cleanup of old backups beyond retention limit
+
+**Graceful Shutdown**
+- Tracks in-flight requests via middleware counter
+- Drains requests for up to 10 seconds before force-stopping
+- Prevents data loss from interrupted writes
+
+**Frontend Tests**
+- `tests/unit/frontend/`: 36 JavaScript tests (dom, state, api)
+
+**Document Metadata**
+- `ingest()`/`reingest()` store parsed metadata (PDF pages/author, markdown HTML, etc.)
+
+**Batch Wiki Compilation**
+- `POST /api/wiki/compile` accepts optional `{ documentIds: string[] }` for selective compilation
+
+**Search Analytics**
+- `GET /api/search/analytics`: total searches, unique queries, avg results, top queries
+
+**OpenAPI Updates**
+- Added `/api/search/analytics`, updated wiki compile body, settings schema, document metadata
+
 ## [1.11.0] - 2026-07-12
 
 ### Added

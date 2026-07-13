@@ -1,5 +1,8 @@
 import type { Kernel } from "../../kernel/types";
 import type { SchedulerService } from "./service";
+import { exportDatabase } from "../../database";
+import { join } from "node:path";
+import { writeFileSync, readdirSync, unlinkSync, existsSync, mkdirSync } from "node:fs";
 
 export function registerDefaultTasks(scheduler: SchedulerService, kernel: Kernel): void {
   // Memory consolidation — dedup identical entries
@@ -35,5 +38,31 @@ export function registerDefaultTasks(scheduler: SchedulerService, kernel: Kernel
     chat.invalidateIndexes();
     docs.invalidateIndex();
     wiki.invalidateIndex();
+  });
+
+  // Auto-backup — export database to JSON files with rotation
+  scheduler.register("auto-backup", 3600000, async () => {
+    const settings = kernel.get<{ get: (key: string) => unknown }>("settings");
+    if (settings.get("scheduler.auto_backup_enabled") === false) return;
+
+    const db = kernel.get<import("bun:sqlite").Database>("db");
+    const data = exportDatabase(db);
+    const backupDir = join(process.cwd(), "data", "backups");
+    if (!existsSync(backupDir)) mkdirSync(backupDir, { recursive: true });
+
+    const filename = `backup-${new Date().toISOString().replace(/[:.]/g, "-")}.json`;
+    const filePath = join(backupDir, filename);
+    writeFileSync(filePath, JSON.stringify(data, null, 2));
+
+    // Cleanup old backups beyond retention limit
+    const retention = (settings.get("scheduler.backup_retention") as number) ?? 7;
+    const files = readdirSync(backupDir)
+      .filter((f) => f.startsWith("backup-") && f.endsWith(".json"))
+      .sort()
+      .reverse();
+
+    for (const file of files.slice(retention)) {
+      unlinkSync(join(backupDir, file));
+    }
   });
 }

@@ -31,7 +31,6 @@ beforeEach(() => {
   const { runMigrations } = require("../../../src/database/migrations");
   runMigrations(db);
   kernel = createTestKernel();
-  // Register scheduler tasks for run/:name tests
   const scheduler = kernel.get<import("../../../src/modules/scheduler/service").SchedulerService>("scheduler");
   registerDefaultTasks(scheduler, kernel);
   app = createRouter(kernel);

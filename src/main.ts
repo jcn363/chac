@@ -13,7 +13,7 @@ import { WikiCompiler } from "./modules/wiki/compiler";
 import { MemoryService } from "./modules/memory/service";
 import { SchedulerService } from "./modules/scheduler/service";
 import { registerDefaultTasks } from "./modules/scheduler/tasks";
-import { createRouter } from "./modules/router";
+import { createRouter, requestTracker } from "./modules/router";
 import { setupWebSocket } from "./modules/router/ws";
 import { VectorIndex } from "./utils/vector-index";
 
@@ -115,11 +115,26 @@ const shutdown = async () => {
   if (shuttingDown) return;
   shuttingDown = true;
   console.log("Shutting down...");
+
+  // Stop accepting new work
   scheduler.stop();
+
+  // Wait for in-flight requests to complete (max 10 seconds)
+  const deadline = Date.now() + 10_000;
+  while (requestTracker.count > 0 && Date.now() < deadline) {
+    console.log(`Waiting for ${requestTracker.count} in-flight request(s)...`);
+    await Bun.sleep(100);
+  }
+
+  if (requestTracker.count > 0) {
+    console.log(`Force stopping with ${requestTracker.count} request(s) still in progress`);
+  }
+
   await llm.stop();
   await kernel.stop();
   closeDb();
   await server.stop();
+  console.log("Shutdown complete");
 };
 
 process.on("SIGINT", shutdown);

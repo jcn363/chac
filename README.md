@@ -75,6 +75,10 @@
 - **Security Headers** — X-Content-Type-Options, X-Frame-Options, Referrer-Policy
 - **Content Validation** — magic-byte detection for PDF/DOCX (not just file extension)
 - **WebSocket Auth** — session-based token authentication for WS connections
+- **Structured Logging** — JSON structured logs with log levels, module tagging, correlation IDs
+- **Request Tracing** — AsyncLocalStorage-based correlation IDs propagated through request lifecycle
+- **Obsidian Export** — export wiki vault as Obsidian-compatible markdown with wikilinks and frontmatter
+- **Wiki Markdown Rendering** — wiki pages render as formatted markdown with headings, lists, code blocks
 - **Context Auto-Detection** — automatically detects model context length from llama-server `/v1/props`
 - **Concurrency-Safe LLM** — prevents duplicate process spawns on concurrent requests
 - **Parallel Ingestion** — bulk file ingestion processes multiple files concurrently (batches of 4)

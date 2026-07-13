@@ -1,5 +1,8 @@
 import type { Database } from "bun:sqlite";
 import { DEFAULT_SETTINGS, SETTING_VALIDATORS, type SettingRow } from "./types";
+import { createLogger } from "../../utils/logger";
+
+const log = createLogger("settings");
 
 type SettingsChangeHandler = (key: string, value: unknown) => void;
 
@@ -23,7 +26,7 @@ export class SettingsService {
       insert.run(key, JSON.stringify(def.value), def.category, def.description);
     }
     const count = (this.db.query("SELECT COUNT(*) as c FROM settings").get() as { c: number }).c;
-    console.log(`Settings: ${count} defaults loaded`);
+    log.info(`${count} defaults loaded`);
   }
 
   private loadCache(): void {
@@ -87,7 +90,7 @@ export class SettingsService {
       try {
         handler(key, value);
       } catch (e) {
-        console.error('Settings change handler error:', e);
+        log.error("Settings change handler error", { error: String(e) });
       }
     }
     return { success: true };

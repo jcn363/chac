@@ -1,4 +1,5 @@
 import type { Context, Next } from "hono";
+import { generateCorrelationId, runWithCorrelation } from "../../utils/tracing";
 
 interface RequestLog {
   method: string;
@@ -7,6 +8,7 @@ interface RequestLog {
   duration: number;
   timestamp: string;
   ip?: string;
+  correlationId: string;
 }
 
 const logs: RequestLog[] = [];
@@ -22,23 +24,27 @@ export function clearRequestLogs(): void {
 
 export function requestLogger() {
   return async (c: Context, next: Next) => {
+    const correlationId = generateCorrelationId();
     const start = performance.now();
     const ip =
       c.req.header("x-forwarded-for") ?? c.req.header("x-real-ip");
 
-    await next();
+    await runWithCorrelation(correlationId, async () => {
+      await next();
+    });
 
     const duration = performance.now() - start;
-    const log: RequestLog = {
+    const entry: RequestLog = {
       method: c.req.method,
       path: c.req.path,
       status: c.res.status,
       duration: Math.round(duration * 100) / 100,
       timestamp: new Date().toISOString(),
       ip,
+      correlationId,
     };
 
-    logs.push(log);
+    logs.push(entry);
     if (logs.length > MAX_LOGS) logs.shift();
 
     // Console output for non-asset requests
@@ -54,7 +60,7 @@ export function requestLogger() {
             ? "\x1b[33m"
             : "\x1b[32m";
       console.log(
-        `${statusColor}${c.req.method} ${c.req.path} ${c.res.status}\x1b[0m ${duration.toFixed(1)}ms`,
+        `${statusColor}[${correlationId}] ${c.req.method} ${c.req.path} ${c.res.status}\x1b[0m ${duration.toFixed(1)}ms`,
       );
     }
   };

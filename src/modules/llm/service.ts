@@ -5,6 +5,9 @@ import { join } from "node:path";
 import { getAppRoot } from "../../platform/paths";
 import { detectPlatform } from "../../platform/detect";
 import { embeddingCache } from "../../utils/cache";
+import { createLogger } from "../../utils/logger";
+
+const log = createLogger("llm");
 
 const BASE_PORT = 8080;
 
@@ -35,7 +38,7 @@ export class LlmServiceImpl implements LlmService {
     this.kernel = kernel;
     this.devMode = !isLlamaCppAvailable();
     if (this.devMode) {
-      console.log("Dev mode: llama.cpp not found. Using mock LLM responses.");
+      log.info("Dev mode: llama.cpp not found. Using mock LLM responses.");
     }
   }
 
@@ -54,7 +57,7 @@ export class LlmServiceImpl implements LlmService {
     const instance = this.instances.get(modelType);
     if (!instance) return;
 
-    console.log(`Restarting ${modelType} model...`);
+    log.info(`Restarting ${modelType} model...`);
     try {
       instance.process.kill("SIGTERM");
       await Bun.sleep(1000);
@@ -67,7 +70,7 @@ export class LlmServiceImpl implements LlmService {
     this.instances.delete(modelType);
 
     // Re-spawn on next request
-    console.log(`${modelType} model stopped. Will restart on next request.`);
+    log.info(`${modelType} model stopped. Will restart on next request.`);
   }
 
   private async ensureInstance(id: string, modelType: "chat" | "embed" | "vision"): Promise<string> {
@@ -227,7 +230,7 @@ export class LlmServiceImpl implements LlmService {
 
     if (instance.capabilities && instance.capabilities.contextLength > 0) {
       settings.set("llm.chat.ctx_size", instance.capabilities.contextLength);
-      console.log(`Auto-detected context size: ${instance.capabilities.contextLength}`);
+      log.info(`Auto-detected context size: ${instance.capabilities.contextLength}`);
     }
   }
 

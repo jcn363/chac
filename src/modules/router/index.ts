@@ -7,6 +7,9 @@ import { setupStaticRoutes } from "./static";
 import { setupOpenApi } from "./openapi";
 import { rateLimit, createRateLimitState } from "./rate-limit";
 import { requestLogger } from "./request-logger";
+import { createLogger } from "../../utils/logger";
+
+const log = createLogger("router");
 
 export const rateLimitState = createRateLimitState();
 export const requestTracker = { count: 0 };
@@ -46,7 +49,7 @@ export function createRouter(kernel: Kernel): Hono {
     if (err instanceof AppError) {
       return c.json({ error: err.message, code: err.code, details: err.details }, err.statusCode as 400 | 403 | 404 | 500 | 502);
     }
-    console.error("Unhandled error:", err);
+    log.error("Unhandled error", { error: err.message, stack: err.stack });
     return c.json({ error: "Internal server error", code: "INTERNAL_ERROR" }, 500);
   });
 

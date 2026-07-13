@@ -1,5 +1,8 @@
 import type { Kernel } from "../../kernel/types";
 import type { ScheduledTask, TaskStatus } from "./types";
+import { createLogger } from "../../utils/logger";
+
+const log = createLogger("scheduler");
 
 /** Background task scheduler for memory consolidation, cleanup, and index checks. */
 export class SchedulerService {
@@ -31,7 +34,7 @@ export class SchedulerService {
     for (const [name, task] of this.tasks) {
       this.startTask(name, task);
     }
-    console.log(`Scheduler started with ${this.tasks.size} tasks`);
+    log.info(`Scheduler started with ${this.tasks.size} tasks`);
   }
 
   private startTask(name: string, task: ScheduledTask): void {
@@ -42,7 +45,7 @@ export class SchedulerService {
         await task.fn();
         task.lastRun = Date.now();
       } catch (err) {
-        console.error(`Scheduler task "${name}" failed:`, err);
+        log.error(`Scheduler task "${name}" failed`, { error: String(err) });
       } finally {
         task.running = false;
       }
@@ -67,7 +70,7 @@ export class SchedulerService {
       task.lastRun = Date.now();
       return true;
     } catch (err) {
-      console.error(`Scheduler task "${name}" failed:`, err);
+      log.error(`Scheduler task "${name}" failed`, { error: String(err) });
       return false;
     } finally {
       task.running = false;

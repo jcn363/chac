@@ -14,6 +14,7 @@ import { setupCacheRoutes } from "./routes/cache";
 import { setupSchedulerRoutes } from "./routes/scheduler";
 import { setupBackupRoutes } from "./routes/backup";
 import { setupAdminRoutes } from "./routes/admin";
+import { setupObsidianRoutes } from "./routes/obsidian";
 
 export function setupApiRoutes(app: Hono, kernel: Kernel): void {
   setupHealthRoutes(app, kernel);
@@ -30,4 +31,5 @@ export function setupApiRoutes(app: Hono, kernel: Kernel): void {
   setupSchedulerRoutes(app, kernel);
   setupBackupRoutes(app, kernel);
   setupAdminRoutes(app, kernel);
+  setupObsidianRoutes(app, kernel);
 }

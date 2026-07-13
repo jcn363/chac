@@ -16,6 +16,9 @@ import { registerDefaultTasks } from "./modules/scheduler/tasks";
 import { createRouter, requestTracker } from "./modules/router";
 import { setupWebSocket } from "./modules/router/ws";
 import { VectorIndex } from "./utils/vector-index";
+import { createLogger } from "./utils/logger";
+
+const log = createLogger("main");
 
 const kernel = createKernel();
 
@@ -38,7 +41,7 @@ settings.onChange((key, value) => {
     const modelType = parts[1];
     if (modelType) {
       llm.restartInstance(modelType).catch((err) => {
-        console.error(`Failed to restart ${modelType} model:`, err);
+        log.error(`Failed to restart ${modelType} model`, { error: String(err) });
       });
     }
   }
@@ -104,7 +107,7 @@ const server = Bun.serve({
   websocket: wsHandler,
 });
 
-console.log(`Chac running at http://localhost:${server.port}`);
+log.info(`Chac running at http://localhost:${server.port}`);
 
 // Start background scheduler
 scheduler.start();
@@ -114,7 +117,7 @@ let shuttingDown = false;
 const shutdown = async () => {
   if (shuttingDown) return;
   shuttingDown = true;
-  console.log("Shutting down...");
+  log.info("Shutting down...");
 
   // Stop accepting new work
   scheduler.stop();
@@ -122,19 +125,19 @@ const shutdown = async () => {
   // Wait for in-flight requests to complete (max 10 seconds)
   const deadline = Date.now() + 10_000;
   while (requestTracker.count > 0 && Date.now() < deadline) {
-    console.log(`Waiting for ${requestTracker.count} in-flight request(s)...`);
+    log.info(`Waiting for ${requestTracker.count} in-flight request(s)...`);
     await Bun.sleep(100);
   }
 
   if (requestTracker.count > 0) {
-    console.log(`Force stopping with ${requestTracker.count} request(s) still in progress`);
+    log.info(`Force stopping with ${requestTracker.count} request(s) still in progress`);
   }
 
   await llm.stop();
   await kernel.stop();
   closeDb();
   await server.stop();
-  console.log("Shutdown complete");
+  log.info("Shutdown complete");
 };
 
 process.on("SIGINT", shutdown);

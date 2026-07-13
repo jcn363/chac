@@ -1,5 +1,33 @@
 # Changelog
 
+## [1.13.0] - 2026-07-12
+
+### Added
+
+**Observability**
+- Structured logging: `src/utils/logger.ts` — JSON logs with levels (debug/info/warn/error), module tagging, correlation IDs
+- Request tracing: `src/utils/tracing.ts` — AsyncLocalStorage-based correlation IDs per request
+- All 19 scattered `console.log/error/warn` calls replaced with `createLogger('module')`
+- Request logger now includes correlation ID in every entry
+
+**Obsidian Integration**
+- `src/modules/obsidian/exporter.ts` — export wiki vault as Obsidian-compatible markdown
+- `GET /api/obsidian/export?format=markdown` — returns vault as concatenated markdown
+- `GET /api/obsidian/pages` — returns all wiki pages
+- Wikilinks auto-generated between pages by title matching
+- Document frontmatter with metadata (pages, author, format)
+- Vault index README.md with links to all pages
+
+**Wiki Rendering**
+- Wiki pages now render as formatted markdown (headings, lists, code blocks, tables)
+- Full-page detail view for wiki entries
+- Styled markdown output with proper typography
+
+**Tests**
+- 14 new tests for logging and tracing
+- 7 new tests for Obsidian export
+- Total: 601 tests, 0 failures, 1211 expect() calls
+
 ## [1.12.0] - 2026-07-12
 
 ### Added

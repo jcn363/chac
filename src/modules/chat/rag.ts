@@ -6,6 +6,9 @@ import type { DocumentSearchService } from "../documents/search";
 import { VectorIndex } from "../../utils/vector-index";
 import { createEmbedding, estimateTokens } from "../../utils/llm-helpers";
 import { generateCitation } from "../../utils/citations";
+import { createLogger } from "../../utils/logger";
+
+const log = createLogger("chat:rag");
 
 const RRF_K = 60;
 
@@ -66,7 +69,7 @@ export class RagRetriever {
         const expanded = await this.searchService.expandQuery(query);
         searchQuery = expanded.expanded;
       } catch {
-        console.warn("Query expansion failed, using original query");
+        log.warn("Query expansion failed, using original query");
       }
     }
 
@@ -146,7 +149,7 @@ export class RagRetriever {
           source: "",
         }));
       } catch {
-        console.warn("Reranking failed, using original order");
+        log.warn("Reranking failed, using original order");
       }
     }
 

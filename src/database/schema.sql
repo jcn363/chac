@@ -40,6 +40,7 @@ CREATE TABLE IF NOT EXISTS chat_sessions (
   title TEXT,
   system_prompt TEXT,
   model TEXT,
+  auth_token TEXT,
   metadata TEXT,
   created_at TEXT DEFAULT (datetime('now')),
   updated_at TEXT DEFAULT (datetime('now'))

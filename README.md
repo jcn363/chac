@@ -67,9 +67,14 @@
 - **Modular Architecture** — domain-specific route files, focused service modules, shared utilities
 - **Rate Limiting** — configurable per-IP rate limiting (default 100 req/min)
 - **Health Check** — detailed system status at `/api/health` (DB stats, LLM status, scheduler)
+- **Admin Dashboard** — comprehensive system overview at `/api/admin/dashboard`
 - **Request Logging** — structured request/response logging with timing and `/api/logs` endpoint
 - **Auto-Backup** — scheduled database backups with configurable retention
 - **Graceful Shutdown** — drains in-flight requests before stopping (10s deadline)
+- **Cache Headers** — immutable caching for JS/CSS, no-cache for HTML
+- **Security Headers** — X-Content-Type-Options, X-Frame-Options, Referrer-Policy
+- **Content Validation** — magic-byte detection for PDF/DOCX (not just file extension)
+- **WebSocket Auth** — session-based token authentication for WS connections
 - **Context Auto-Detection** — automatically detects model context length from llama-server `/v1/props`
 - **Concurrency-Safe LLM** — prevents duplicate process spawns on concurrent requests
 - **Parallel Ingestion** — bulk file ingestion processes multiple files concurrently (batches of 4)

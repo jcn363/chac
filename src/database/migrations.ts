@@ -174,6 +174,13 @@ const MIGRATIONS: Migration[] = [
       CREATE UNIQUE INDEX IF NOT EXISTS idx_vector_cache_entry ON vector_index_cache(table_name, entry_id);
     `,
   },
+  {
+    version: 7,
+    up: `
+      ALTER TABLE chat_sessions ADD COLUMN auth_token TEXT;
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_chat_sessions_token ON chat_sessions(auth_token) WHERE auth_token IS NOT NULL;
+    `,
+  },
 ];
 
 function ensureMetaTable(db: Database): void {

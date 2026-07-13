@@ -3,6 +3,7 @@ export interface ChatSession {
   title: string | null;
   system_prompt: string | null;
   model: string | null;
+  auth_token: string | null;
   metadata: string | null;
   sort_order: number;
   created_at: string;

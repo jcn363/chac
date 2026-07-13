@@ -31,11 +31,55 @@ export function detectFormat(filePath: string): DocumentFormat {
   }
 }
 
+export function validateFormat(
+  filePath: string,
+  buffer: ArrayBuffer
+): DocumentFormat {
+  const header = new Uint8Array(buffer.slice(0, 8));
+
+  // PDF magic bytes: %PDF
+  if (
+    header[0] === 0x25 &&
+    header[1] === 0x50 &&
+    header[2] === 0x44 &&
+    header[3] === 0x46
+  ) {
+    return "pdf";
+  }
+
+  // DOCX/ZIP magic bytes: PK
+  if (header[0] === 0x50 && header[1] === 0x4b) {
+    return "docx";
+  }
+
+  // Text-based detection for remaining formats
+  const textStart = new TextDecoder()
+    .decode(buffer.slice(0, 500))
+    .toLowerCase();
+
+  // HTML detection: look for <html or <!DOCTYPE
+  if (textStart.includes("<html") || textStart.includes("<!doctype")) {
+    return "html";
+  }
+
+  // Markdown detection: look for markdown syntax markers
+  if (
+    /^#{1,6}\s/m.test(textStart) ||
+    textStart.includes("**") ||
+    textStart.includes("```")
+  ) {
+    return "markdown";
+  }
+
+  // Fall back to extension-based detection
+  return detectFormat(filePath);
+}
+
 export async function parseDocument(
   filePath: string,
   buffer: ArrayBuffer
 ): Promise<ParseResult> {
-  const format = detectFormat(filePath);
+  const format = validateFormat(filePath, buffer);
 
   switch (format) {
     case "pdf":

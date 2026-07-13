@@ -51,9 +51,27 @@ async function handleChatMessage(
 }
 
 export function setupWebSocket(kernel: Kernel) {
+  const chat = kernel.get<ChatService>("chat");
+
   return {
     open(ws: Bun.ServerWebSocket<undefined>) {
-      const client: WsClient = { ws };
+      // Require auth token in query string
+      const url = new URL("http://localhost");
+      const token = url.searchParams.get("token");
+
+      if (!token) {
+        ws.close(4001, "Authentication required");
+        return;
+      }
+
+      // Validate token belongs to an existing session
+      const session = chat.validateSessionTokenByToken(token);
+      if (!session) {
+        ws.close(4003, "Invalid token");
+        return;
+      }
+
+      const client: WsClient = { ws, sessionId: session.id };
       clients.add(client);
     },
     message(ws: Bun.ServerWebSocket<undefined>, message: string | Buffer) {

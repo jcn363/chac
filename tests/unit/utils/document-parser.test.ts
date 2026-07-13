@@ -1,5 +1,9 @@
 import { describe, it, expect } from "bun:test";
-import { detectFormat, parseDocument } from "../../../src/utils/document-parser";
+import {
+  detectFormat,
+  validateFormat,
+  parseDocument,
+} from "../../../src/utils/document-parser";
 
 describe("Document Parser", () => {
   describe("detectFormat", () => {
@@ -177,6 +181,130 @@ startxref
     it("detects unknown extension as text", () => {
       expect(detectFormat("file.xyz")).toBe("text");
       expect(detectFormat("file.unknown")).toBe("text");
+    });
+  });
+
+  describe("validateFormat", () => {
+    it("detects PDF by magic bytes even with wrong extension", () => {
+      const pdfHeader = new Uint8Array([
+        0x25, 0x50, 0x44, 0x46, 0x2d, 0x31, 0x2e, 0x34, // %PDF-1.4
+      ]);
+      const buffer = pdfHeader.buffer;
+      expect(validateFormat("file.txt", buffer)).toBe("pdf");
+      expect(validateFormat("file.md", buffer)).toBe("pdf");
+      expect(validateFormat("file.docx", buffer)).toBe("pdf");
+    });
+
+    it("detects DOCX by ZIP magic bytes even with wrong extension", () => {
+      const zipHeader = new Uint8Array([
+        0x50, 0x4b, 0x03, 0x04, 0x14, 0x00, 0x00, 0x00, // PK....
+      ]);
+      const buffer = zipHeader.buffer;
+      expect(validateFormat("file.txt", buffer)).toBe("docx");
+      expect(validateFormat("file.pdf", buffer)).toBe("docx");
+      expect(validateFormat("file.xyz", buffer)).toBe("docx");
+    });
+
+    it("detects HTML by content even with wrong extension", () => {
+      const html = "<html><head><title>Test</title></head><body></body></html>";
+      const buffer = new TextEncoder().encode(html).buffer;
+      expect(validateFormat("file.txt", buffer)).toBe("html");
+      expect(validateFormat("file.xyz", buffer)).toBe("html");
+    });
+
+    it("detects HTML by DOCTYPE even with wrong extension", () => {
+      const html =
+        "<!DOCTYPE html><html><head></head><body></body></html>";
+      const buffer = new TextEncoder().encode(html).buffer;
+      expect(validateFormat("file.txt", buffer)).toBe("html");
+      expect(validateFormat("page.htm", buffer)).toBe("html");
+    });
+
+    it("detects markdown by heading syntax even with wrong extension", () => {
+      const md = "# Title\n\nSome content";
+      const buffer = new TextEncoder().encode(md).buffer;
+      expect(validateFormat("file.txt", buffer)).toBe("markdown");
+      expect(validateFormat("file.xyz", buffer)).toBe("markdown");
+    });
+
+    it("detects markdown by bold syntax even with wrong extension", () => {
+      const md = "This is **bold** text";
+      const buffer = new TextEncoder().encode(md).buffer;
+      expect(validateFormat("file.txt", buffer)).toBe("markdown");
+    });
+
+    it("detects markdown by code fence even with wrong extension", () => {
+      const md = "```js\nconst x = 1;\n```";
+      const buffer = new TextEncoder().encode(md).buffer;
+      expect(validateFormat("file.txt", buffer)).toBe("markdown");
+    });
+
+    it("falls back to extension when content is ambiguous", () => {
+      const plain = "Just some plain text without any special markers.";
+      const buffer = new TextEncoder().encode(plain).buffer;
+      expect(validateFormat("file.txt", buffer)).toBe("text");
+      expect(validateFormat("file.md", buffer)).toBe("markdown");
+      expect(validateFormat("file.html", buffer)).toBe("html");
+    });
+
+    it("prioritizes magic bytes over extension", () => {
+      // A real PDF header but saved as .txt
+      const pdfContent = "%PDF-1.4\n1 0 obj<</Type/Catalog>>endobj\n%%EOF";
+      const buffer = new TextEncoder().encode(pdfContent).buffer;
+      expect(validateFormat("notes.txt", buffer)).toBe("pdf");
+    });
+
+    it("handles empty buffer gracefully", () => {
+      const buffer = new ArrayBuffer(0);
+      expect(validateFormat("file.txt", buffer)).toBe("text");
+      expect(validateFormat("file.md", buffer)).toBe("markdown");
+    });
+
+    it("handles small buffers without errors", () => {
+      const buffer = new TextEncoder().encode("Hi").buffer;
+      expect(validateFormat("file.txt", buffer)).toBe("text");
+    });
+  });
+
+  describe("parseDocument with content-based validation", () => {
+    it("parses PDF detected by content even with .txt extension", async () => {
+      const pdf = `%PDF-1.0
+1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj
+2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj
+3 0 obj<</Type/Page/MediaBox[0 0 612 792]/Parent 2 0 R/Resources<<>>>>endobj
+xref
+0 4
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+trailer<</Size 4/Root 1 0 R>>
+startxref
+190
+%%EOF`;
+      const buffer = new TextEncoder().encode(pdf).buffer;
+      const result = await parseDocument("renamed.txt", buffer);
+      expect(result.format).toBe("pdf");
+      expect(result.content).toBeDefined();
+    });
+
+    it("parses HTML detected by content even with .txt extension", async () => {
+      const html =
+        "<html><body><h1>Hello</h1><p>World</p></body></html>";
+      const buffer = new TextEncoder().encode(html).buffer;
+      const result = await parseDocument("page.txt", buffer);
+      expect(result.format).toBe("html");
+      expect(result.content).toContain("Hello");
+      expect(result.content).toContain("World");
+    });
+
+    it("parses markdown detected by content even with .txt extension", async () => {
+      const md = "# My Title\n\nThis is **important** content.";
+      const buffer = new TextEncoder().encode(md).buffer;
+      const result = await parseDocument("readme.txt", buffer);
+      expect(result.format).toBe("markdown");
+      expect(result.content).toContain("My Title");
+      expect(result.content).toContain("important");
     });
   });
 });

@@ -19,6 +19,14 @@ export function createRouter(kernel: Kernel): Hono {
   app.use("*", cors());
   app.use("*", rateLimit(settings, rateLimitState));
 
+  // Security headers
+  app.use("*", async (c, next) => {
+    await next();
+    c.header('X-Content-Type-Options', 'nosniff');
+    c.header('X-Frame-Options', 'DENY');
+    c.header('Referrer-Policy', 'strict-origin-when-cross-origin');
+  });
+
   // Track in-flight requests for graceful shutdown
   app.use("*", async (c, next) => {
     requestTracker.count++;

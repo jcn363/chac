@@ -36,9 +36,10 @@ export class ChatService {
 
   createSession(options: { title?: string; systemPrompt?: string } = {}): ChatSession {
     const id = generateId();
+    const authToken = generateId();
     this.db
-      .query("INSERT INTO chat_sessions (id, title, system_prompt) VALUES (?, ?, ?)")
-      .run(id, options.title ?? null, options.systemPrompt ?? null);
+      .query("INSERT INTO chat_sessions (id, title, system_prompt, auth_token) VALUES (?, ?, ?, ?)")
+      .run(id, options.title ?? null, options.systemPrompt ?? null, authToken);
     return this.db.query("SELECT * FROM chat_sessions WHERE id = ?").get(id) as ChatSession;
   }
 
@@ -50,6 +51,20 @@ export class ChatService {
 
   getSession(id: string): ChatSession | undefined {
     const row = this.db.query("SELECT * FROM chat_sessions WHERE id = ?").get(id);
+    return row ? (row as ChatSession) : undefined;
+  }
+
+  validateSessionToken(sessionId: string, token: string): boolean {
+    const row = this.db
+      .query("SELECT id FROM chat_sessions WHERE id = ? AND auth_token = ?")
+      .get(sessionId, token);
+    return !!row;
+  }
+
+  validateSessionTokenByToken(token: string): ChatSession | undefined {
+    const row = this.db
+      .query("SELECT * FROM chat_sessions WHERE auth_token = ?")
+      .get(token);
     return row ? (row as ChatSession) : undefined;
   }
 

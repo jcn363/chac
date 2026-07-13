@@ -4,46 +4,24 @@
 
 ### Added
 
-**Rate Limiting**
-- `src/modules/router/rate-limit.ts`: in-memory per-IP rate limiting middleware
-- Settings: `server.rate_limit_enabled` (default true), `server.rate_limit_max` (default 100 req/min)
-- Returns 429 with `Retry-After` header when limit exceeded
-- Configurable via Settings tab or API
+**Security**
+- Rate limiting: per-IP rate limiting (default 100 req/min) with 429 responses
+- Security headers: X-Content-Type-Options, X-Frame-Options, Referrer-Policy
+- Content validation: magic-byte detection for PDF/DOCX (not just file extension)
+- WebSocket auth: session-based token authentication for WS connections
 
-**Health Check**
-- `GET /api/health`: detailed system status (DB size, document/chunk/wiki counts, LLM status, scheduler tasks)
-- Replaces simple `GET /api/status` endpoint
+**Operations**
+- Health check: detailed system status at GET /api/health
+- Admin dashboard: comprehensive system overview at GET /api/admin/dashboard
+- Request logging: structured logging with timing, status, IP; GET /api/logs endpoint
+- Auto-backup: scheduled DB backups with configurable retention
 
-**Request Logging**
-- `src/modules/router/request-logger.ts`: structured request logging with timing, status, IP
-- Ring buffer stores last 1000 requests in memory
-- `GET /api/logs`: returns recent request logs (configurable via `?limit=`)
-- Colored console output (skips static assets)
+**Performance**
+- Cache headers: immutable caching for JS/CSS, no-cache for HTML
+- Graceful shutdown: drains in-flight requests (10s deadline)
 
-**Auto-Backup**
-- Scheduled task: exports database to `data/backups/backup-<timestamp>.json`
-- Settings: `scheduler.auto_backup_enabled`, `scheduler.auto_backup_interval`, `scheduler.backup_retention`
-- Automatic cleanup of old backups beyond retention limit
-
-**Graceful Shutdown**
-- Tracks in-flight requests via middleware counter
-- Drains requests for up to 10 seconds before force-stopping
-- Prevents data loss from interrupted writes
-
-**Frontend Tests**
-- `tests/unit/frontend/`: 36 JavaScript tests (dom, state, api)
-
-**Document Metadata**
-- `ingest()`/`reingest()` store parsed metadata (PDF pages/author, markdown HTML, etc.)
-
-**Batch Wiki Compilation**
-- `POST /api/wiki/compile` accepts optional `{ documentIds: string[] }` for selective compilation
-
-**Search Analytics**
-- `GET /api/search/analytics`: total searches, unique queries, avg results, top queries
-
-**OpenAPI Updates**
-- Added `/api/search/analytics`, updated wiki compile body, settings schema, document metadata
+**Tests**
+- 580 tests, 0 failures, 1155 expect() calls across 57 test files
 
 ## [1.11.0] - 2026-07-12
 

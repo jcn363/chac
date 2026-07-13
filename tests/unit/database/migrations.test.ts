@@ -37,10 +37,10 @@ describe("runMigrations", () => {
     expect(names).toContain("vector_index_cache");
   });
 
-  it("sets version to 6", () => {
+  it("sets version to 7", () => {
     runMigrations(db);
     const row = db.query("SELECT value FROM schema_meta WHERE key = 'version'").get() as { value: string };
-    expect(row.value).toBe("6");
+    expect(row.value).toBe("7");
   });
 
   it("adds sort_order column to chat_sessions", () => {
@@ -59,6 +59,6 @@ describe("runMigrations", () => {
     runMigrations(db);
     runMigrations(db);
     const row = db.query("SELECT value FROM schema_meta WHERE key = 'version'").get() as { value: string };
-    expect(row.value).toBe("6");
+    expect(row.value).toBe("7");
   });
 });

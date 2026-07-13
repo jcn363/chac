@@ -1,8 +1,8 @@
 import { marked } from "marked";
 import DOMPurify from "dompurify";
-import { apiGet, apiPost, apiPut, apiDelete, sendWsMessage, onWsMessage } from "../lib/api.js";
+import { apiGet, apiPost, apiPut, apiDelete, sendWsMessage, onWsMessage, connectWebSocket } from "../lib/api.js";
 import { escapeHtml, showToast, toggleEmptyState } from "../lib/dom.js";
-import { getCurrentSession, setCurrentSession } from "../lib/state.js";
+import { getCurrentSession, setCurrentSession, setCurrentToken } from "../lib/state.js";
 
 marked.setOptions({ breaks: true, gfm: true });
 
@@ -40,6 +40,8 @@ async function createSession() {
   try {
     const session = await apiPost("/api/chat/sessions", { title: "New Chat" });
     setCurrentSession(session.id);
+    setCurrentToken(session.auth_token);
+    connectWebSocket();
     loadSessions();
     loadMessages();
   } catch {
@@ -237,7 +239,7 @@ export async function loadSessions() {
     list.innerHTML = sessions
       .map(
         (s) =>
-          `<div class="doc-item ${s.id === current ? "active" : ""}" data-id="${s.id}" tabindex="0">
+          `<div class="doc-item ${s.id === current ? "active" : ""}" data-id="${s.id}" data-token="${escapeHtml(s.auth_token || "")}" tabindex="0">
             <span class="session-title">${escapeHtml(s.title || "Untitled")}</span>
             <button class="session-delete" data-id="${s.id}" aria-label="Delete session" data-tooltip="Delete">&times;</button>
           </div>`
@@ -248,6 +250,8 @@ export async function loadSessions() {
       el.addEventListener("click", (e) => {
         if (e.target.closest(".session-delete") || e.target.closest(".session-rename")) return;
         setCurrentSession(el.dataset.id ?? null);
+        setCurrentToken(el.dataset.token ?? null);
+        connectWebSocket();
         loadSessions();
         loadMessages();
       });

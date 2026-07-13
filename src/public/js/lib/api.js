@@ -1,3 +1,5 @@
+import { getCurrentToken } from "./state.js";
+
 const API = "";
 
 export async function apiGet(path) {
@@ -37,7 +39,11 @@ let wsHandlers = {};
 
 export function connectWebSocket() {
   const protocol = location.protocol === "https:" ? "wss:" : "ws:";
-  ws = new WebSocket(`${protocol}//${location.host}/ws`);
+  const token = getCurrentToken();
+  const wsUrl = token
+    ? `${protocol}//${location.host}/ws?token=${encodeURIComponent(token)}`
+    : `${protocol}//${location.host}/ws`;
+  ws = new WebSocket(wsUrl);
 
   ws.onmessage = (event) => {
     const data = JSON.parse(event.data);
@@ -45,7 +51,9 @@ export function connectWebSocket() {
     if (handler) handler(data);
   };
 
-  ws.onclose = () => {
+  ws.onclose = (event) => {
+    // Don't auto-reconnect if auth failed
+    if (event.code === 4001 || event.code === 4003) return;
     setTimeout(connectWebSocket, 3000);
   };
 }

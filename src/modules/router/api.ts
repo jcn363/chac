@@ -13,6 +13,7 @@ import { setupMemoryRoutes } from "./routes/memory";
 import { setupCacheRoutes } from "./routes/cache";
 import { setupSchedulerRoutes } from "./routes/scheduler";
 import { setupBackupRoutes } from "./routes/backup";
+import { setupAdminRoutes } from "./routes/admin";
 
 export function setupApiRoutes(app: Hono, kernel: Kernel): void {
   setupHealthRoutes(app, kernel);
@@ -28,4 +29,5 @@ export function setupApiRoutes(app: Hono, kernel: Kernel): void {
   setupCacheRoutes(app, kernel);
   setupSchedulerRoutes(app, kernel);
   setupBackupRoutes(app, kernel);
+  setupAdminRoutes(app, kernel);
 }

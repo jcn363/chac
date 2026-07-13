@@ -18,7 +18,27 @@ const OPENAPI_SPEC = {
     "/api/settings": {
       get: {
         summary: "List all settings",
-        responses: { 200: { description: "Settings array" } },
+        responses: {
+          200: {
+            description: "Settings array",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      key: { type: "string" },
+                      value: {},
+                      category: { type: "string" },
+                      description: { type: "string" },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
       },
       put: {
         summary: "Update a setting",
@@ -79,7 +99,32 @@ const OPENAPI_SPEC = {
       get: {
         summary: "Get single document",
         parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }],
-        responses: { 200: { description: "Document" }, 404: { description: "Not found" } },
+        responses: {
+          200: {
+            description: "Document with metadata",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    id: { type: "string" },
+                    title: { type: "string" },
+                    source_path: { type: "string", nullable: true },
+                    source_type: { type: "string" },
+                    content_hash: { type: "string", nullable: true },
+                    mime_type: { type: "string", nullable: true },
+                    file_size: { type: "integer", nullable: true },
+                    chunk_count: { type: "integer" },
+                    metadata: { type: "string", nullable: true, description: "JSON-encoded parsed metadata from document" },
+                    created_at: { type: "string" },
+                    updated_at: { type: "string" },
+                  },
+                },
+              },
+            },
+          },
+          404: { description: "Not found" },
+        },
       },
       delete: {
         summary: "Delete a document",
@@ -112,6 +157,40 @@ const OPENAPI_SPEC = {
       delete: {
         summary: "Clear search history",
         responses: { 200: { description: "Cleared" } },
+      },
+    },
+    "/api/search/analytics": {
+      get: {
+        summary: "Search analytics",
+        responses: {
+          200: {
+            description: "Search analytics data",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    totalSearches: { type: "integer" },
+                    uniqueQueries: { type: "integer" },
+                    avgResults: { type: "number" },
+                    expandedCount: { type: "integer" },
+                    rerankedCount: { type: "integer" },
+                    topQueries: {
+                      type: "array",
+                      items: {
+                        type: "object",
+                        properties: {
+                          query: { type: "string" },
+                          count: { type: "integer" },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
       },
     },
     "/api/tags": {
@@ -274,7 +353,23 @@ const OPENAPI_SPEC = {
     },
     "/api/wiki/compile": {
       post: {
-        summary: "Compile all documents into wiki",
+        summary: "Compile documents into wiki",
+        requestBody: {
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: {
+                  documentIds: {
+                    type: "array",
+                    items: { type: "string" },
+                    description: "Optional list of document IDs to compile. Compiles all documents if omitted.",
+                  },
+                },
+              },
+            },
+          },
+        },
         responses: { 200: { description: "Compiled pages" } },
       },
     },

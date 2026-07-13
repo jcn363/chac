@@ -81,6 +81,45 @@ describe("Search History", () => {
     });
   });
 
+  describe("getSearchAnalytics", () => {
+    it("returns zeroed analytics with no data", () => {
+      const analytics = searchHistory.getSearchAnalytics();
+      expect(analytics.totalSearches).toBe(0);
+      expect(analytics.uniqueQueries).toBe(0);
+      expect(analytics.avgResults).toBe(0);
+      expect(analytics.expandedCount).toBe(0);
+      expect(analytics.rerankedCount).toBe(0);
+      expect(analytics.topQueries.length).toBe(0);
+    });
+
+    it("computes analytics from search entries", () => {
+      searchHistory.logSearch("ml", 5, "machine learning", true);
+      searchHistory.logSearch("ml", 3, "machine learning deep", true);
+      searchHistory.logSearch("rust", 8, undefined, false);
+
+      const analytics = searchHistory.getSearchAnalytics();
+      expect(analytics.totalSearches).toBe(3);
+      expect(analytics.uniqueQueries).toBe(2);
+      expect(analytics.avgResults).toBeCloseTo(5.33, 1);
+      expect(analytics.expandedCount).toBe(2);
+      expect(analytics.rerankedCount).toBe(2);
+    });
+
+    it("orders topQueries by count descending", () => {
+      searchHistory.logSearch("common", 1);
+      searchHistory.logSearch("common", 2);
+      searchHistory.logSearch("common", 3);
+      searchHistory.logSearch("rare", 1);
+
+      const analytics = searchHistory.getSearchAnalytics();
+      expect(analytics.topQueries.length).toBe(2);
+      expect(analytics.topQueries[0]!.query).toBe("common");
+      expect(analytics.topQueries[0]!.count).toBe(3);
+      expect(analytics.topQueries[1]!.query).toBe("rare");
+      expect(analytics.topQueries[1]!.count).toBe(1);
+    });
+  });
+
   describe("clearSearchHistory", () => {
     it("clears all history", () => {
       searchHistory.logSearch("test1", 1);

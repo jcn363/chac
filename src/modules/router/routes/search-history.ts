@@ -11,6 +11,10 @@ export function setupSearchHistoryRoutes(app: Hono, kernel: Kernel): void {
     return c.json(searchHistory.getSearchHistory({ limit }));
   });
 
+  app.get("/api/search/analytics", (c) => {
+    return c.json(searchHistory.getSearchAnalytics());
+  });
+
   app.delete("/api/search/history", (c) => {
     searchHistory.clearSearchHistory();
     return c.json({ ok: true });

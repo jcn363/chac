@@ -21,7 +21,8 @@ export function setupWikiRoutes(app: Hono, kernel: Kernel): void {
   });
 
   app.post("/api/wiki/compile", wrap(async (c) => {
-    const pages = await wiki.compile();
+    const body = await c.req.json<{ documentIds?: string[] }>().catch(() => ({ documentIds: undefined as string[] | undefined }));
+    const pages = await wiki.compile(body.documentIds);
     return c.json({ compiled: pages.length, pages });
   }));
 

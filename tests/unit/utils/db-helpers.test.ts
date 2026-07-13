@@ -20,7 +20,8 @@ describe("deleteById", () => {
   it("deletes an existing row and returns true", () => {
     db.query("INSERT INTO documents (id, title, content_hash, chunk_count) VALUES (?, ?, ?, ?)").run("d1", "Doc", "hash", 0);
     expect(deleteById(db, "documents", "d1")).toBe(true);
-    expect(db.query("SELECT COUNT(*) as count FROM documents").get() as { count: number }).count;
+    const row = db.query("SELECT COUNT(*) as count FROM documents").get() as { count: number };
+    expect(row.count).toBe(0);
   });
 
   it("returns false when id does not exist", () => {

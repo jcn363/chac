@@ -123,6 +123,43 @@ describe("WikiCompiler", () => {
       // Should have at least 2 pages + possibly synthesis pages
       expect(result.length).toBeGreaterThanOrEqual(2);
     });
+
+    it("compiles only specified document IDs", async () => {
+      insertDoc("d1", "Alpha");
+      insertChunk("d1", 0, "Content about Alpha.");
+      insertDoc("d2", "Beta");
+      insertChunk("d2", 0, "Content about Beta.");
+      insertDoc("d3", "Gamma");
+      insertChunk("d3", 0, "Content about Gamma.");
+
+      const result = await compiler.compile(["d1", "d3"]);
+      // 2 doc pages + synthesis pages (2+ triggers synthesis)
+      expect(result.length).toBeGreaterThanOrEqual(2);
+      const titles = result.map((p) => p.title);
+      expect(titles).toContain("Alpha");
+      expect(titles).toContain("Gamma");
+      expect(titles).not.toContain("Beta");
+    });
+
+    it("compiles all documents when documentIds is empty", async () => {
+      insertDoc("d1", "One");
+      insertChunk("d1", 0, "Content one.");
+      insertDoc("d2", "Two");
+      insertChunk("d2", 0, "Content two.");
+
+      const result = await compiler.compile([]);
+      // Empty array falls through to all-docs path
+      expect(result.length).toBeGreaterThanOrEqual(2);
+    });
+
+    it("skips non-existent document IDs gracefully", async () => {
+      insertDoc("d1", "Exists");
+      insertChunk("d1", 0, "Content exists.");
+
+      const result = await compiler.compile(["d1", "nonexistent"]);
+      expect(result).toHaveLength(1);
+      expect(result[0]!.title).toBe("Exists");
+    });
   });
 
   describe("updatePageInsight()", () => {

@@ -18,13 +18,21 @@ export class WikiCompiler {
     private synthesizer: WikiSynthesizer
   ) {}
 
-  async compile(): Promise<WikiPage[]> {
+  async compile(documentIds?: string[]): Promise<WikiPage[]> {
     const maxChars = this.settings.get("rag.max_wiki_chars") as number;
     const agentsEnabled = this.settings.get("wiki.agents_enabled") as boolean;
-    const documents = this.db.query("SELECT * FROM documents").all() as Array<{
-      id: string;
-      title: string;
-    }>;
+
+    let documents: Array<{ id: string; title: string }>;
+    if (documentIds && documentIds.length > 0) {
+      documents = documentIds
+        .map((id) => this.db.query("SELECT id, title FROM documents WHERE id = ?").get(id) as { id: string; title: string } | undefined)
+        .filter((d): d is { id: string; title: string } => d != null);
+    } else {
+      documents = this.db.query("SELECT id, title FROM documents").all() as Array<{
+        id: string;
+        title: string;
+      }>;
+    }
 
     const results: WikiPage[] = [];
 

@@ -24,8 +24,8 @@ export class WikiService {
     this.compiler = compiler;
   }
 
-  async compile(): Promise<WikiPage[]> {
-    const results = await this.compiler.compile();
+  async compile(documentIds?: string[]): Promise<WikiPage[]> {
+    const results = await this.compiler.compile(documentIds);
     this.onCompileCallback?.();
     return results;
   }

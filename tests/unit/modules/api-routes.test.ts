@@ -268,9 +268,8 @@ describe("Wiki API", () => {
 
 describe("Global error handler", () => {
   it("catches non-AppError and returns 500", async () => {
-    // Create a minimal Hono app with the same error handler
     const { Hono } = require("hono");
-    const { AppError } = require("../../../src/errors");
+    const { AppError } = require("../../../src/errors") as typeof import("../../../src/errors");
     const testApp = new Hono();
 
     testApp.onError((err: unknown, c: any) => {
@@ -293,7 +292,7 @@ describe("Global error handler", () => {
 
   it("passes AppError through with correct status code", async () => {
     const { Hono } = require("hono");
-    const { AppError, NotFoundError } = require("../../../src/errors");
+    const { AppError, NotFoundError } = require("../../../src/errors") as typeof import("../../../src/errors");
     const testApp = new Hono();
 
     testApp.onError((err: unknown, c: any) => {

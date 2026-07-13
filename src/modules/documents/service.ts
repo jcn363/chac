@@ -73,13 +73,16 @@ export class DocumentsService {
       ? chunkTextSemantic(content, chunkSize)
       : chunkText(content, chunkSize, chunkOverlap);
 
+    // Store parsed metadata as JSON
+    const metaJson = parseResult.metadata ? JSON.stringify(parseResult.metadata) : null;
+
     // Insert document
     this.db
       .query(
-        "INSERT INTO documents (id, title, source_path, content_hash, mime_type, file_size, chunk_count) " +
-          "VALUES (?, ?, ?, ?, ?, ?, ?)"
+        "INSERT INTO documents (id, title, source_path, content_hash, mime_type, file_size, chunk_count, metadata) " +
+          "VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
       )
-      .run(docId, title, filePath, hash, file.type, file.size, chunks.length);
+      .run(docId, title, filePath, hash, file.type, file.size, chunks.length, metaJson);
 
     // Insert chunks + embeddings
     const llm = this.kernel.get<LlmService>("llm");
@@ -213,10 +216,13 @@ export class DocumentsService {
       ? chunkTextSemantic(content, chunkSize)
       : chunkText(content, chunkSize, chunkOverlap);
 
+    // Store parsed metadata as JSON
+    const metaJson = parseResult.metadata ? JSON.stringify(parseResult.metadata) : null;
+
     // Update document
     this.db
-      .query("UPDATE documents SET content_hash = ?, chunk_count = ?, file_size = ?, updated_at = datetime('now') WHERE id = ?")
-      .run(hash, chunks.length, file.size, id);
+      .query("UPDATE documents SET content_hash = ?, chunk_count = ?, file_size = ?, metadata = ?, updated_at = datetime('now') WHERE id = ?")
+      .run(hash, chunks.length, file.size, metaJson, id);
 
     // Insert new chunks
     const llm = this.kernel.get<LlmService>("llm");

@@ -67,6 +67,9 @@ export const DEFAULT_SETTINGS: SettingDefaults = {
   "server.host": { value: "127.0.0.1", category: "server", description: "HTTP server bind address" },
   "server.rate_limit_enabled": { value: true, category: "server", description: "Enable API rate limiting" },
   "server.rate_limit_max": { value: 100, category: "server", description: "Max requests per minute per IP" },
+  "transcription.model": { value: "base", category: "transcription", description: "Whisper model: tiny, base, small, medium, large" },
+  "transcription.language": { value: "auto", category: "transcription", description: "Language code (auto, en, es, fr, etc.)" },
+  "transcription.threads": { value: 4, category: "transcription", description: "CPU threads for transcription" },
 };
 
 export const SETTING_VALIDATORS: Record<string, SettingValidator> = {
@@ -95,4 +98,5 @@ export const SETTING_VALIDATORS: Record<string, SettingValidator> = {
   'scheduler.backup_retention': { type: 'number', min: 1, max: 365 },
   'server.port': { type: 'number', min: 1024, max: 65535 },
   'server.rate_limit_max': { type: 'number', min: 10, max: 10000 },
+  'transcription.threads': { type: 'number', min: 1, max: 128 },
 };

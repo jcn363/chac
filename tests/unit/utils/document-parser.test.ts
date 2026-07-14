@@ -32,6 +32,26 @@ describe("Document Parser", () => {
       expect(detectFormat("file.doc")).toBe("docx");
     });
 
+    it("detects audio files", () => {
+      expect(detectFormat("file.mp3")).toBe("audio");
+      expect(detectFormat("file.wav")).toBe("audio");
+      expect(detectFormat("file.flac")).toBe("audio");
+      expect(detectFormat("file.ogg")).toBe("audio");
+      expect(detectFormat("file.m4a")).toBe("audio");
+      expect(detectFormat("file.aac")).toBe("audio");
+      expect(detectFormat("file.wma")).toBe("audio");
+    });
+
+    it("detects video files", () => {
+      expect(detectFormat("file.mp4")).toBe("video");
+      expect(detectFormat("file.mkv")).toBe("video");
+      expect(detectFormat("file.avi")).toBe("video");
+      expect(detectFormat("file.mov")).toBe("video");
+      expect(detectFormat("file.webm")).toBe("video");
+      expect(detectFormat("file.flv")).toBe("video");
+      expect(detectFormat("file.wmv")).toBe("video");
+    });
+
     it("is case insensitive", () => {
       expect(detectFormat("FILE.PDF")).toBe("pdf");
       expect(detectFormat("file.HTML")).toBe("html");
@@ -181,6 +201,58 @@ startxref
     it("detects unknown extension as text", () => {
       expect(detectFormat("file.xyz")).toBe("text");
       expect(detectFormat("file.unknown")).toBe("text");
+    });
+  });
+
+  describe("audio/video parsing", () => {
+    it("returns empty content with needsTranscription for audio", async () => {
+      const buffer = new ArrayBuffer(0);
+      const result = await parseDocument("test.mp3", buffer);
+      expect(result.format).toBe("audio");
+      expect(result.content).toBe("");
+      expect(result.metadata?.needsTranscription).toBe(true);
+    });
+
+    it("returns empty content with needsTranscription for video", async () => {
+      const buffer = new ArrayBuffer(0);
+      const result = await parseDocument("test.mp4", buffer);
+      expect(result.format).toBe("video");
+      expect(result.content).toBe("");
+      expect(result.metadata?.needsTranscription).toBe(true);
+    });
+
+    it("validates MP4 by ftyp magic bytes", () => {
+      // ftyp at offset 4-7: 0x66 0x74 0x79 0x70
+      const header = new Uint8Array([
+        0x00, 0x00, 0x00, 0x14, 0x66, 0x74, 0x79, 0x70, 0x69, 0x73, 0x6f, 0x6d,
+      ]);
+      const buffer = header.buffer;
+      expect(validateFormat("file.mp4", buffer)).toBe("video");
+    });
+
+    it("validates MP3 by sync bytes", () => {
+      // MP3 sync: 0xFF 0xFB
+      const header = new Uint8Array([0xff, 0xfb, 0x90, 0x00, 0x00, 0x00, 0x00, 0x00]);
+      const buffer = header.buffer;
+      expect(validateFormat("file.mp3", buffer)).toBe("audio");
+    });
+
+    it("validates MP3 by 0xFF 0xF3 sync bytes", () => {
+      const header = new Uint8Array([0xff, 0xf3, 0x90, 0x00, 0x00, 0x00, 0x00, 0x00]);
+      const buffer = header.buffer;
+      expect(validateFormat("file.mp3", buffer)).toBe("audio");
+    });
+
+    it("validates MP3 by 0xFF 0xE3 sync bytes", () => {
+      const header = new Uint8Array([0xff, 0xe3, 0x90, 0x00, 0x00, 0x00, 0x00, 0x00]);
+      const buffer = header.buffer;
+      expect(validateFormat("file.mp3", buffer)).toBe("audio");
+    });
+
+    it("validates WebM by magic bytes", () => {
+      const header = new Uint8Array([0x1a, 0x45, 0xdf, 0xa3, 0x00, 0x00, 0x00, 0x00]);
+      const buffer = header.buffer;
+      expect(validateFormat("file.webm", buffer)).toBe("video");
     });
   });
 

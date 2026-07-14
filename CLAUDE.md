@@ -34,6 +34,8 @@ Microkernel with dependency injection. The kernel (`src/kernel/`) provides servi
 - `wiki` — WikiService (delegates compilation to WikiCompiler)
 - `memory` — MemoryService (cross-session user memory)
 - `scheduler` — SchedulerService (background tasks: memory consolidation, cleanup, index checks)
+- `transcription` — TranscriptionServiceImpl (Whisper.cpp binary management, speech-to-text)
+- `urlFetcher` — UrlFetcherServiceImpl (URL content extraction + LLM descriptions)
 
 ### Source layout
 
@@ -42,7 +44,7 @@ src/
   main.ts              # Entry point: kernel init, service wiring, server start
   errors.ts            # AppError hierarchy (NotFound, Validation, Security, ExternalService)
   kernel/              # DI container (Kernel interface, Module lifecycle)
-  database/            # SQLite init, migrations (inline schema, v6)
+  database/            # SQLite init, migrations (inline schema, v8)
   modules/
     settings/          # SettingsService — DB-backed with in-memory cache
     llm/               # LlmServiceImpl — llama.cpp subprocess, streaming
@@ -58,11 +60,14 @@ src/
                          synthesizer.ts — Cross-document synthesis
     scheduler/         # SchedulerService — background tasks
                          tasks.ts — Task definitions and execution
+    transcription/     # TranscriptionServiceImpl — Whisper.cpp speech-to-text
+    url-fetcher/       # UrlFetcherServiceImpl — URL content extraction + LLM descriptions
+    obsidian/          # ObsidianExporter — vault export with wikilinks and frontmatter
     router/            # Hono HTTP server, REST API routes, WebSocket, OpenAPI
                          utils.ts — wrap() error handler, safeInt() helper
-                         routes/ — Individual route modules (13 files)
+                         routes/ — Individual route modules (16 files)
   platform/            # OS-specific paths (getAppRoot), binary resolution
-  utils/               # Shared utilities (chunking, hashing, IDs, vectors, VectorIndex, cache, citations, document-parser, db-helpers)
+  utils/               # Shared utilities (chunking, hashing, IDs, vectors, VectorIndex, cache, citations, document-parser, db-helpers, logger, tracing)
   public/              # Static frontend files (HTML, CSS, JS + componentized js/)
 tests/
   helpers/setup.ts     # createTestKernel() for test isolation
@@ -123,7 +128,7 @@ Memory tab manages cross-session memory via `GET/PUT/DELETE /api/memory`. Entrie
 - **Mock LLM**: `tests/mocks/llama-cpp.ts` provides `createMockLlmService()` — no llama.cpp binary needed
 - **Run pattern**: `bun test` (all), `bun test tests/unit/chat.test.ts` (single file)
 - **New tests**: Add to `tests/unit/<module>/` matching the source module structure
-- **Target**: 329 tests pass, 0 TypeScript errors (616 expect() calls across 37 test files)
+- **Target**: 601 tests pass, 0 TypeScript errors (1211 expect() calls across 60 test files)
 
 ### Adding a new test
 
@@ -184,6 +189,8 @@ describe("MyModule", () => {
 - OpenAPI 3.1 spec at `/api/openapi.json` documenting all 35 paths / 47 endpoints
 - Route handlers use `wrap()` for automatic error handling — `AppError` passes through, others become 500
 - Services throw typed errors (`NotFoundError`, `ValidationError`) — no string matching in route handlers
+- TranscriptionService: Whisper.cpp binary management (dev mode mock when binary absent), 5min timeout for large files
+- UrlFetcherService: Built-in `fetch()` + `stripHtml()` for HTML content, LLM-generated descriptions, HEAD request for accessibility check
 
 ## Build & Deploy
 

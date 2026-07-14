@@ -2,7 +2,7 @@ import { marked } from "marked";
 import { PDFParse } from "pdf-parse";
 import mammoth from "mammoth";
 
-export type DocumentFormat = "text" | "markdown" | "html" | "pdf" | "docx";
+export type DocumentFormat = "text" | "markdown" | "html" | "pdf" | "docx" | "audio" | "video";
 
 export interface ParseResult {
   content: string;
@@ -24,6 +24,22 @@ export function detectFormat(filePath: string): DocumentFormat {
     case "html":
     case "htm":
       return "html";
+    case "mp3":
+    case "wav":
+    case "flac":
+    case "ogg":
+    case "m4a":
+    case "aac":
+    case "wma":
+      return "audio";
+    case "mp4":
+    case "mkv":
+    case "avi":
+    case "mov":
+    case "webm":
+    case "flv":
+    case "wmv":
+      return "video";
     case "txt":
     case "text":
     default:
@@ -50,6 +66,35 @@ export function validateFormat(
   // DOCX/ZIP magic bytes: PK
   if (header[0] === 0x50 && header[1] === 0x4b) {
     return "docx";
+  }
+
+  // MP3 sync bytes: 0xFF 0xFB, 0xFF 0xF3, or 0xFF 0xE3
+  if (
+    header[0] === 0xff &&
+    (header[1] === 0xfb || header[1] === 0xf3 || header[1] === 0xe3)
+  ) {
+    return "audio";
+  }
+
+  // MP4/MOV: ftyp at offset 4-7
+  const header16 = new Uint8Array(buffer.slice(0, 12));
+  if (
+    header16[4] === 0x66 &&
+    header16[5] === 0x74 &&
+    header16[6] === 0x79 &&
+    header16[7] === 0x70
+  ) {
+    return "video";
+  }
+
+  // WebM: 0x1A 0x45 0xDF 0xA3
+  if (
+    header[0] === 0x1a &&
+    header[1] === 0x45 &&
+    header[2] === 0xdf &&
+    header[3] === 0xa3
+  ) {
+    return "video";
   }
 
   // Text-based detection for remaining formats
@@ -90,6 +135,10 @@ export async function parseDocument(
       return parseMarkdown(buffer);
     case "html":
       return parseHTML(buffer);
+    case "audio":
+      return parseAudio(filePath);
+    case "video":
+      return parseVideo(filePath);
     case "text":
     default:
       return parseText(buffer);
@@ -162,4 +211,20 @@ function stripHtml(html: string): string {
     .replace(/<[^>]+>/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+async function parseAudio(filePath: string): Promise<ParseResult> {
+  return {
+    content: "",
+    format: "audio",
+    metadata: { filePath, needsTranscription: true },
+  };
+}
+
+async function parseVideo(filePath: string): Promise<ParseResult> {
+  return {
+    content: "",
+    format: "video",
+    metadata: { filePath, needsTranscription: true },
+  };
 }

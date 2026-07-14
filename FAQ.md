@@ -65,6 +65,44 @@ If llama.cpp binaries aren't found, Chac runs in **dev mode** with mock response
 
 ---
 
+### How do I enable audio/video transcription?
+
+Chac supports transcribing audio and video files using Whisper.cpp. To enable it:
+
+**1. Place Whisper.cpp binary**
+
+Download the `whisper-cli` binary for your platform and put it here:
+
+```
+usb-drive/bin/whisper.cpp/
+├── linux-x64/whisper-cli       # Linux x86_64
+├── linux-arm64/whisper-cli     # Linux ARM64
+├── darwin-arm64/whisper-cli    # macOS Apple Silicon
+├── darwin-x64/whisper-cli      # macOS Intel
+└── windows-x64/whisper-cli.exe # Windows
+```
+
+You can build from source ([github.com/ggerganov/whisper.cpp](https://github.com/ggerganov/whisper.cpp)) or download pre-built releases.
+
+**2. Configure in Settings**
+
+Go to Settings → Transcription:
+- **Model**: `tiny` (fastest), `base` (balanced), `small`, `medium`, `large` (most accurate)
+- **Language**: `auto` for automatic detection, or a specific code like `en`, `es`, `fr`
+- **Threads**: CPU threads for transcription (default: 4)
+
+**3. Add media files**
+
+Once Whisper.cpp is installed, you can add audio and video files just like text documents. Chac will automatically:
+- Detect the media format
+- Transcribe the audio/video content
+- Store the transcription for search and retrieval
+- Show the transcription in the document details
+
+If Whisper.cpp isn't found, Chac returns a placeholder message and continues normally.
+
+---
+
 ### How do I find my computer's IP address to connect the app?
 
 Chac runs on port `3000` by default. You need your computer's local network IP:
@@ -129,7 +167,11 @@ There's nothing to configure. The frontend is served by the same server that han
 
 6. The document appears in the list with its chunk count
 
-**Supported formats:** Any plain text file (`.txt`, `.md`, `.csv`, `.json`, `.log`, etc.)
+**Supported formats:** Text files (`.txt`, `.md`, `.csv`, `.json`, `.log`), documents (`.pdf`, `.docx`), HTML (`.html`), audio files (`.mp3`, `.wav`, `.flac`, `.ogg`, `.m4a`), and video files (`.mp4`, `.mkv`, `.mov`, `.webm`).
+
+**Audio/Video:** Chac transcribes audio and video files locally using Whisper.cpp (if installed). Each media file gets its own transcription and can be searched just like text documents.
+
+**URLs:** You can also add web pages by URL — click **"+ Add from URL"** and paste a link. Chac extracts the page content and generates a description automatically.
 
 **Important:** The file must exist on the computer running Chac, not on your phone. You're typing a server-side file path.
 

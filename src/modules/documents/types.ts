@@ -8,6 +8,8 @@ export interface Document {
   file_size: number | null;
   chunk_count: number;
   metadata: string | null;
+  description: string | null;
+  transcription: string | null;
   created_at: string;
   updated_at: string;
 }

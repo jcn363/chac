@@ -11,6 +11,7 @@ import { WikiSynthesizer } from "../../src/modules/wiki/synthesizer";
 import { WikiCompiler } from "../../src/modules/wiki/compiler";
 import { MemoryService } from "../../src/modules/memory/service";
 import { SchedulerService } from "../../src/modules/scheduler/service";
+import { UrlFetcherServiceImpl } from "../../src/modules/url-fetcher/service";
 import { createMockLlmService } from "../mocks/llama-cpp";
 import { createKernel } from "../../src/kernel";
 import { VectorIndex } from "../../src/utils/vector-index";
@@ -45,6 +46,7 @@ export function createTestKernel(): Kernel {
   kernel.provide("wiki", wiki);
 
   kernel.provide("memory", new MemoryService(kernel));
+  kernel.provide("urlFetcher", new UrlFetcherServiceImpl(kernel));
   kernel.provide("scheduler", new SchedulerService(kernel));
   return kernel;
 }

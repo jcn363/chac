@@ -13,6 +13,8 @@ CREATE TABLE IF NOT EXISTS documents (
   file_size INTEGER,
   chunk_count INTEGER DEFAULT 0,
   metadata TEXT,
+  description TEXT,
+  transcription TEXT,
   created_at TEXT DEFAULT (datetime('now')),
   updated_at TEXT DEFAULT (datetime('now'))
 );

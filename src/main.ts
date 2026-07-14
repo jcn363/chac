@@ -13,6 +13,8 @@ import { WikiCompiler } from "./modules/wiki/compiler";
 import { MemoryService } from "./modules/memory/service";
 import { SchedulerService } from "./modules/scheduler/service";
 import { registerDefaultTasks } from "./modules/scheduler/tasks";
+import { UrlFetcherServiceImpl } from "./modules/url-fetcher/service";
+import { TranscriptionServiceImpl } from "./modules/transcription/service";
 import { createRouter, requestTracker } from "./modules/router";
 import { setupWebSocket } from "./modules/router/ws";
 import { VectorIndex } from "./utils/vector-index";
@@ -71,12 +73,20 @@ kernel.provide("chat", chat);
 kernel.provide("wiki", wiki);
 kernel.provide("memory", memory);
 
-// Step 4b: Scheduler (background tasks)
+// Step 4b: UrlFetcher
+const urlFetcher = new UrlFetcherServiceImpl(kernel);
+kernel.provide("urlFetcher", urlFetcher);
+
+// Step 4c: Scheduler (background tasks)
 const scheduler = new SchedulerService(kernel);
 kernel.provide("scheduler", scheduler);
 
 // Register scheduled tasks
 registerDefaultTasks(scheduler, kernel);
+
+// Step 4c: Transcription
+const transcription = new TranscriptionServiceImpl();
+kernel.provide("transcription", transcription);
 
 // Step 5: Wire index invalidation — when docs/wiki change, invalidate search indexes
 docs.onIngest(() => {

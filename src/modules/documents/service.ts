@@ -14,6 +14,8 @@ import { getAppRoot } from "../../platform/paths";
 import { embeddingCache } from "../../utils/cache";
 import type { CacheStats } from "../../utils/cache";
 import type { LlmService } from "../llm/types";
+import type { TranscriptionServiceType } from "../transcription/types";
+import type { UrlFetcherServiceType } from "../url-fetcher/types";
 
 /** Document ingestion, chunking, embedding, and semantic search. */
 export class DocumentsService {
@@ -50,6 +52,19 @@ export class DocumentsService {
     const buffer = await file.arrayBuffer();
     const format = detectFormat(filePath);
     const parseResult = await parseDocument(filePath, buffer);
+    // Transcribe audio/video files
+    if (parseResult.format === "audio" || parseResult.format === "video") {
+      const transcriptionService = this.kernel.get<TranscriptionServiceType>("transcription");
+      const transcription = await transcriptionService.transcribe(filePath);
+      parseResult.content = transcription.text;
+      parseResult.metadata = {
+        ...parseResult.metadata,
+        language: transcription.language,
+        duration: transcription.duration,
+        transcription_segments: transcription.segments,
+      };
+    }
+
     const content = parseResult.content;
 
     const hash = await contentHash(content);
@@ -75,16 +90,65 @@ export class DocumentsService {
 
     // Store parsed metadata as JSON
     const metaJson = parseResult.metadata ? JSON.stringify(parseResult.metadata) : null;
+    const transcription = parseResult.format === "audio" || parseResult.format === "video"
+      ? parseResult.content
+      : null;
 
     // Insert document
     this.db
       .query(
-        "INSERT INTO documents (id, title, source_path, content_hash, mime_type, file_size, chunk_count, metadata) " +
-          "VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+        "INSERT INTO documents (id, title, source_path, source_type, content_hash, mime_type, file_size, chunk_count, metadata, description, transcription) " +
+          "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
       )
-      .run(docId, title, filePath, hash, file.type, file.size, chunks.length, metaJson);
+      .run(docId, title, filePath, "file", hash, file.type, file.size, chunks.length, metaJson, null, transcription);
 
     // Insert chunks + embeddings
+    const llm = this.kernel.get<LlmService>("llm");
+    await embedAndInsertChunks(this.db, chunks, docId, llm);
+
+    this.onIngestCallback?.();
+    return { id: docId, title, chunkCount: chunks.length };
+  }
+
+  async ingestUrl(url: string, description?: string): Promise<IngestResult> {
+    const urlFetcher = this.kernel.get<UrlFetcherServiceType>("urlFetcher");
+    const result = await urlFetcher.fetchUrl(url);
+
+    const content = result.content;
+    if (!content || content.trim().length === 0) {
+      throw new Error("No content could be extracted from URL");
+    }
+
+    const hash = await contentHash(content);
+    const settings = this.kernel.get<{ get: (key: string) => unknown }>("settings");
+
+    // Dedup check
+    const existing = this.db
+      .query("SELECT id FROM documents WHERE content_hash = ?")
+      .get(hash) as { id: string } | undefined;
+    if (existing) {
+      const doc = this.db.query("SELECT * FROM documents WHERE id = ?").get(existing.id) as Document;
+      return { id: doc.id, title: doc.title, chunkCount: doc.chunk_count };
+    }
+
+    const docId = generateId();
+    const title = result.title || new URL(url).hostname;
+    const docDescription = description || result.description || null;
+
+    const chunkSize = settings.get("rag.chunk_size") as number;
+    const chunkOverlap = settings.get("rag.chunk_overlap") as number;
+    const chunkMode = settings.get("rag.chunk_mode") as string;
+    const chunks = chunkMode === "semantic"
+      ? chunkTextSemantic(content, chunkSize)
+      : chunkText(content, chunkSize, chunkOverlap);
+
+    this.db
+      .query(
+        "INSERT INTO documents (id, title, source_path, source_type, content_hash, mime_type, file_size, chunk_count, metadata, description, transcription) " +
+          "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+      )
+      .run(docId, title, url, "url", hash, result.contentType, content.length, chunks.length, null, docDescription, null);
+
     const llm = this.kernel.get<LlmService>("llm");
     await embedAndInsertChunks(this.db, chunks, docId, llm);
 

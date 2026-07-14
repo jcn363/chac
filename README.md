@@ -203,7 +203,7 @@ chac/
 │   │   └── types.ts                 # Module contract (interface)
 │   ├── database/
 │   │   ├── index.ts                 # DB connection, WAL mode, foreign keys, backup/restore
-│   │   └── migrations.ts            # Schema (inline) + version-tracked migration runner (v6)
+│   │   └── migrations.ts            # Schema (inline) + version-tracked migration runner (v8)
 │   ├── platform/
 │   │   ├── detect.ts                # OS/arch detection (SSOT)
 │   │   ├── paths.ts                 # Portable path resolution (compiled binary vs dev mode)
@@ -211,7 +211,7 @@ chac/
 │   ├── modules/
 │   │   ├── settings/
 │   │   │   ├── service.ts           # Settings CRUD with in-memory cache + validation
-│   │   │   └── types.ts             # DEFAULT_SETTINGS (35 keys), SETTING_VALIDATORS, SettingsServiceType
+│   │   │   └── types.ts             # DEFAULT_SETTINGS (44 keys), SETTING_VALIDATORS, SettingsServiceType
 │   │   ├── llm/
 │   │   │   ├── service.ts           # llama.cpp subprocess manager + mock fallback
 │   │   │   └── types.ts             # LlmService interface, LlmInstance, ChatCompletionOptions
@@ -244,7 +244,7 @@ chac/
 │   │       ├── openapi.ts           # OpenAPI 3.1 spec
 │   │       ├── ws.ts                # WebSocket handler (real-time chat streaming)
 │   │       ├── static.ts            # Frontend asset serving
-│   │       └── routes/              # Individual route modules (13 files)
+│   │       └── routes/              # Individual route modules (16 files)
 │   ├── public/
 │   │   ├── index.html               # Main HTML (tabs: Chat, Documents, Wiki, Memory, Settings)
 │   │   ├── styles.css               # CSS with dark mode via prefers-color-scheme
@@ -265,7 +265,7 @@ chac/
 │   └── utils/
 │       ├── chunking.ts              # Text chunking (character + semantic modes)
 │       ├── vector.ts                # Cosine similarity, embeddingToBlob, blobToEmbedding
-│       ├── vector-index.ts          # HNSW ANNS with SQLite persistence (migration v6)
+│       ├── vector-index.ts          # HNSW ANNS with SQLite persistence (v6)
 │       ├── llm-helpers.ts           # createEmbedding, collectLlmResponse, extractJsonFromLlm, embedAndInsertChunks, estimateTokens
 │       ├── citations.ts             # generateCitation, formatCitation
 │       ├── cache.ts                 # MemoryCache<T> with TTL, stats, embedding cache
@@ -274,7 +274,7 @@ chac/
 │       ├── hash.ts                  # SHA-256 content hashing
 │       └── id.ts                    # UUID generation (crypto.randomUUID)
 ├── tests/
-│   ├── unit/                        # Unit tests per module (37 test files)
+│   ├── unit/                        # Unit tests per module (60 test files)
 │   ├── integration/                 # Cross-module integration tests (4 files)
 │   ├── e2e/                         # End-to-end tests
 │   ├── benchmarks/                  # Performance benchmarks
@@ -418,9 +418,14 @@ This spec covers all 35 API paths with 47 method definitions across settings, do
 | `POST` | `/api/documents/batch` | Batch ingest (max 50 files) |
 | `POST` | `/api/documents/batch/delete` | Batch delete by IDs |
 
-**POST /api/documents body:**
+**POST /api/documents body (file):**
 ```json
 { "path": "/path/to/file.txt" }
+```
+
+**POST /api/documents body (URL):**
+```json
+{ "url": "https://example.com/article", "description": "Optional description" }
 ```
 
 **POST /api/documents/search body:**

@@ -21,9 +21,13 @@ export function setupDocumentRoutes(app: Hono, kernel: Kernel): void {
   });
 
   app.post("/api/documents", wrap(async (c) => {
-    const body = await c.req.json<{ path: string }>();
+    const body = await c.req.json<{ path?: string; url?: string; description?: string }>();
+    if (body.url && typeof body.url === "string") {
+      const result = await docs.ingestUrl(body.url, body.description);
+      return c.json(result, 201);
+    }
     if (!body?.path || typeof body.path !== "string") {
-      return c.json({ error: "Missing or invalid path" }, 400);
+      return c.json({ error: "Missing or invalid path/url" }, 400);
     }
     const result = await docs.ingest(body.path);
     return c.json(result, 201);

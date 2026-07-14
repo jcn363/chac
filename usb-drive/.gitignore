@@ -29,3 +29,5 @@ README.txt
 
 # Runtime DB in wrong location
 bin/data/
+usb-drive/llama.cpp
+usb-drive/whisper.cpp

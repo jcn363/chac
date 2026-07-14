@@ -65,6 +65,12 @@
 - **OpenAPI 3.1** — full API documentation at `/api/openapi.json`
 - **Structured Error Handling** — AppError hierarchy with typed HTTP responses
 - **Modular Architecture** — domain-specific route files, focused service modules, shared utilities
+- **Transactional Bulk Operations** — chunk inserts, batch deletes, and ingestion wrapped in SQLite transactions (10-50x faster)
+- **Batch Citation Lookups** — single IN query replaces N per-chunk queries in RAG pipeline
+- **Targeted Doc Map** — search only loads titles for result chunks, not entire table
+- **MemoryCache LRU** — eviction with configurable max size (default 10K entries)
+- **Search History Retention** — configurable cleanup (default 30 days) via scheduler
+- **User Memory Cap** — configurable max entries (default 500) enforced during consolidation
 - **Rate Limiting** — configurable per-IP rate limiting (default 100 req/min)
 - **Health Check** — detailed system status at `/api/health` (DB stats, LLM status, scheduler)
 - **Admin Dashboard** — comprehensive system overview at `/api/admin/dashboard`
@@ -234,7 +240,7 @@ chac/
 │   │   │   ├── service.ts           # Cross-session memory, LLM extraction
 │   │   │   └── types.ts             # MemoryEntry
 │   │   ├── scheduler/
-│   │   │   ├── service.ts           # Background task scheduler (memory consolidation, cleanup)
+│   │   │   ├── service.ts           # Background task scheduler (memory, sessions, search history, backup)
 │   │   │   ├── tasks.ts             # Task definitions and execution
 │   │   │   └── types.ts             # ScheduledTask, TaskStatus
 │   │   └── router/
@@ -267,7 +273,7 @@ chac/
 │       ├── vector.ts                # Cosine similarity, embeddingToBlob, blobToEmbedding
 │       ├── vector-index.ts          # HNSW ANNS with SQLite persistence (v6)
 │       ├── llm-helpers.ts           # createEmbedding, collectLlmResponse, extractJsonFromLlm, embedAndInsertChunks, estimateTokens
-│       ├── citations.ts             # generateCitation, formatCitation
+│       ├── citations.ts             # generateCitation, generateCitationsBatch, formatCitation
 │       ├── cache.ts                 # MemoryCache<T> with TTL, stats, embedding cache
 │       ├── document-parser.ts       # PDF, DOCX, Markdown, HTML, text, image parsing
 │       ├── db-helpers.ts            # deleteById, countRows, parsePagination, extractErrorMessage
@@ -643,8 +649,9 @@ All settings are stored in the `settings` table and accessible via the API.
 | `scheduler.enabled` | `true` | scheduler | Enable background scheduled tasks |
 | `scheduler.memory_consolidation_interval` | `1800000` | scheduler | Memory consolidation interval (ms, default 30min) |
 | `scheduler.session_cleanup_interval` | `3600000` | scheduler | Session cleanup interval (ms, default 1hr) |
-| `scheduler.index_check_interval` | `900000` | scheduler | Index health check interval (ms, default 15min) |
 | `scheduler.session_retention_days` | `30` | scheduler | Keep sessions newer than N days |
+| `scheduler.search_history_retention_days` | `30` | scheduler | Keep search history newer than N days (7–365) |
+| `memory.max_entries` | `500` | memory | Max user memory entries (50–2000) |
 | `ui.dark_mode` | `"system"` | ui | "system", "light", or "dark" |
 | `ui.documents_per_page` | `20` | ui | Pagination size |
 | `server.port` | `3000` | server | HTTP server port |

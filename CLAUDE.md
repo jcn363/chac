@@ -33,7 +33,9 @@ Microkernel with dependency injection. The kernel (`src/kernel/`) provides servi
 - `chat` — ChatService (sessions, messages — delegates RAG to RagRetriever)
 - `wiki` — WikiService (delegates compilation to WikiCompiler)
 - `memory` — MemoryService (cross-session user memory)
-- `scheduler` — SchedulerService (background tasks: memory consolidation, cleanup, index checks)
+- `chunkIndex` — VectorIndex singleton for chunks (kernel, shared across services)
+- `wikiIndex` — VectorIndex singleton for wiki_pages (kernel, shared across services)
+- `scheduler` — SchedulerService (background tasks: memory consolidation, session cleanup, search history cleanup, auto-backup)
 - `transcription` — TranscriptionServiceImpl (Whisper.cpp binary management, speech-to-text)
 - `urlFetcher` — UrlFetcherServiceImpl (URL content extraction + LLM descriptions)
 
@@ -103,7 +105,7 @@ const docs = new DocumentsService(kernel);  // creates new VectorIndex each time
 
 `VectorIndex` (`src/utils/vector-index.ts`) is an in-memory cache of embeddings for cosine similarity search. It uses lazy rebuild: call `invalidate()` when underlying data changes, and the index rebuilds on next `search()`.
 
-Services that own a VectorIndex must expose an `invalidateIndex()` method. The main.ts wires index invalidation when docs/wiki change.
+**Singleton pattern**: Two VectorIndex instances (`chunkIndex`, `wikiIndex`) are created in `main.ts` and registered in the kernel. All services share these singletons via `kernel.get<VectorIndex>("chunkIndex")`. Invalidation is wired via event callbacks — no service owns its own instance.
 
 ### Database
 
@@ -128,7 +130,7 @@ Memory tab manages cross-session memory via `GET/PUT/DELETE /api/memory`. Entrie
 - **Mock LLM**: `tests/mocks/llama-cpp.ts` provides `createMockLlmService()` — no llama.cpp binary needed
 - **Run pattern**: `bun test` (all), `bun test tests/unit/chat.test.ts` (single file)
 - **New tests**: Add to `tests/unit/<module>/` matching the source module structure
-- **Target**: 673 tests pass, 0 TypeScript errors (1344 expect() calls across 66 test files)
+- **Target**: 673 tests pass, 0 failures, 0 TypeScript errors (1344 expect() calls across 66 test files)
 
 ### Adding a new test
 
@@ -162,6 +164,11 @@ describe("MyModule", () => {
 - `VectorIndex` saveToDb does incremental diff-based persistence (insert/update/delete only changed rows)
 - Document embeddings process in batches of 8 (not sequential)
 - Bulk ingestion processes files in parallel batches of 4 via `Promise.allSettled`
+- Bulk DB operations (chunk insert, batch delete, ingest) wrapped in `db.transaction()` for 10-50x speedup
+- Batch citation lookups: single `IN` query replaces N per-chunk queries in RAG pipeline
+- Targeted docMap loading: only fetches titles for search results, not entire chunks table
+- History budget limited to 200 messages with minimal columns (role, content only)
+- Search analytics computed via SQL aggregation instead of full table scan
 - Wiki compilation runs 4 documents in parallel
 - Chat context fills by token budget (70% of ctx_size) — not fixed message count
 - Ranked fusion retrieval merges wiki and chunk results via RRF (K=60) instead of binary fallback
@@ -180,7 +187,7 @@ describe("MyModule", () => {
 - Citation tracking: each context chunk includes source citation (title + preview), saved in `chat_messages.citations`
 - Service singletons are created once at startup, not per-request
 - `VectorIndex` persists HNSW cache to `vector_index_cache` table (migration v6) for faster cold starts
-- Shared utilities: `llm-helpers.ts` (createEmbedding, collectLlmResponse, extractJsonFromLlm, embedAndInsertChunks, estimateTokens), `citations.ts` (generateCitation, formatCitation)
+- Shared utilities: `llm-helpers.ts` (createEmbedding, collectLlmResponse, extractJsonFromLlm, embedAndInsertChunks, estimateTokens), `citations.ts` (generateCitation, generateCitationsBatch, formatCitation)
 - Error hierarchy: `AppError`, `NotFoundError`, `ValidationError`, `SecurityError`, `ExternalServiceError` in `src/errors.ts`
 - Settings validation: `SETTING_VALIDATORS` in `types.ts` enforces type/range/enum constraints on `set()`
 - WebSocket streaming: real-time chat token delivery via `/ws` endpoint with message-based auth (client sends `{ type: "auth", token }` on connect)
@@ -188,7 +195,10 @@ describe("MyModule", () => {
 - Service worker: offline-first caching for static assets, network-first for API calls
 - OpenAPI 3.1 spec at `/api/openapi.json` documenting all endpoints
 - Route handlers use `wrap()` for automatic error handling — `AppError` passes through, others become 500
-- Services throw typed errors (`NotFoundError`, `ValidationError`) — no string matching in route handlers
+- ALL route handlers are wrapped with `wrap()` for consistent typed error propagation
+- Services throw typed errors (`NotFoundError`, `ValidationError`, `SecurityError`) — no string matching in route handlers
+- Single LLM type: `LlmService` from `src/modules/llm/types.ts` (no duplicate `ChatCompletionLLM`)
+- Settings type: `SettingsServiceType` from `src/modules/settings/types.ts` used consistently across all modules
 - TranscriptionService: Whisper.cpp binary management (dev mode mock when binary absent), 5min timeout for large files
 - UrlFetcherService: Built-in `fetch()` + `stripHtml()` for HTML content, LLM-generated descriptions, HEAD request for accessibility check
 - Vision pipeline: `LlmService.visionDescribe()` sends images to vision model for text descriptions, used during image ingestion
@@ -201,6 +211,9 @@ describe("MyModule", () => {
 - Chat message validation: max 10,000 characters per message
 - WebSocket reconnect: exponential backoff with jitter (1s → 30s max)
 - Session search: filter sessions by title in the chat sidebar
+- MemoryCache: LRU eviction with configurable max size (default 10K entries)
+- Search history retention: configurable cleanup (default 30 days) via scheduler
+- User memory cap: configurable max entries (default 500) enforced during consolidation
 
 ## Build & Deploy
 

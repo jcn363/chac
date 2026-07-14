@@ -219,3 +219,18 @@ Chac will:
 - Ask specific questions about your documents — "What does the report say about Q3 revenue?" works better than "Tell me about the report"
 - Each session keeps its conversation history, so follow-up questions work
 - If the answer seems off, try adding more documents or compiling a wiki for better retrieval
+
+---
+
+### How is Chac optimized for performance?
+
+Chac includes several performance optimizations:
+
+- **Transactional bulk operations** — chunk inserts, batch deletes, and document ingestion wrapped in SQLite transactions for 10-50x faster writes
+- **Batch citation lookups** — single database query replaces N per-chunk queries when building RAG context
+- **Targeted search** — document titles loaded only for search results, not the entire chunk table
+- **VectorIndex singletons** — shared across services via dependency injection, reducing memory usage
+- **HNSW vector search** — O(log n) approximate nearest neighbor with configurable tuning parameters
+- **MemoryCache LRU** — embedding cache with eviction prevents unbounded memory growth
+- **Token-aware context** — fills the LLM context window to capacity, not a fixed message count
+- **Parallel ingestion** — bulk file processing in batches of 4 with isolated error handling

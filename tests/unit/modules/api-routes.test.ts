@@ -139,6 +139,45 @@ describe("Documents API", () => {
     const results = await res.json() as any;
     expect(Array.isArray(results)).toBe(true);
   });
+
+  it("POST /api/documents with missing path returns 400", async () => {
+    const res = await json("POST", "/api/documents", {});
+    expect(res.status).toBe(400);
+    const data = await res.json() as any;
+    expect(data.error).toContain("Missing");
+  });
+
+  it("POST /api/documents with url returns error when fetch fails", async () => {
+    const res = await json("POST", "/api/documents", { url: "https://example.com/test", description: "Test URL" });
+    expect(res.status).toBeGreaterThanOrEqual(400);
+  });
+
+  it("POST /api/documents/upload with no file returns 400", async () => {
+    const res = await req("/api/documents/upload", { method: "POST" });
+    expect(res.status).toBe(400);
+  });
+
+  it("POST /api/documents/batch with empty array returns 400", async () => {
+    const res = await json("POST", "/api/documents/batch", { paths: [] });
+    expect(res.status).toBe(400);
+  });
+
+  it("POST /api/documents/batch/delete with empty array returns 400", async () => {
+    const res = await json("POST", "/api/documents/batch/delete", { ids: [] });
+    expect(res.status).toBe(400);
+  });
+
+  it("GET /api/documents/status returns status", async () => {
+    const res = await req("/api/documents/status");
+    expect(res.status).toBe(200);
+    const data = await res.json() as any;
+    expect(data).toHaveProperty("total");
+  });
+
+  it("POST /api/documents/search returns 400 for missing query", async () => {
+    const res = await json("POST", "/api/documents/search", {});
+    expect(res.status).toBe(400);
+  });
 });
 
 // ── Chat ────────────────────────────────────────────────

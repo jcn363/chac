@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, mock } from "bun:test";
-import { apiGet, apiPost, apiPut, apiDelete, onWsMessage, sendWsMessage, connectWebSocket } from "../../../src/public/js/lib/api.js";
+import { apiGet, apiPost, apiPut, apiDelete, apiUpload, onWsMessage, sendWsMessage, connectWebSocket } from "../../../src/public/js/lib/api.js";
 
 // --- fetch mock ---
 let fetchMock;
@@ -124,5 +124,119 @@ describe("sendWsMessage", () => {
   it("returns false when no WebSocket is connected", () => {
     const result = sendWsMessage({ type: "ping" });
     expect(result).toBe(false);
+  });
+});
+
+// --- non-JSON error fallback ---
+describe("non-JSON error responses", () => {
+  let originalFetch;
+
+  beforeEach(() => {
+    originalFetch = globalThis.fetch;
+  });
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  it("apiGet falls back to API error status when response is not JSON", async () => {
+    globalThis.fetch = mock(() =>
+      Promise.resolve({
+        ok: false,
+        status: 502,
+        json: () => Promise.reject(new Error("not json")),
+      })
+    );
+    await expect(apiGet("/api/bad")).rejects.toThrow("API error: 502");
+  });
+
+  it("apiPost falls back to API error status when response is not JSON", async () => {
+    globalThis.fetch = mock(() =>
+      Promise.resolve({
+        ok: false,
+        status: 500,
+        json: () => Promise.reject(new Error("not json")),
+      })
+    );
+    await expect(apiPost("/api/fail", {})).rejects.toThrow("API error: 500");
+  });
+
+  it("apiPut falls back to API error status when response is not JSON", async () => {
+    globalThis.fetch = mock(() =>
+      Promise.resolve({
+        ok: false,
+        status: 422,
+        json: () => Promise.reject(new Error("not json")),
+      })
+    );
+    await expect(apiPut("/api/fail", {})).rejects.toThrow("API error: 422");
+  });
+
+  it("apiDelete falls back to API error status when response is not JSON", async () => {
+    globalThis.fetch = mock(() =>
+      Promise.resolve({
+        ok: false,
+        status: 403,
+        json: () => Promise.reject(new Error("not json")),
+      })
+    );
+    await expect(apiDelete("/api/fail")).rejects.toThrow("API error: 403");
+  });
+
+  it("apiUpload falls back to API error status when response is not JSON", async () => {
+    globalThis.fetch = mock(() =>
+      Promise.resolve({
+        ok: false,
+        status: 413,
+        json: () => Promise.reject(new Error("not json")),
+      })
+    );
+    await expect(apiUpload("/api/upload", {})).rejects.toThrow("API error: 413");
+  });
+});
+
+// --- onWsMessage ---
+describe("onWsMessage", () => {
+  it("registers a handler (no error thrown)", () => {
+    const handler = () => {};
+    onWsMessage("chat:chunk", handler);
+    // No assertion needed — just verifying no crash
+  });
+});
+
+// --- apiUpload ---
+describe("apiUpload", () => {
+  let originalFetch;
+
+  beforeEach(() => {
+    originalFetch = globalThis.fetch;
+    globalThis.fetch = mock(() =>
+      Promise.resolve({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ uploaded: true }),
+      })
+    );
+  });
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  it("sends POST with FormData body", async () => {
+    const file = new Blob(["test"], { type: "text/plain" });
+    const result = await apiUpload("/api/documents/upload", file);
+    expect(result).toEqual({ uploaded: true });
+  });
+
+  it("throws on non-OK response with JSON error", async () => {
+    globalThis.fetch = mock(() =>
+      Promise.resolve({
+        ok: false,
+        status: 400,
+        json: () => Promise.resolve({ error: "file too large" }),
+      })
+    );
+    await expect(apiUpload("/api/upload", {})).rejects.toThrow("file too large");
   });
 });

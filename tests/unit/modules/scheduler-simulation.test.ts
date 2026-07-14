@@ -34,7 +34,7 @@ describe("Scheduler task simulation", () => {
   });
 
   it("simulates memory-consolidation task behavior", async () => {
-    const settings = kernel.get<{ set: (key: string, value: unknown) => void }>("settings");
+    const settings = kernel.get<SettingsService>("settings");
     settings.set("memory.enabled", true);
     settings.set("memory.max_entries", 10);
     
@@ -76,7 +76,7 @@ describe("Scheduler task simulation", () => {
   });
 
   it("simulates session-cleanup task behavior", async () => {
-    const settings = kernel.get<{ set: (key: string, value: unknown) => void }>("settings");
+    const settings = kernel.get<SettingsService>("settings");
     settings.set("scheduler.session_retention_days", 30);
     
     const db = kernel.get<import("bun:sqlite").Database>("db");
@@ -117,7 +117,7 @@ describe("Scheduler task simulation", () => {
   });
 
   it("simulates search-history-cleanup task behavior", async () => {
-    const settings = kernel.get<{ set: (key: string, value: unknown) => void }>("settings");
+    const settings = kernel.get<SettingsService>("settings");
     settings.set("scheduler.search_history_retention_days", 30);
     
     const db = kernel.get<import("bun:sqlite").Database>("db");
@@ -158,7 +158,7 @@ describe("Scheduler task simulation", () => {
   });
 
   it("simulates auto-backup task behavior", async () => {
-    const settings = kernel.get<{ set: (key: string, value: unknown) => void }>("settings");
+    const settings = kernel.get<SettingsService>("settings");
     settings.set("scheduler.auto_backup_enabled", true);
     settings.set("scheduler.backup_retention", 3);
     

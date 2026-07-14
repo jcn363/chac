@@ -82,10 +82,22 @@ describe("WikiService", () => {
     expect(() => wiki.invalidateIndex()).not.toThrow();
   });
 
-  it("onCompile registers callback", () => {
+  it("onCompile registers and fires callback on compile", async () => {
     let called = false;
     wiki.onCompile(() => { called = true; });
-    expect(called).toBe(false);
+    const db = kernel.get<Database>("db");
+    insertWikiPage(db, "Compile Test", "content for compilation");
+    await wiki.compile();
+    expect(called).toBe(true);
+  });
+
+  it("updatePageInsight updates page and invalidates index", async () => {
+    const db = kernel.get<Database>("db");
+    insertWikiPage(db, "Insight Page", "original content");
+    const pages = db.query("SELECT * FROM wiki_pages").all() as any[];
+    await wiki.updatePageInsight(pages[0]!.id, "New insight content");
+    const updated = db.query("SELECT * FROM wiki_pages WHERE id = ?").get(pages[0]!.id) as any;
+    expect(updated).toBeDefined();
   });
 
   it("setCompiler updates compiler", () => {

@@ -130,7 +130,7 @@ Memory tab manages cross-session memory via `GET/PUT/DELETE /api/memory`. Entrie
 - **Mock LLM**: `tests/mocks/llama-cpp.ts` provides `createMockLlmService()` — no llama.cpp binary needed
 - **Run pattern**: `bun test` (all), `bun test tests/unit/chat.test.ts` (single file)
 - **New tests**: Add to `tests/unit/<module>/` matching the source module structure
-- **Target**: 692 tests pass, 0 failures, 0 TypeScript errors (1386 expect() calls across 68 test files)
+- **Target**: 755 tests pass, 0 failures, 0 TypeScript errors (1542 expect() calls across 73 test files)
 
 ### Adding a new test
 

@@ -140,6 +140,36 @@ describe("MemoryCache stats", () => {
   });
 });
 
+describe("MemoryCache periodic cleanup", () => {
+  it("startCleanup starts periodic cleanup", () => {
+    const cache = new MemoryCache<string>(5000);
+    cache.set("a", "val", 10); // short TTL
+    cache.startCleanup(50);
+    expect((cache as any).cleanupTimer).not.toBeNull();
+    cache.stopCleanup();
+  });
+
+  it("stopCleanup clears the timer", () => {
+    const cache = new MemoryCache<string>(5000);
+    cache.startCleanup(1000);
+    cache.stopCleanup();
+    expect((cache as any).cleanupTimer).toBeNull();
+  });
+
+  it("stopCleanup is safe to call when not started", () => {
+    const cache = new MemoryCache<string>(5000);
+    cache.stopCleanup(); // should not throw
+  });
+
+  it("startCleanup replaces existing timer", () => {
+    const cache = new MemoryCache<string>(5000);
+    cache.startCleanup(1000);
+    cache.startCleanup(2000); // replaces first timer
+    expect((cache as any).cleanupTimer).not.toBeNull();
+    cache.stopCleanup();
+  });
+});
+
 describe("MemoryCache getOrSet", () => {
   it("returns cached value without calling factory", async () => {
     const cache = new MemoryCache<string>(5000);

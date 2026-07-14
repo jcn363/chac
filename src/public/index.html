@@ -59,8 +59,9 @@
       <section id="documents-tab" class="tab-panel">
         <div id="doc-header">
           <h2>Documents</h2>
-          <button id="ingest-btn" data-tooltip="Add a text file from this computer">+ Add Document</button>
+          <button id="ingest-btn" data-tooltip="Add a file from this computer">+ Add Document</button>
           <button id="ingest-url-btn" data-tooltip="Add a web page by URL">+ Add from URL</button>
+          <input type="file" id="doc-file-input" class="hidden" accept=".pdf,.docx,.doc,.txt,.md,.html,.htm,.mp3,.wav,.flac,.ogg,.m4a,.aac,.mp4,.mkv,.avi,.mov,.webm,.jpg,.jpeg,.png,.webp,.gif,.bmp,.tiff,.svg" aria-label="Select file to upload">
         </div>
         <div id="doc-list"></div>
         <div id="doc-empty" class="empty-state">

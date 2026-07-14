@@ -33,6 +33,25 @@ export function setupDocumentRoutes(app: Hono, kernel: Kernel): void {
     return c.json(result, 201);
   }));
 
+  app.post("/api/documents/upload", wrap(async (c) => {
+    const file = await c.req.blob();
+    if (!file || file.size === 0) {
+      return c.json({ error: "No file provided" }, 400);
+    }
+    if (file.size > 50 * 1024 * 1024) {
+      return c.json({ error: "File too large (max 50MB)" }, 400);
+    }
+    const filename = c.req.header("X-Filename") || "upload";
+    const tmpPath = `/tmp/chac-upload-${Date.now()}-${filename}`;
+    await Bun.write(tmpPath, file);
+    try {
+      const result = await docs.ingest(tmpPath);
+      return c.json(result, 201);
+    } finally {
+      try { await Bun.file(tmpPath).unlink(); } catch { /* ignore cleanup errors */ }
+    }
+  }));
+
   app.post("/api/documents/batch", wrap(async (c) => {
     const body = await c.req.json<{ paths: string[] }>();
     if (!body?.paths || !Array.isArray(body.paths) || body.paths.length === 0) {

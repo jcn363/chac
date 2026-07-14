@@ -1,5 +1,6 @@
 import type { Kernel } from "../../kernel/types";
 import type { LlmInstance, LlmService, ChatCompletionOptions, EmbeddingOptions, EmbeddingResponse, ModelCapabilities } from "./types";
+import { ExternalServiceError } from "../../errors";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { getAppRoot } from "../../platform/paths";
@@ -116,6 +117,10 @@ export class LlmServiceImpl implements LlmService {
     if (modelType === "chat") {
       args.push("--ctx-size", String(ctxSize));
       args.push("--threads", String(threads));
+    }
+    if (modelType === "vision") {
+      const visionCtxSize = (settings.get("llm.vision.ctx_size") as number) ?? 4096;
+      args.push("--ctx-size", String(visionCtxSize));
     }
 
     if (gpuLayers !== 0) {
@@ -355,6 +360,49 @@ export class LlmServiceImpl implements LlmService {
       gpu: !this.devMode && (settings.get("llm.gpu.layers") as number) !== 0,
       mtp: !this.devMode && !!(settings.get("llm.mtp.enabled") as boolean),
     };
+  }
+
+  async visionDescribe(imagePath: string): Promise<string> {
+    if (this.devMode) {
+      return "[Image description not available - vision model not loaded]";
+    }
+
+    try {
+      const url = await this.ensureInstance("vision", "vision");
+      const instance = this.instances.get("vision");
+      if (!instance) throw new Error("Vision instance not running");
+
+      const file = Bun.file(imagePath);
+      const arrayBuffer = await file.arrayBuffer();
+      const base64 = Buffer.from(arrayBuffer).toString("base64");
+      const mimeType = file.type || "image/png";
+
+      const response = await fetch(`${url}/v1/chat/completions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: instance.modelType,
+          messages: [{
+            role: "user",
+            content: [
+              { type: "text", text: "Describe this image in detail for document indexing purposes." },
+              { type: "image_url", image_url: { url: `data:${mimeType};base64,${base64}` } },
+            ],
+          }],
+          max_tokens: 512,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Vision API error: ${response.status} ${response.statusText}`);
+      }
+
+      const result = await response.json() as { choices?: Array<{ message?: { content?: string } }> };
+      return result.choices?.[0]?.message?.content ?? "";
+    } catch (e) {
+      if (e instanceof ExternalServiceError) throw e;
+      throw new ExternalServiceError("vision", `Vision description failed: ${e instanceof Error ? e.message : String(e)}`);
+    }
   }
 
   async stop(): Promise<void> {

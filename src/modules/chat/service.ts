@@ -4,10 +4,13 @@ import type { ChatCompletionLLM } from "../../types/llm";
 import { generateId } from "../../utils/id";
 import { VectorIndex } from "../../utils/vector-index";
 import { deleteById } from "../../utils/db-helpers";
+import { createLogger } from "../../utils/logger";
 import type { ChatSession, ChatMessage, SendMessageOptions } from "./types";
 import type { DocumentSearchService } from "../documents/search";
 import type { SettingsServiceType } from "../settings/types";
 import { RagRetriever, type RagResult } from "./rag";
+
+const log = createLogger("chat");
 
 export type ContextChunk = RagResult;
 
@@ -197,8 +200,12 @@ export class ChatService {
       .run(sessionId);
 
     // Post-response: extract memory and compound knowledge (fire-and-forget)
-    this.extractMemory(content, fullResponse).catch(() => {});
-    this.compoundKnowledge(contextChunks, fullResponse).catch(() => {});
+    this.extractMemory(content, fullResponse).catch((err) => {
+      log.warn("Memory extraction failed", { error: err.message });
+    });
+    this.compoundKnowledge(contextChunks, fullResponse).catch((err) => {
+      log.warn("Knowledge compaction failed", { error: err.message });
+    });
 
     const message = this.db
       .query("SELECT * FROM chat_messages WHERE id = ?")

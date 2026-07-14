@@ -2,7 +2,7 @@ import { marked } from "marked";
 import { PDFParse } from "pdf-parse";
 import mammoth from "mammoth";
 
-export type DocumentFormat = "text" | "markdown" | "html" | "pdf" | "docx" | "audio" | "video";
+export type DocumentFormat = "text" | "markdown" | "html" | "pdf" | "docx" | "audio" | "video" | "image";
 
 export interface ParseResult {
   content: string;
@@ -40,6 +40,15 @@ export function detectFormat(filePath: string): DocumentFormat {
     case "flv":
     case "wmv":
       return "video";
+    case "jpg":
+    case "jpeg":
+    case "png":
+    case "webp":
+    case "gif":
+    case "bmp":
+    case "tiff":
+    case "tif":
+      return "image";
     case "txt":
     case "text":
     default:
@@ -97,6 +106,26 @@ export function validateFormat(
     return "video";
   }
 
+  // PNG: 0x89 0x50 0x4E 0x47
+  if (header[0] === 0x89 && header[1] === 0x50 && header[2] === 0x4e && header[3] === 0x47) {
+    return "image";
+  }
+  // JPEG: 0xFF 0xD8 0xFF
+  if (header[0] === 0xff && header[1] === 0xd8 && header[2] === 0xff) {
+    return "image";
+  }
+  // GIF: 0x47 0x49 0x46 0x38
+  if (header[0] === 0x47 && header[1] === 0x49 && header[2] === 0x46 && header[3] === 0x38) {
+    return "image";
+  }
+  // WebP: RIFF....WEBP
+  if (header[0] === 0x52 && header[1] === 0x49 && header[2] === 0x46 && header[3] === 0x46) {
+    const header12 = new Uint8Array(buffer.slice(0, 12));
+    if (header12[8] === 0x57 && header12[9] === 0x45 && header12[10] === 0x42 && header12[11] === 0x50) {
+      return "image";
+    }
+  }
+
   // Text-based detection for remaining formats
   const textStart = new TextDecoder()
     .decode(buffer.slice(0, 500))
@@ -139,6 +168,8 @@ export async function parseDocument(
       return parseAudio(filePath);
     case "video":
       return parseVideo(filePath);
+    case "image":
+      return parseImage(filePath);
     case "text":
     default:
       return parseText(buffer);
@@ -226,5 +257,13 @@ async function parseVideo(filePath: string): Promise<ParseResult> {
     content: "",
     format: "video",
     metadata: { filePath, needsTranscription: true },
+  };
+}
+
+async function parseImage(filePath: string): Promise<ParseResult> {
+  return {
+    content: "",
+    format: "image",
+    metadata: { filePath, needsVision: true },
   };
 }

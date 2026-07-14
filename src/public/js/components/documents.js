@@ -1,56 +1,69 @@
-import { apiGet, apiPost } from "../lib/api.js";
+import { apiGet, apiPost, apiUpload } from "../lib/api.js";
 import { escapeHtml, showToast, toggleEmptyState } from "../lib/dom.js";
 
+const IMAGE_EXTS = ["jpg", "jpeg", "png", "webp", "gif", "bmp", "tiff"];
+const ACCEPT_TYPES = ".pdf,.docx,.doc,.txt,.md,.html,.htm,.mp3,.wav,.flac,.ogg,.m4a,.aac,.mp4,.mkv,.avi,.mov,.webm,.jpg,.jpeg,.png,.webp,.gif,.bmp,.tiff,.svg";
+
 export function initDocuments() {
-  document.getElementById("ingest-btn")?.addEventListener("click", ingestDocument);
+  document.getElementById("ingest-btn")?.addEventListener("click", openFilePicker);
   document.getElementById("ingest-url-btn")?.addEventListener("click", ingestFromUrl);
+
+  const fileInput = document.getElementById("doc-file-input");
+  if (fileInput) {
+    fileInput.accept = ACCEPT_TYPES;
+    fileInput.addEventListener("change", onFileSelected);
+  }
+
+  setupDragDrop();
   loadDocuments();
 }
 
-async function loadDocuments(page = 1) {
-  try {
-    const data = await apiGet(`/api/documents?page=${page}`);
-    const list = document.getElementById("doc-list");
-    const empty = document.getElementById("doc-empty");
-    if (!list) return;
-
-    const docs = data.documents || [];
-    toggleEmptyState(list, empty, docs.length > 0);
-
-    list.innerHTML = docs
-      .map(
-        (d) =>
-          `<div class="doc-item" data-id="${d.id}" tabindex="0">
-            <div class="doc-item-header">
-              <strong>${escapeHtml(d.title)}</strong>
-              <div class="doc-badges">
-                <span class="doc-badge">${escapeHtml(d.source_type || "file")}</span>
-                ${d.description ? `<span class="doc-badge doc-badge-info" title="${escapeHtml(d.description)}">has description</span>` : ""}
-                ${d.transcription ? `<span class="doc-badge doc-badge-success">has transcription</span>` : ""}
-              </div>
-            </div>
-            ${d.description ? `<div class="doc-item-desc">${escapeHtml(d.description)}</div>` : ""}
-            <span class="setting-value">${d.chunk_count} chunks</span>
-          </div>`
-      )
-      .join("");
-  } catch {
-    showToast("Failed to load documents");
-  }
+function openFilePicker() {
+  document.getElementById("doc-file-input")?.click();
 }
 
-async function ingestDocument() {
+async function onFileSelected(e) {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  e.target.value = "";
+  await uploadFile(file);
+}
+
+function setupDragDrop() {
+  const list = document.getElementById("doc-list");
+  if (!list) return;
+
+  list.addEventListener("dragover", (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "copy";
+    list.classList.add("drag-over");
+  });
+
+  list.addEventListener("dragleave", () => {
+    list.classList.remove("drag-over");
+  });
+
+  list.addEventListener("drop", async (e) => {
+    e.preventDefault();
+    list.classList.remove("drag-over");
+    const files = e.dataTransfer.files;
+    if (!files?.length) return;
+    for (const file of files) {
+      await uploadFile(file);
+    }
+  });
+}
+
+async function uploadFile(file) {
   const btn = document.getElementById("ingest-btn");
-  const path = prompt("Enter file path:");
-  if (!path) return;
   btn.disabled = true;
-  btn.textContent = "Adding...";
+  btn.textContent = "Uploading...";
   try {
-    await apiPost("/api/documents", { path });
+    await apiUpload("/api/documents/upload", file);
     loadDocuments();
-    showToast("Document added", "success");
+    showToast(`"${file.name}" added`, "success");
   } catch {
-    showToast("Failed to add document");
+    showToast(`Failed to add "${file.name}"`);
   } finally {
     btn.disabled = false;
     btn.textContent = "+ Add Document";
@@ -72,5 +85,46 @@ async function ingestFromUrl() {
   } finally {
     btn.disabled = false;
     btn.textContent = "+ Add from URL";
+  }
+}
+
+async function loadDocuments(page = 1) {
+  try {
+    const data = await apiGet(`/api/documents?page=${page}`);
+    const list = document.getElementById("doc-list");
+    const empty = document.getElementById("doc-empty");
+    if (!list) return;
+
+    const docs = data.documents || [];
+    toggleEmptyState(list, empty, docs.length > 0);
+
+    list.innerHTML = docs
+      .map((d) => {
+        const ext = d.title.split(".").pop()?.toLowerCase() || "";
+        const isImage = IMAGE_EXTS.includes(ext);
+        const mimeType = d.mime_type || "";
+        const isImageMime = mimeType.startsWith("image/");
+        const showThumb = isImage || isImageMime;
+
+        return `<div class="doc-item" data-id="${d.id}" tabindex="0">
+          <div class="doc-item-header">
+            ${showThumb ? `<div class="doc-thumb" aria-hidden="true"></div>` : ""}
+            <div class="doc-item-info">
+              <strong>${escapeHtml(d.title)}</strong>
+              <div class="doc-badges">
+                <span class="doc-badge">${escapeHtml(d.source_type || "file")}</span>
+                ${isImage || isImageMime ? `<span class="doc-badge doc-badge-warn">image</span>` : ""}
+                ${d.description ? `<span class="doc-badge doc-badge-info" title="${escapeHtml(d.description)}">has description</span>` : ""}
+                ${d.transcription ? `<span class="doc-badge doc-badge-success">has transcription</span>` : ""}
+              </div>
+            </div>
+          </div>
+          ${d.description ? `<div class="doc-item-desc">${escapeHtml(d.description)}</div>` : ""}
+          <span class="setting-value">${d.chunk_count} chunks</span>
+        </div>`;
+      })
+      .join("");
+  } catch {
+    showToast("Failed to load documents");
   }
 }

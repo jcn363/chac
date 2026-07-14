@@ -103,6 +103,26 @@ If Whisper.cpp isn't found, Chac returns a placeholder message and continues nor
 
 ---
 
+### How does image ingestion work?
+
+Chac uses a vision model to describe images for indexing and search. When you add an image file:
+
+1. **Format detection** — Magic bytes identify JPEG, PNG, WebP, GIF, BMP, and TIFF files
+2. **Vision description** — The vision model generates a text description of the image content
+3. **Indexing** — The description is stored and chunked for semantic search
+4. **Retrieval** — You can ask questions about images in chat, and the vision description is used as context
+
+**Supported image formats:** `.jpg`, `.jpeg`, `.png`, `.webp`, `.gif`, `.bmp`, `.tiff`
+
+**Adding images:**
+- Click "+ Add Document" and select an image file
+- Or drag and drop an image onto the document list
+- The vision model processes the image automatically
+
+**Settings:** Configure the vision model in Settings → LLM → Vision. Default: `openbmb/MiniCPM-V-4.6`.
+
+---
+
 ### How do I find my computer's IP address to connect the app?
 
 Chac runs on port `3000` by default. You need your computer's local network IP:
@@ -167,7 +187,7 @@ There's nothing to configure. The frontend is served by the same server that han
 
 6. The document appears in the list with its chunk count
 
-**Supported formats:** Text files (`.txt`, `.md`, `.csv`, `.json`, `.log`), documents (`.pdf`, `.docx`), HTML (`.html`), audio files (`.mp3`, `.wav`, `.flac`, `.ogg`, `.m4a`), and video files (`.mp4`, `.mkv`, `.mov`, `.webm`).
+**Supported formats:** Text files (`.txt`, `.md`, `.csv`, `.json`, `.log`), documents (`.pdf`, `.docx`), HTML (`.html`), images (`.jpg`, `.jpeg`, `.png`, `.webp`, `.gif`, `.bmp`, `.tiff`), audio files (`.mp3`, `.wav`, `.flac`, `.ogg`, `.m4a`), and video files (`.mp4`, `.mkv`, `.mov`, `.webm`).
 
 **Audio/Video:** Chac transcribes audio and video files locally using Whisper.cpp (if installed). Each media file gets its own transcription and can be searched just like text documents.
 

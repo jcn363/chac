@@ -244,7 +244,7 @@ chac/
 │   │       ├── openapi.ts           # OpenAPI 3.1 spec
 │   │       ├── ws.ts                # WebSocket handler (real-time chat streaming)
 │   │       ├── static.ts            # Frontend asset serving
-│   │       └── routes/              # Individual route modules (16 files)
+│   │       └── routes/              # Individual route modules (15 files)
 │   ├── public/
 │   │   ├── index.html               # Main HTML (tabs: Chat, Documents, Wiki, Memory, Settings)
 │   │   ├── styles.css               # CSS with dark mode via prefers-color-scheme
@@ -253,13 +253,13 @@ chac/
 │   │   └── js/
 │   │       ├── components/
 │   │       │   ├── chat.js          # Chat UI (WebSocket streaming + POST fallback, search, export)
-│   │       │   ├── documents.js     # Document management (ingest, list)
+│   │       │   ├── documents.js     # Document management (upload, URL ingest, drag-drop)
 │   │       │   ├── wiki.js          # Wiki viewer (compile, list)
 │   │       │   ├── memory.js        # Memory management (CRUD)
 │   │       │   ├── settings.js      # Settings controls (MODEL_PRESETS, grouped UI)
 │   │       │   └── help.js          # Help overlay (system status, keyboard shortcuts)
 │   │       └── lib/
-│   │           ├── api.js           # Fetch helpers (GET, PUT, POST, DELETE) + WebSocket
+│   │           ├── api.js           # Fetch helpers (GET, PUT, POST, DELETE, upload) + WebSocket
 │   │           ├── dom.js           # DOM utilities (escapeHtml, showToast, toggleEmptyState)
 │   │           └── state.js         # Global state (currentSession)
 │   └── utils/
@@ -269,12 +269,12 @@ chac/
 │       ├── llm-helpers.ts           # createEmbedding, collectLlmResponse, extractJsonFromLlm, embedAndInsertChunks, estimateTokens
 │       ├── citations.ts             # generateCitation, formatCitation
 │       ├── cache.ts                 # MemoryCache<T> with TTL, stats, embedding cache
-│       ├── document-parser.ts       # PDF, DOCX, Markdown, HTML, text parsing
+│       ├── document-parser.ts       # PDF, DOCX, Markdown, HTML, text, image parsing
 │       ├── db-helpers.ts            # deleteById, countRows, parsePagination, extractErrorMessage
 │       ├── hash.ts                  # SHA-256 content hashing
 │       └── id.ts                    # UUID generation (crypto.randomUUID)
 ├── tests/
-│   ├── unit/                        # Unit tests per module (60 test files)
+│   ├── unit/                        # Unit tests per module (66 test files)
 │   ├── integration/                 # Cross-module integration tests (4 files)
 │   ├── e2e/                         # End-to-end tests
 │   ├── benchmarks/                  # Performance benchmarks
@@ -727,6 +727,7 @@ interface Kernel {
 tests/
 ├── unit/                            # Unit tests per module
 │   ├── kernel.test.ts
+│   ├── errors.test.ts
 │   ├── database/
 │   │   └── migrations.test.ts
 │   ├── modules/
@@ -737,18 +738,24 @@ tests/
 │   │   ├── wiki.test.ts
 │   │   ├── memory.test.ts
 │   │   ├── documents.test.ts
+│   │   ├── documents-ingest.test.ts
 │   │   ├── api-routes.test.ts
-│   │   └── rag-quality.test.ts
+│   │   ├── rag-quality.test.ts
+│   │   ├── transcription.test.ts
+│   │   ├── url-fetcher.test.ts
+│   │   └── ws-auth.test.ts
 │   ├── platform/
 │   │   ├── detect.test.ts
 │   │   └── paths.test.ts
 │   └── utils/
 │       ├── chunking.test.ts
 │       ├── vector.test.ts
-│       └── hash.test.ts
+│       ├── hash.test.ts
+│       ├── citations.test.ts
+│       ├── id.test.ts
+│       ├── document-parser.test.ts
+│       └── vector-persistence.test.ts
 ├── integration/                     # Cross-module with real DB
-│   ├── documents-ingest.test.ts
-│   ├── vector-persistence.test.ts
 │   └── error-handling.test.ts
 ├── e2e/                             # End-to-end (excluded by default)
 │   └── app.test.ts

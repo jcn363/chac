@@ -62,74 +62,77 @@ describe("WebSocket auth — token validation", () => {
   });
 });
 
-describe("WebSocket auth — WS handler open() logic", () => {
-  it("open() closes connection when no token query param", () => {
-    let closedCode = 0;
-    let closedReason = "";
-    const mockWs = {
-      data: { req: { url: "http://localhost/ws" } },
-      close(code: number, reason: string) {
-        closedCode = code;
-        closedReason = reason;
-      },
+describe("WebSocket auth — message-based auth flow", () => {
+  it("rejects chat messages before authentication", () => {
+    const client: { ws: { send: (m: string) => void; close: (c: number, r: string) => void }; sessionId: string | undefined; authenticated: boolean } = {
+      ws: { send: () => {}, close: () => {} },
+      sessionId: undefined,
+      authenticated: false,
     };
+    let sentMsg = "";
+    let closedCode = 0;
+    client.ws.send = (msg: string) => { sentMsg = msg; };
+    client.ws.close = (code: number) => { closedCode = code; };
 
-    // Simulate the open handler logic
-    const url = new URL((mockWs.data as any).req.url);
-    const token = url.searchParams.get("token");
-    if (!token) {
-      (mockWs as any).close(4001, "Authentication required");
+    // Simulate handleMessage with auth message
+    const data = JSON.parse("{}"); // empty = no auth
+    if (!client.authenticated) {
+      if (data.type !== "auth" || !data.token) {
+        client.ws.send(JSON.stringify({ type: "error", error: "Not authenticated" }));
+        client.ws.close(4001, "Authentication required");
+      }
     }
 
     expect(closedCode).toBe(4001);
-    expect(closedReason).toBe("Authentication required");
+    expect(JSON.parse(sentMsg).type).toBe("error");
   });
 
-  it("open() closes connection when token is invalid", () => {
-    let closedCode = 0;
-    let closedReason = "";
-    const mockWs = {
-      data: { req: { url: "http://localhost/ws?token=bad-token" } },
-      close(code: number, reason: string) {
-        closedCode = code;
-        closedReason = reason;
-      },
+  it("auth message with valid token authenticates client", () => {
+    const session = chat.createSession({ title: "WS Auth" });
+    const client: { ws: { send: (m: string) => void; close: (c: number) => void }; sessionId: string | undefined; authenticated: boolean } = {
+      ws: { send: () => {}, close: () => {} },
+      sessionId: undefined,
+      authenticated: false,
     };
+    let sentMsg = "";
+    client.ws.send = (msg: string) => { sentMsg = msg; };
 
-    const url = new URL((mockWs.data as any).req.url);
-    const token = url.searchParams.get("token");
-    const found = chat.validateSessionTokenByToken(token ?? "");
-    if (!found) {
-      (mockWs as any).close(4003, "Invalid token");
+    const data = { type: "auth", token: session.auth_token };
+    if (data.type === "auth" && data.token) {
+      const found = chat.validateSessionTokenByToken(data.token);
+      if (found) {
+        client.authenticated = true;
+        client.sessionId = found.id;
+        client.ws.send(JSON.stringify({ type: "auth:ok", sessionId: found.id }));
+      }
+    }
+
+    expect(client.authenticated).toBe(true);
+    expect(client.sessionId).toBe(session.id);
+    expect(JSON.parse(sentMsg).type).toBe("auth:ok");
+  });
+
+  it("auth message with invalid token rejects client", () => {
+    const client: { ws: { send: (m: string) => void; close: (c: number, r: string) => void }; sessionId: string | undefined; authenticated: boolean } = {
+      ws: { send: () => {}, close: () => {} },
+      sessionId: undefined,
+      authenticated: false,
+    };
+    let sentMsg = "";
+    let closedCode = 0;
+    client.ws.send = (msg: string) => { sentMsg = msg; };
+    client.ws.close = (code: number) => { closedCode = code; };
+
+    const data = { type: "auth", token: "bad-token" };
+    if (data.type === "auth" && data.token) {
+      const found = chat.validateSessionTokenByToken(data.token);
+      if (!found) {
+        (client.ws as any).send(JSON.stringify({ type: "error", error: "Invalid token" }));
+        (client.ws as any).close(4003, "Invalid token");
+      }
     }
 
     expect(closedCode).toBe(4003);
-    expect(closedReason).toBe("Invalid token");
-  });
-
-  it("open() succeeds when token is valid", () => {
-    let closedCode = 0;
-    let wasAdded = false;
-    const session = chat.createSession({ title: "WS Success" });
-    const clients = new Set();
-    const mockWs = {
-      data: { req: { url: `http://localhost/ws?token=${session.auth_token}` } },
-      close(code: number) {
-        closedCode = code;
-      },
-    };
-
-    const url = new URL((mockWs.data as any).req.url);
-    const token = url.searchParams.get("token");
-    const found = chat.validateSessionTokenByToken(token ?? "");
-    if (!found) {
-      (mockWs as any).close(4003, "Invalid token");
-    } else {
-      clients.add({ ws: mockWs, sessionId: found.id });
-      wasAdded = true;
-    }
-
-    expect(closedCode).toBe(0);
-    expect(wasAdded).toBe(true);
+    expect(client.authenticated).toBe(false);
   });
 });

@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import type { Kernel } from "../../../kernel/types";
 import { countRows } from "../../../utils/db-helpers";
+import { getRequestLogs } from "../request-logger";
 
 export function setupHealthRoutes(app: Hono, kernel: Kernel): void {
   app.get("/api/status", (c) => {
@@ -39,5 +40,11 @@ export function setupHealthRoutes(app: Hono, kernel: Kernel): void {
         tasks: scheduler.getStatus().length,
       },
     });
+  });
+
+  app.get("/api/logs", (c) => {
+    const limit = Number(c.req.query("limit")) || 100;
+    const logs = getRequestLogs().slice(-Math.min(limit, 1000));
+    return c.json({ logs, total: getRequestLogs().length });
   });
 }

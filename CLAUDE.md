@@ -65,7 +65,7 @@ src/
     obsidian/          # ObsidianExporter — vault export with wikilinks and frontmatter
     router/            # Hono HTTP server, REST API routes, WebSocket, OpenAPI
                          utils.ts — wrap() error handler, safeInt() helper
-                         routes/ — Individual route modules (16 files)
+                         routes/ — Individual route modules (15 files)
   platform/            # OS-specific paths (getAppRoot), binary resolution
   utils/               # Shared utilities (chunking, hashing, IDs, vectors, VectorIndex, cache, citations, document-parser, db-helpers, logger, tracing)
   public/              # Static frontend files (HTML, CSS, JS + componentized js/)
@@ -128,7 +128,7 @@ Memory tab manages cross-session memory via `GET/PUT/DELETE /api/memory`. Entrie
 - **Mock LLM**: `tests/mocks/llama-cpp.ts` provides `createMockLlmService()` — no llama.cpp binary needed
 - **Run pattern**: `bun test` (all), `bun test tests/unit/chat.test.ts` (single file)
 - **New tests**: Add to `tests/unit/<module>/` matching the source module structure
-- **Target**: 601 tests pass, 0 TypeScript errors (1211 expect() calls across 60 test files)
+- **Target**: 673 tests pass, 0 TypeScript errors (1344 expect() calls across 66 test files)
 
 ### Adding a new test
 
@@ -183,14 +183,24 @@ describe("MyModule", () => {
 - Shared utilities: `llm-helpers.ts` (createEmbedding, collectLlmResponse, extractJsonFromLlm, embedAndInsertChunks, estimateTokens), `citations.ts` (generateCitation, formatCitation)
 - Error hierarchy: `AppError`, `NotFoundError`, `ValidationError`, `SecurityError`, `ExternalServiceError` in `src/errors.ts`
 - Settings validation: `SETTING_VALIDATORS` in `types.ts` enforces type/range/enum constraints on `set()`
-- WebSocket streaming: real-time chat token delivery via `/ws` endpoint with POST fallback
+- WebSocket streaming: real-time chat token delivery via `/ws` endpoint with message-based auth (client sends `{ type: "auth", token }` on connect)
 - Frontend: componentized into `js/components/` (chat, documents, wiki, memory, settings, help) + `js/lib/` (api, dom, state)
 - Service worker: offline-first caching for static assets, network-first for API calls
-- OpenAPI 3.1 spec at `/api/openapi.json` documenting all 35 paths / 47 endpoints
+- OpenAPI 3.1 spec at `/api/openapi.json` documenting all endpoints
 - Route handlers use `wrap()` for automatic error handling — `AppError` passes through, others become 500
 - Services throw typed errors (`NotFoundError`, `ValidationError`) — no string matching in route handlers
 - TranscriptionService: Whisper.cpp binary management (dev mode mock when binary absent), 5min timeout for large files
 - UrlFetcherService: Built-in `fetch()` + `stripHtml()` for HTML content, LLM-generated descriptions, HEAD request for accessibility check
+- Vision pipeline: `LlmService.visionDescribe()` sends images to vision model for text descriptions, used during image ingestion
+- Image ingestion: DocumentParser detects image formats (JPEG, PNG, WebP, GIF, BMP, TIFF) via magic bytes, vision model generates descriptions
+- File upload: `POST /api/documents/upload` accepts multipart file uploads, saves to tmp, ingests, cleans up
+- CORS: restricted to localhost only (port from settings)
+- CSP: Content-Security-Policy header with `default-src 'self'`, `img-src 'self' data: blob:`, `connect-src 'self' ws: wss:`
+- Body limits: 10MB max for API requests, 50MB for file uploads
+- Rate limiter: IP-based with configurable window and max requests
+- Chat message validation: max 10,000 characters per message
+- WebSocket reconnect: exponential backoff with jitter (1s → 30s max)
+- Session search: filter sessions by title in the chat sidebar
 
 ## Build & Deploy
 

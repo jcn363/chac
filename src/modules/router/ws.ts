@@ -5,16 +5,37 @@ import { extractErrorMessage } from "../../utils/db-helpers";
 interface WsClient {
   ws: Bun.ServerWebSocket<undefined>;
   sessionId?: string;
+  authenticated: boolean;
 }
 
 const clients = new Set<WsClient>();
 
 function handleMessage(kernel: Kernel, client: WsClient, raw: string): void {
-  let data: { type: string; sessionId?: string; message?: string };
+  let data: { type: string; sessionId?: string; message?: string; token?: string };
   try {
     data = JSON.parse(raw);
   } catch {
     client.ws.send(JSON.stringify({ type: "error", error: "Invalid JSON" }));
+    return;
+  }
+
+  // First message must include auth token
+  if (!client.authenticated) {
+    if (data.type === "auth" && data.token) {
+      const chat = kernel.get<ChatService>("chat");
+      const session = chat.validateSessionTokenByToken(data.token);
+      if (!session) {
+        client.ws.send(JSON.stringify({ type: "error", error: "Invalid token" }));
+        client.ws.close(4003, "Invalid token");
+        return;
+      }
+      client.authenticated = true;
+      client.sessionId = session.id;
+      client.ws.send(JSON.stringify({ type: "auth:ok", sessionId: session.id }));
+      return;
+    }
+    client.ws.send(JSON.stringify({ type: "error", error: "Not authenticated" }));
+    client.ws.close(4001, "Authentication required");
     return;
   }
 
@@ -51,27 +72,9 @@ async function handleChatMessage(
 }
 
 export function setupWebSocket(kernel: Kernel) {
-  const chat = kernel.get<ChatService>("chat");
-
   return {
     open(ws: Bun.ServerWebSocket<undefined>) {
-      // Require auth token in query string
-      const url = new URL("http://localhost");
-      const token = url.searchParams.get("token");
-
-      if (!token) {
-        ws.close(4001, "Authentication required");
-        return;
-      }
-
-      // Validate token belongs to an existing session
-      const session = chat.validateSessionTokenByToken(token);
-      if (!session) {
-        ws.close(4003, "Invalid token");
-        return;
-      }
-
-      const client: WsClient = { ws, sessionId: session.id };
+      const client: WsClient = { ws, authenticated: false };
       clients.add(client);
     },
     message(ws: Bun.ServerWebSocket<undefined>, message: string | Buffer) {

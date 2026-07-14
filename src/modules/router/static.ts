@@ -1,7 +1,8 @@
 import { Hono } from "hono";
 import { serveStatic } from "hono/bun";
+import type { Context } from "hono";
 
-function setCacheHeaders(c: any, filePath: string): void {
+function setCacheHeaders(c: Context, filePath: string): void {
   const ext = filePath.split('.').pop()?.toLowerCase();
   if (ext === 'html') {
     c.header('Cache-Control', 'no-cache');

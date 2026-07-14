@@ -34,16 +34,30 @@ export async function apiDelete(path) {
   return res.json();
 }
 
+export async function apiUpload(path, file) {
+  const form = new FormData();
+  form.append("file", file);
+  const res = await fetch(`${API}${path}`, { method: "POST", body: form });
+  if (!res.ok) throw new Error(`API error: ${res.status}`);
+  return res.json();
+}
+
 let ws = null;
 let wsHandlers = {};
+let reconnectAttempts = 0;
+const maxReconnectDelay = 30000;
 
 export function connectWebSocket() {
   const protocol = location.protocol === "https:" ? "wss:" : "ws:";
-  const token = getCurrentToken();
-  const wsUrl = token
-    ? `${protocol}//${location.host}/ws?token=${encodeURIComponent(token)}`
-    : `${protocol}//${location.host}/ws`;
-  ws = new WebSocket(wsUrl);
+  ws = new WebSocket(`${protocol}//${location.host}/ws`);
+
+  ws.onopen = () => {
+    reconnectAttempts = 0;
+    const token = getCurrentToken();
+    if (token) {
+      sendWsMessage({ type: "auth", token });
+    }
+  };
 
   ws.onmessage = (event) => {
     const data = JSON.parse(event.data);
@@ -52,9 +66,11 @@ export function connectWebSocket() {
   };
 
   ws.onclose = (event) => {
-    // Don't auto-reconnect if auth failed
     if (event.code === 4001 || event.code === 4003) return;
-    setTimeout(connectWebSocket, 3000);
+    const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), maxReconnectDelay);
+    const jitter = delay * (0.5 + Math.random() * 0.5);
+    reconnectAttempts++;
+    setTimeout(connectWebSocket, jitter);
   };
 }
 

@@ -562,6 +562,41 @@ button:disabled {
   border-color: var(--accent);
 }
 
+#doc-list.drag-over {
+  border: 2px dashed var(--accent);
+  background: var(--bg-tertiary);
+  border-radius: var(--radius);
+}
+
+.doc-item-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.doc-item-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.doc-thumb {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius);
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.doc-thumb::after {
+  content: "\1F5BC";
+  font-size: 16px;
+  opacity: 0.6;
+}
+
 /* Wiki detail panel */
 .wiki-detail {
   position: fixed;

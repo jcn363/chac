@@ -14,6 +14,7 @@ export function initChat() {
   document.getElementById("export-btn")?.addEventListener("click", exportChat);
   document.getElementById("search-toggle")?.addEventListener("click", toggleSearch);
   document.getElementById("msg-search")?.addEventListener("input", onSearchInput);
+  document.getElementById("session-search")?.addEventListener("input", onSessionSearch);
 
   document.getElementById("chat-input")?.addEventListener("keydown", (e) => {
     if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
@@ -435,5 +436,14 @@ function clearSearchHighlights() {
   document.querySelectorAll("#messages .message-bubble").forEach((bubble) => {
     const md = bubble.dataset.md || "";
     bubble.innerHTML = DOMPurify.sanitize(marked.parse(md));
+  });
+}
+
+function onSessionSearch(e) {
+  const query = e.target.value.toLowerCase().trim();
+  const items = document.querySelectorAll("#session-list .doc-item");
+  items.forEach((el) => {
+    const title = el.querySelector(".session-title")?.textContent?.toLowerCase() || "";
+    el.style.display = !query || title.includes(query) ? "" : "none";
   });
 }

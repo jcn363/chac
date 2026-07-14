@@ -33,6 +33,9 @@ export function createMockLlmService(): LlmService {
       return null;
     },
     async restartInstance(_modelType: string) {},
+    async visionDescribe(_imagePath: string): Promise<string> {
+      return "[Mock image description]";
+    },
     async stop() {},
   };
 }

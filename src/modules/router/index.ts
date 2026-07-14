@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
+import { bodyLimit } from "hono/body-limit";
 import type { Kernel } from "../../kernel/types";
 import { AppError } from "../../errors";
 import { setupApiRoutes } from "./api";
@@ -19,7 +20,12 @@ export function createRouter(kernel: Kernel): Hono {
   const settings = kernel.get<import("../settings/types").SettingsServiceType>("settings");
 
   app.use("*", requestLogger());
-  app.use("*", cors());
+  const port = settings.get("server.port");
+  app.use("*", cors({
+    origin: [`http://localhost:${port}`, `http://127.0.0.1:${port}`],
+    allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowHeaders: ["Content-Type", "Authorization"],
+  }));
   app.use("*", rateLimit(settings, rateLimitState));
 
   // Security headers
@@ -28,6 +34,14 @@ export function createRouter(kernel: Kernel): Hono {
     c.header('X-Content-Type-Options', 'nosniff');
     c.header('X-Frame-Options', 'DENY');
     c.header('Referrer-Policy', 'strict-origin-when-cross-origin');
+    c.header('Content-Security-Policy', [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline'",
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data: blob:",
+      "connect-src 'self' ws: wss:",
+      "font-src 'self'",
+    ].join('; '));
   });
 
   // Track in-flight requests for graceful shutdown
@@ -39,6 +53,8 @@ export function createRouter(kernel: Kernel): Hono {
       requestTracker.count--;
     }
   });
+
+  app.use("/api/*", bodyLimit({ maxSize: 10 * 1024 * 1024 }));
 
   setupStaticRoutes(app);
   setupApiRoutes(app, kernel);

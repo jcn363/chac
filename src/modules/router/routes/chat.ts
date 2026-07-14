@@ -72,6 +72,9 @@ export function setupChatRoutes(app: Hono, kernel: Kernel): void {
     if (!body.message || typeof body.message !== "string") {
       return c.json({ error: "Missing or invalid message" }, 400);
     }
+    if (body.message.length > 10000) {
+      return c.json({ error: "Message too long (max 10,000 characters)" }, 400);
+    }
     const msg = await chat.sendMessage(body.sessionId, body.message);
     return c.json(msg);
   }));

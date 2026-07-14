@@ -64,6 +64,13 @@ export class DocumentsService {
         transcription_segments: transcription.segments,
       };
     }
+    // Describe images via vision model
+    if (parseResult.format === "image") {
+      const llm = this.kernel.get<import("../llm/types").LlmService>("llm");
+      const description = await llm.visionDescribe(filePath);
+      parseResult.content = description;
+      parseResult.metadata = { ...parseResult.metadata, visionDescription: description };
+    }
 
     const content = parseResult.content;
 

@@ -33,6 +33,7 @@ export const DEFAULT_SETTINGS: SettingDefaults = {
   "llm.embed.model": { value: "nomic-ai/nomic-embed-text-v2-moe", category: "llm", description: "Embedding model name" },
   "llm.embed.dimensions": { value: 768, category: "llm", description: "Embedding vector dimensions" },
   "llm.vision.model": { value: "openbmb/MiniCPM-V-4.6", category: "llm", description: "Vision model name" },
+  "llm.vision.ctx_size": { value: 4096, category: "llm", description: "Vision model context window size" },
   "llm.gpu.layers": { value: 20, category: "llm", description: "GPU layers to offload (0=CPU only, -1=all)" },
   "llm.gpu.flash_attn": { value: "on", category: "llm", description: "Flash Attention: on, off, auto" },
   "llm.gpu.split_mode": { value: "none", category: "llm", description: "GPU split: none, layer, row, tensor" },

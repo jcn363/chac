@@ -42,5 +42,6 @@ export interface LlmService {
   status(): { chat: boolean; embed: boolean; vision: boolean; gpu: boolean; mtp: boolean };
   getModelInfo(modelType: string): ModelCapabilities | null;
   restartInstance(modelType: string): Promise<void>;
+  visionDescribe(imagePath: string): Promise<string>;
   stop(): Promise<void>;
 }

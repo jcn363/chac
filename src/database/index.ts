@@ -56,6 +56,8 @@ export function exportDatabase(database?: Database): BackupData {
     "document_tags",
     "usage_log",
     "user_memory",
+    "search_history",
+    "vector_index_cache",
   ];
 
   const data: Record<string, unknown[]> = {};

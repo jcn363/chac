@@ -41,7 +41,8 @@ export function setupDocumentRoutes(app: Hono, kernel: Kernel): void {
     if (file.size > 50 * 1024 * 1024) {
       return c.json({ error: "File too large (max 50MB)" }, 400);
     }
-    const filename = c.req.header("X-Filename") || "upload";
+    const rawFilename = c.req.header("X-Filename") || "upload";
+    const filename = rawFilename.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 255);
     const tmpPath = `/tmp/chac-upload-${Date.now()}-${filename}`;
     await Bun.write(tmpPath, file);
     try {

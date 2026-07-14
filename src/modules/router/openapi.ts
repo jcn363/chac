@@ -15,6 +15,78 @@ const OPENAPI_SPEC = {
         responses: { 200: { description: "OK", content: { "application/json": { schema: { type: "object", properties: { status: { type: "string" }, version: { type: "string" } } } } } } },
       },
     },
+    "/api/health": {
+      get: {
+        summary: "System health (DB stats, LLM status, scheduler)",
+        tags: ["System"],
+        responses: {
+          200: {
+            description: "Health status",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    status: { type: "string" },
+                    db: { type: "object", description: "Database statistics" },
+                    llm: { type: "object", description: "LLM instance status" },
+                    scheduler: { type: "object", description: "Scheduler task status" },
+                  },
+                },
+              },
+            },
+          },
+          500: { description: "Health check failed" },
+        },
+      },
+    },
+    "/api/logs": {
+      get: {
+        summary: "Recent request logs",
+        tags: ["System"],
+        parameters: [
+          { name: "limit", in: "query", schema: { type: "integer", default: 100 } },
+        ],
+        responses: {
+          200: {
+            description: "Log entries",
+            content: {
+              "application/json": {
+                schema: { type: "array", items: { type: "object" } },
+              },
+            },
+          },
+          500: { description: "Failed to retrieve logs" },
+        },
+      },
+    },
+    "/api/admin/dashboard": {
+      get: {
+        summary: "Comprehensive system dashboard",
+        tags: ["System"],
+        responses: {
+          200: {
+            description: "Dashboard data",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    documents: { type: "object" },
+                    wiki: { type: "object" },
+                    chat: { type: "object" },
+                    memory: { type: "object" },
+                    scheduler: { type: "object" },
+                    llm: { type: "object" },
+                  },
+                },
+              },
+            },
+          },
+          500: { description: "Failed to load dashboard" },
+        },
+      },
+    },
     "/api/settings": {
       get: {
         summary: "List all settings",
@@ -64,11 +136,27 @@ const OPENAPI_SPEC = {
         responses: { 200: { description: "Paginated document list" } },
       },
       post: {
-        summary: "Ingest a file",
+        summary: "Ingest a file or URL",
+        tags: ["Documents"],
         requestBody: {
-          content: { "application/json": { schema: { type: "object", properties: { path: { type: "string" } }, required: ["path"] } } },
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: {
+                  path: { type: "string", description: "Local file path to ingest" },
+                  url: { type: "string", description: "URL to fetch and ingest" },
+                  description: { type: "string", description: "Optional description for URL content" },
+                },
+                oneOf: [
+                  { required: ["path"] },
+                  { required: ["url"] },
+                ],
+              },
+            },
+          },
         },
-        responses: { 201: { description: "Ingest result" }, 400: { description: "Invalid path" } },
+        responses: { 201: { description: "Ingest result" }, 400: { description: "Invalid path or URL" } },
       },
     },
     "/api/documents/status": {
@@ -93,6 +181,30 @@ const OPENAPI_SPEC = {
           content: { "application/json": { schema: { type: "object", properties: { ids: { type: "array", items: { type: "string" } } }, required: ["ids"] } } },
         },
         responses: { 200: { description: "Delete result" } },
+      },
+    },
+    "/api/documents/upload": {
+      post: {
+        summary: "Upload and ingest a file (multipart form data)",
+        tags: ["Documents"],
+        requestBody: {
+          content: {
+            "multipart/form-data": {
+              schema: {
+                type: "object",
+                properties: {
+                  file: { type: "string", format: "binary", description: "File to upload" },
+                },
+                required: ["file"],
+              },
+            },
+          },
+        },
+        responses: {
+          201: { description: "Upload and ingest result" },
+          400: { description: "Invalid file" },
+          500: { description: "Upload failed" },
+        },
       },
     },
     "/api/documents/{id}": {
@@ -380,6 +492,52 @@ const OPENAPI_SPEC = {
           content: { "application/json": { schema: { type: "object", properties: { query: { type: "string" }, limit: { type: "integer" } }, required: ["query"] } } },
         },
         responses: { 200: { description: "Search results" } },
+      },
+    },
+    "/api/obsidian/export": {
+      get: {
+        summary: "Export wiki as Obsidian vault",
+        tags: ["Export"],
+        parameters: [
+          {
+            name: "format",
+            in: "query",
+            schema: { type: "string", enum: ["markdown", "zip"], default: "markdown" },
+            description: "Export format: individual markdown files or a zip archive",
+          },
+        ],
+        responses: {
+          200: { description: "Exported vault (markdown files or zip)" },
+          404: { description: "No wiki pages to export" },
+          500: { description: "Export failed" },
+        },
+      },
+    },
+    "/api/obsidian/pages": {
+      get: {
+        summary: "List wiki pages available for Obsidian export",
+        tags: ["Export"],
+        responses: {
+          200: {
+            description: "List of wiki pages",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      id: { type: "string" },
+                      title: { type: "string" },
+                      content: { type: "string" },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          500: { description: "Failed to list pages" },
+        },
       },
     },
     "/api/memory": {

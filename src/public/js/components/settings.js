@@ -42,8 +42,9 @@ const SETTING_GROUPS = [
   { title: "LLM — Vision", keys: ["llm.vision.model"] },
   { title: "LLM — GPU", keys: ["llm.gpu.layers", "llm.gpu.flash_attn", "llm.gpu.split_mode"] },
   { title: "LLM — MTP", keys: ["llm.mtp.enabled", "llm.mtp.draft_ngl"] },
-  { title: "RAG", keys: ["rag.chunk_size", "rag.chunk_overlap", "rag.chunk_mode", "rag.wiki_threshold", "rag.max_chunks", "rag.max_wiki_chars", "rag.wiki_synthesis_threshold", "rag.auto_compound", "wiki.agents_enabled"] },
-  { title: "Memory", keys: ["memory.enabled"] },
+  { title: "RAG", keys: ["rag.chunk_size", "rag.chunk_overlap", "rag.chunk_mode", "rag.wiki_threshold", "rag.max_chunks", "rag.max_wiki_chars", "rag.wiki_synthesis_threshold", "rag.auto_compound", "rag.rerank", "rag.expand", "rag.hnsw_m", "rag.hnsw_ef_construction", "rag.hnsw_ef_search", "wiki.agents_enabled"] },
+  { title: "Memory", keys: ["memory.enabled", "memory.max_entries"] },
+  { title: "Scheduler", keys: ["scheduler.search_history_retention_days"] },
   { title: "Server", keys: ["server.port", "server.host"] },
 ];
 

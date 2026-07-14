@@ -7,6 +7,7 @@ marked.setOptions({ breaks: true, gfm: true });
 
 export function initWiki() {
   document.getElementById("compile-btn")?.addEventListener("click", compileWiki);
+  document.getElementById("obsidian-export-btn")?.addEventListener("click", exportToObsidian);
   loadWiki();
 }
 
@@ -62,6 +63,28 @@ function showWikiPage(page) {
   detail.querySelector(".wiki-detail-close")?.addEventListener("click", () => {
     detail.classList.add("hidden");
   });
+}
+
+async function exportToObsidian() {
+  const btn = document.getElementById("obsidian-export-btn");
+  btn.disabled = true;
+  btn.textContent = "Exporting...";
+  try {
+    const data = await apiGet("/api/obsidian/export?format=markdown");
+    const blob = new Blob([data.markdown], { type: "text/markdown" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `chac-vault-${new Date().toISOString().slice(0, 10)}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast(`Vault exported (${data.pageCount} pages, ${data.docCount} docs)`, "success");
+  } catch {
+    showToast("Failed to export vault");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Export to Obsidian";
+  }
 }
 
 async function compileWiki() {

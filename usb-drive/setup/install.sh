@@ -63,11 +63,18 @@ chmod +x "$ROOT_DIR/launchers/start.command" 2>/dev/null || true
 
 # Make setup scripts executable
 chmod +x "$SCRIPT_DIR/download-models.sh" 2>/dev/null || true
+chmod +x "$SCRIPT_DIR/download-llama.sh" 2>/dev/null || true
+chmod +x "$SCRIPT_DIR/download-whisper.sh" 2>/dev/null || true
 
 echo ""
 echo "✓ Setup complete"
 echo ""
 echo "Next steps:"
-echo "  1. Run setup/download-models.sh to get the LLM models"
-echo "  2. Run launchers/start.sh (or double-click start.command on macOS)"
-echo "  3. Open http://localhost:3000"
+echo "  1. Run setup/setup-all.sh (recommended — offers download or build from source)"
+echo "  2. Or run individual scripts:"
+echo "     - setup/download-models.sh      (GGUF models ~4GB)"
+echo "     - setup/download-llama.sh       (llama.cpp pre-built binaries)"
+echo "     - setup/download-whisper.sh     (whisper.cpp pre-built binaries)"
+echo "     - Or build from source via setup-all.sh (requires cmake + C++)"
+echo "  3. Run launchers/start.sh (or double-click start.command on macOS)"
+echo "  4. Open http://localhost:3000"

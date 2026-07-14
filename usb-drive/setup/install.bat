@@ -35,7 +35,9 @@ echo Setup complete.
 echo.
 echo Next steps:
 echo   1. Run setup\download-models.bat to get the LLM models
-echo   2. Run launchers\start.bat
-echo   3. Open http://localhost:3000
+echo   2. Run setup\download-llama.bat to get llama.cpp binaries
+echo   3. Run setup\download-whisper.bat to get whisper.cpp binaries
+echo   4. Run launchers\start.bat
+echo   5. Open http://localhost:3000
 echo.
 pause

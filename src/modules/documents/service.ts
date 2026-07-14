@@ -369,13 +369,16 @@ export class DocumentsService {
   }
 
   getStatus(): DocumentStatus {
-    const total = countRows(this.db, "documents");
-    const totalChunks = countRows(this.db, "chunks");
-    const lastDoc = this.db.query("SELECT MAX(updated_at) as last FROM documents").get() as { last: string | null };
+    const row = this.db.query(`
+      SELECT
+        (SELECT COUNT(*) FROM documents) AS total,
+        (SELECT COUNT(*) FROM chunks) AS totalChunks,
+        (SELECT MAX(updated_at) FROM documents) AS lastIngestedAt
+    `).get() as { total: number; totalChunks: number; lastIngestedAt: string | null };
     return {
-      total,
-      totalChunks,
-      lastIngestedAt: lastDoc?.last ?? null,
+      total: row.total,
+      totalChunks: row.totalChunks,
+      lastIngestedAt: row.lastIngestedAt,
     };
   }
 

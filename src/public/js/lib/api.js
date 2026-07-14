@@ -4,7 +4,10 @@ const API = "";
 
 export async function apiGet(path) {
   const res = await fetch(`${API}${path}`);
-  if (!res.ok) throw new Error(`API error: ${res.status}`);
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || `API error: ${res.status}`);
+  }
   return res.json();
 }
 
@@ -14,7 +17,10 @@ export async function apiPost(path, body) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
-  if (!res.ok) throw new Error(`API error: ${res.status}`);
+  if (!res.ok) {
+    const errBody = await res.json().catch(() => ({}));
+    throw new Error(errBody.error || `API error: ${res.status}`);
+  }
   return res.json();
 }
 
@@ -24,13 +30,19 @@ export async function apiPut(path, body) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
-  if (!res.ok) throw new Error(`API error: ${res.status}`);
+  if (!res.ok) {
+    const errBody = await res.json().catch(() => ({}));
+    throw new Error(errBody.error || `API error: ${res.status}`);
+  }
   return res.json();
 }
 
 export async function apiDelete(path) {
   const res = await fetch(`${API}${path}`, { method: "DELETE" });
-  if (!res.ok) throw new Error(`API error: ${res.status}`);
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || `API error: ${res.status}`);
+  }
   return res.json();
 }
 
@@ -38,7 +50,10 @@ export async function apiUpload(path, file) {
   const form = new FormData();
   form.append("file", file);
   const res = await fetch(`${API}${path}`, { method: "POST", body: form });
-  if (!res.ok) throw new Error(`API error: ${res.status}`);
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || `API error: ${res.status}`);
+  }
   return res.json();
 }
 

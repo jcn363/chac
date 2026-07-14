@@ -62,7 +62,10 @@ export class LlmServiceImpl implements LlmService {
     log.info(`Restarting ${modelType} model...`);
     try {
       instance.process.kill("SIGTERM");
-      await Bun.sleep(1000);
+      for (let i = 0; i < 10; i++) {
+        if (instance.process.exitCode !== null) break;
+        await Bun.sleep(100);
+      }
       if (instance.process.exitCode === null) {
         instance.process.kill("SIGKILL");
       }
@@ -171,6 +174,7 @@ export class LlmServiceImpl implements LlmService {
 
   private async waitForReady(port: number, timeout = 30000): Promise<void> {
     const start = Date.now();
+    let delay = 200;
     while (Date.now() - start < timeout) {
       try {
         const res = await fetch(`http://127.0.0.1:${port}/health`);
@@ -178,7 +182,8 @@ export class LlmServiceImpl implements LlmService {
       } catch {
         // not ready yet
       }
-      await Bun.sleep(100);
+      await Bun.sleep(delay);
+      delay = Math.min(delay * 1.5, 2000);
     }
     throw new Error(`llama.cpp on port ${port} failed to start within ${timeout}ms`);
   }

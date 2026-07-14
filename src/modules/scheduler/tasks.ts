@@ -3,7 +3,8 @@ import type { SchedulerService } from "./service";
 import type { SettingsServiceType } from "../settings/types";
 import { exportDatabase } from "../../database";
 import { join } from "node:path";
-import { writeFileSync, readdirSync, unlinkSync, existsSync, mkdirSync } from "node:fs";
+import { existsSync, mkdirSync } from "node:fs";
+import { writeFile, readdir, unlink } from "node:fs/promises";
 
 export function registerDefaultTasks(scheduler: SchedulerService, kernel: Kernel): void {
   // Memory consolidation — dedup identical entries
@@ -44,7 +45,8 @@ export function registerDefaultTasks(scheduler: SchedulerService, kernel: Kernel
     const settings = kernel.get<SettingsServiceType>("settings");
     const retentionDays = (settings.get("scheduler.search_history_retention_days") as number) || 30;
     const db = kernel.get<import("bun:sqlite").Database>("db");
-    db.query(`DELETE FROM search_history WHERE created_at < datetime('now', '-${retentionDays} days')`).run();
+    const cutoff = new Date(Date.now() - retentionDays * 86400000).toISOString();
+    db.query("DELETE FROM search_history WHERE created_at < ?").run(cutoff);
   });
 
   // Auto-backup — export database to JSON files with rotation
@@ -59,17 +61,17 @@ export function registerDefaultTasks(scheduler: SchedulerService, kernel: Kernel
 
     const filename = `backup-${new Date().toISOString().replace(/[:.]/g, "-")}.json`;
     const filePath = join(backupDir, filename);
-    writeFileSync(filePath, JSON.stringify(data, null, 2));
+    await writeFile(filePath, JSON.stringify(data, null, 2));
 
     // Cleanup old backups beyond retention limit
     const retention = (settings.get("scheduler.backup_retention") as number) ?? 7;
-    const files = readdirSync(backupDir)
+    const files = (await readdir(backupDir))
       .filter((f) => f.startsWith("backup-") && f.endsWith(".json"))
       .sort()
       .reverse();
 
     for (const file of files.slice(retention)) {
-      unlinkSync(join(backupDir, file));
+      await unlink(join(backupDir, file));
     }
   });
 }

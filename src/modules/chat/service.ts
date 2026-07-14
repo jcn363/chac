@@ -41,10 +41,13 @@ export class ChatService {
   createSession(options: { title?: string; systemPrompt?: string } = {}): ChatSession {
     const id = generateId();
     const authToken = generateId();
+    const now = new Date().toISOString();
+    const title = options.title ?? null;
+    const systemPrompt = options.systemPrompt ?? null;
     this.db
-      .query("INSERT INTO chat_sessions (id, title, system_prompt, auth_token) VALUES (?, ?, ?, ?)")
-      .run(id, options.title ?? null, options.systemPrompt ?? null, authToken);
-    return this.db.query("SELECT * FROM chat_sessions WHERE id = ?").get(id) as ChatSession;
+      .query("INSERT INTO chat_sessions (id, title, system_prompt, auth_token, sort_order, created_at, updated_at) VALUES (?, ?, ?, ?, 0, ?, ?)")
+      .run(id, title, systemPrompt, authToken, now, now);
+    return { id, title, system_prompt: systemPrompt, model: null, auth_token: authToken, metadata: null, sort_order: 0, created_at: now, updated_at: now } as ChatSession;
   }
 
   listSessions(): ChatSession[] {
@@ -288,9 +291,9 @@ export class ChatService {
 
     for (const msg of data.messages) {
       const id = generateId();
-      const validRoles = ["user", "assistant", "system", "tool"] as const;
+      const validRoles = new Set(["user", "assistant", "system", "tool"]);
       const role: "user" | "assistant" | "system" | "tool" =
-        msg.role && validRoles.includes(msg.role as "user") ? msg.role as "user" | "assistant" | "system" | "tool" : "user";
+        msg.role && validRoles.has(msg.role) ? msg.role as "user" | "assistant" | "system" | "tool" : "user";
       this.db
         .query(
           "INSERT INTO chat_messages (id, session_id, role, content, context_chunks, context_scores, prompt_tokens, completion_tokens, total_tokens, model, latency_ms, citations, metadata, created_at) " +

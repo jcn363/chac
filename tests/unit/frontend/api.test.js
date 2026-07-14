@@ -40,12 +40,12 @@ describe("apiGet", () => {
 
   it("throws on non-OK response", async () => {
     setupFetch(404, { error: "not found" });
-    await expect(apiGet("/api/missing")).rejects.toThrow("API error: 404");
+    await expect(apiGet("/api/missing")).rejects.toThrow("not found");
   });
 
   it("throws on 500", async () => {
     setupFetch(500, { error: "server" });
-    await expect(apiGet("/api/fail")).rejects.toThrow("API error: 500");
+    await expect(apiGet("/api/fail")).rejects.toThrow("server");
   });
 });
 
@@ -69,7 +69,7 @@ describe("apiPost", () => {
 
   it("throws on error status", async () => {
     setupFetch(400, { error: "bad request" });
-    await expect(apiPost("/api/chat", {})).rejects.toThrow("API error: 400");
+    await expect(apiPost("/api/chat", {})).rejects.toThrow("bad request");
   });
 });
 
@@ -93,7 +93,7 @@ describe("apiPut", () => {
 
   it("throws on error status", async () => {
     setupFetch(422, { error: "validation" });
-    await expect(apiPut("/api/settings/llm", {})).rejects.toThrow("API error: 422");
+    await expect(apiPut("/api/settings/llm", {})).rejects.toThrow("validation");
   });
 });
 
@@ -115,7 +115,7 @@ describe("apiDelete", () => {
 
   it("throws on error status", async () => {
     setupFetch(404, { error: "not found" });
-    await expect(apiDelete("/api/documents/999")).rejects.toThrow("API error: 404");
+    await expect(apiDelete("/api/documents/999")).rejects.toThrow("not found");
   });
 });
 

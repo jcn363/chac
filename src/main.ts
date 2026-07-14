@@ -18,6 +18,7 @@ import { TranscriptionServiceImpl } from "./modules/transcription/service";
 import { createRouter, requestTracker } from "./modules/router";
 import { setupWebSocket } from "./modules/router/ws";
 import { VectorIndex } from "./utils/vector-index";
+import { embeddingCache } from "./utils/cache";
 import { createLogger } from "./utils/logger";
 
 const log = createLogger("main");
@@ -127,6 +128,9 @@ log.info(`Chac running at http://localhost:${server.port}`);
 
 // Start background scheduler
 scheduler.start();
+
+// Start embedding cache cleanup
+embeddingCache.startCleanup(60000);
 
 // Graceful shutdown (guarded against double-signal)
 let shuttingDown = false;

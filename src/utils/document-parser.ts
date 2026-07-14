@@ -176,6 +176,12 @@ export async function parseDocument(
   }
 }
 
+interface PdfInfo {
+  Title?: string;
+  Author?: string;
+  CreationDate?: string;
+}
+
 async function parsePDF(buffer: ArrayBuffer): Promise<ParseResult> {
   const parser = new PDFParse({ data: new Uint8Array(buffer) });
   const textResult = await parser.getText();
@@ -185,8 +191,8 @@ async function parsePDF(buffer: ArrayBuffer): Promise<ParseResult> {
     format: "pdf",
     metadata: {
       pages: textResult.total,
-      title: (info.info as any)?.Title,
-      author: (info.info as any)?.Author,
+      title: (info.info as PdfInfo)?.Title,
+      author: (info.info as PdfInfo)?.Author,
     },
   };
 }

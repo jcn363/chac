@@ -1,12 +1,13 @@
 import type { Database } from "bun:sqlite";
 import type { Kernel } from "../../kernel/types";
-import { NotFoundError } from "../../errors";
+import { NotFoundError, SecurityError } from "../../errors";
 import { generateId } from "../../utils/id";
 import { contentHash } from "../../utils/hash";
 import { chunkText, chunkTextSemantic } from "../../utils/chunking";
 import { VectorIndex } from "../../utils/vector-index";
 import { parseDocument, detectFormat } from "../../utils/document-parser";
 import { collectLlmResponse, extractJsonFromLlm, embedAndInsertChunks } from "../../utils/llm-helpers";
+import { embeddingToBlob } from "../../utils/vector";
 import { deleteById, countRows, parsePagination } from "../../utils/db-helpers";
 import type { Document, IngestResult, BatchIngestResult, BatchDeleteResult, DocumentStatus } from "./types";
 import { basename, resolve } from "node:path";
@@ -16,37 +17,36 @@ import type { CacheStats } from "../../utils/cache";
 import type { LlmService } from "../llm/types";
 import type { TranscriptionServiceType } from "../transcription/types";
 import type { UrlFetcherServiceType } from "../url-fetcher/types";
+import type { SettingsServiceType } from "../settings/types";
 
 /** Document ingestion, chunking, embedding, and semantic search. */
 export class DocumentsService {
   private db: Database;
   private kernel: Kernel;
-  private chunkIndex: VectorIndex;
   private onIngestCallback?: () => void;
 
   constructor(kernel: Kernel) {
     this.kernel = kernel;
     this.db = kernel.get<Database>("db");
-    this.chunkIndex = new VectorIndex(this.db, "chunks");
   }
 
   async ingest(filePath: string): Promise<IngestResult> {
     // Security: validate path doesn't contain traversal or absolute paths
     const normalized = filePath.replace(/\\/g, "/");
     if (normalized.includes("..")) {
-      throw new Error("Path traversal not allowed");
+      throw new SecurityError("Path traversal detected");
     }
 
     const resolved = resolve(filePath);
     const appRoot = getAppRoot();
     const allowedBase = resolve(appRoot);
     if (!resolved.startsWith(allowedBase + "/") && resolved !== allowedBase) {
-      throw new Error("Access denied: path outside allowed directory");
+      throw new SecurityError("Path outside allowed directory");
     }
 
     const file = Bun.file(filePath);
     if (!await file.exists()) {
-      throw new Error(`File not found: ${filePath}`);
+      throw new NotFoundError("File", filePath);
     }
 
     const buffer = await file.arrayBuffer();
@@ -75,7 +75,6 @@ export class DocumentsService {
     const content = parseResult.content;
 
     const hash = await contentHash(content);
-    const settings = this.kernel.get<{ get: (key: string) => unknown }>("settings");
 
     // Dedup check
     const existing = this.db
@@ -88,12 +87,7 @@ export class DocumentsService {
 
     const docId = generateId();
     const title = basename(filePath) || "Untitled";
-    const chunkSize = settings.get("rag.chunk_size") as number;
-    const chunkOverlap = settings.get("rag.chunk_overlap") as number;
-    const chunkMode = settings.get("rag.chunk_mode") as string;
-    const chunks = chunkMode === "semantic"
-      ? chunkTextSemantic(content, chunkSize)
-      : chunkText(content, chunkSize, chunkOverlap);
+    const chunks = this.chunkContent(content);
 
     // Store parsed metadata as JSON
     const metaJson = parseResult.metadata ? JSON.stringify(parseResult.metadata) : null;
@@ -101,17 +95,51 @@ export class DocumentsService {
       ? parseResult.content
       : null;
 
-    // Insert document
-    this.db
-      .query(
-        "INSERT INTO documents (id, title, source_path, source_type, content_hash, mime_type, file_size, chunk_count, metadata, description, transcription) " +
-          "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-      )
-      .run(docId, title, filePath, "file", hash, file.type, file.size, chunks.length, metaJson, null, transcription);
-
-    // Insert chunks + embeddings
+    // Compute embeddings in batches (async, outside transaction)
     const llm = this.kernel.get<LlmService>("llm");
-    await embedAndInsertChunks(this.db, chunks, docId, llm);
+    const allBlobs: Buffer[] = [];
+    const allDimensions: number[] = [];
+    const EMBED_BATCH = 8;
+    for (let i = 0; i < chunks.length; i += EMBED_BATCH) {
+      const batch = chunks.slice(i, i + EMBED_BATCH);
+      const embeddings = await Promise.all(
+        batch.map((chunk) => llm.embeddings.create({ input: chunk.content })),
+      );
+      for (const emb of embeddings) {
+        const first = emb.data[0];
+        if (!first) throw new Error("No embedding returned");
+        allBlobs.push(embeddingToBlob(first.embedding));
+        allDimensions.push(first.embedding.length);
+      }
+    }
+
+    // Insert document + chunks in one transaction (sync)
+    const insertChunk = this.db.query(
+      "INSERT INTO chunks (id, document_id, chunk_index, content, token_count, embedding, embedding_model, embedding_dimensions) " +
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+    );
+    const insertAll = this.db.transaction(() => {
+      this.db
+        .query(
+          "INSERT INTO documents (id, title, source_path, source_type, content_hash, mime_type, file_size, chunk_count, metadata, description, transcription) " +
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        )
+        .run(docId, title, filePath, "file", hash, file.type, file.size, chunks.length, metaJson, null, transcription);
+      for (let i = 0; i < chunks.length; i++) {
+        const chunk = chunks[i]!;
+        insertChunk.run(
+          generateId(),
+          docId,
+          chunk.index,
+          chunk.content,
+          chunk.tokenCount,
+          allBlobs[i] ?? null,
+          "local",
+          allDimensions[i] ?? null,
+        );
+      }
+    });
+    insertAll();
 
     this.onIngestCallback?.();
     return { id: docId, title, chunkCount: chunks.length };
@@ -127,7 +155,6 @@ export class DocumentsService {
     }
 
     const hash = await contentHash(content);
-    const settings = this.kernel.get<{ get: (key: string) => unknown }>("settings");
 
     // Dedup check
     const existing = this.db
@@ -142,22 +169,53 @@ export class DocumentsService {
     const title = result.title || new URL(url).hostname;
     const docDescription = description || result.description || null;
 
-    const chunkSize = settings.get("rag.chunk_size") as number;
-    const chunkOverlap = settings.get("rag.chunk_overlap") as number;
-    const chunkMode = settings.get("rag.chunk_mode") as string;
-    const chunks = chunkMode === "semantic"
-      ? chunkTextSemantic(content, chunkSize)
-      : chunkText(content, chunkSize, chunkOverlap);
+    const chunks = this.chunkContent(content);
 
-    this.db
-      .query(
-        "INSERT INTO documents (id, title, source_path, source_type, content_hash, mime_type, file_size, chunk_count, metadata, description, transcription) " +
-          "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-      )
-      .run(docId, title, url, "url", hash, result.contentType, content.length, chunks.length, null, docDescription, null);
-
+    // Compute embeddings in batches (async, outside transaction)
     const llm = this.kernel.get<LlmService>("llm");
-    await embedAndInsertChunks(this.db, chunks, docId, llm);
+    const allBlobs: Buffer[] = [];
+    const allDimensions: number[] = [];
+    const EMBED_BATCH = 8;
+    for (let i = 0; i < chunks.length; i += EMBED_BATCH) {
+      const batch = chunks.slice(i, i + EMBED_BATCH);
+      const embeddings = await Promise.all(
+        batch.map((chunk) => llm.embeddings.create({ input: chunk.content })),
+      );
+      for (const emb of embeddings) {
+        const first = emb.data[0];
+        if (!first) throw new Error("No embedding returned");
+        allBlobs.push(embeddingToBlob(first.embedding));
+        allDimensions.push(first.embedding.length);
+      }
+    }
+
+    // Insert document + chunks in one transaction (sync)
+    const insertChunk = this.db.query(
+      "INSERT INTO chunks (id, document_id, chunk_index, content, token_count, embedding, embedding_model, embedding_dimensions) " +
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+    );
+    const insertAll = this.db.transaction(() => {
+      this.db
+        .query(
+          "INSERT INTO documents (id, title, source_path, source_type, content_hash, mime_type, file_size, chunk_count, metadata, description, transcription) " +
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        )
+        .run(docId, title, url, "url", hash, result.contentType, content.length, chunks.length, null, docDescription, null);
+      for (let i = 0; i < chunks.length; i++) {
+        const chunk = chunks[i]!;
+        insertChunk.run(
+          generateId(),
+          docId,
+          chunk.index,
+          chunk.content,
+          chunk.tokenCount,
+          allBlobs[i] ?? null,
+          "local",
+          allDimensions[i] ?? null,
+        );
+      }
+    });
+    insertAll();
 
     this.onIngestCallback?.();
     return { id: docId, title, chunkCount: chunks.length };
@@ -168,7 +226,8 @@ export class DocumentsService {
   }
 
   invalidateIndex(): void {
-    this.chunkIndex.invalidate();
+    const chunkIndex = this.kernel.get<VectorIndex>("chunkIndex");
+    chunkIndex.invalidate();
   }
 
   getCacheStats(): { embedding: CacheStats } {
@@ -179,6 +238,16 @@ export class DocumentsService {
 
   clearCache(): void {
     embeddingCache.clear();
+  }
+
+  private chunkContent(content: string): Array<{ index: number; content: string; tokenCount: number }> {
+    const settings = this.kernel.get<SettingsServiceType>("settings");
+    const chunkSize = settings.get("rag.chunk_size") as number;
+    const chunkOverlap = settings.get("rag.chunk_overlap") as number;
+    const chunkMode = settings.get("rag.chunk_mode") as string;
+    return chunkMode === "semantic"
+      ? chunkTextSemantic(content, chunkSize)
+      : chunkText(content, chunkSize, chunkOverlap);
   }
 
   list(options: { page?: number; perPage?: number; sort?: string } = {}): {
@@ -243,14 +312,17 @@ export class DocumentsService {
     let deleted = 0;
     const notFound: string[] = [];
 
-    for (const id of ids) {
-      const result = this.db.query("DELETE FROM documents WHERE id = ?").run(id);
-      if (result.changes > 0) {
-        deleted++;
-      } else {
-        notFound.push(id);
+    const deleteAll = this.db.transaction(() => {
+      for (const id of ids) {
+        const result = this.db.query("DELETE FROM documents WHERE id = ?").run(id);
+        if (result.changes > 0) {
+          deleted++;
+        } else {
+          notFound.push(id);
+        }
       }
-    }
+    });
+    deleteAll();
 
     return { deleted, notFound };
   }
@@ -279,13 +351,7 @@ export class DocumentsService {
     const content = parseResult.content;
     const hash = await contentHash(content);
 
-    const settings = this.kernel.get<{ get: (key: string) => unknown }>("settings");
-    const chunkSize = settings.get("rag.chunk_size") as number;
-    const chunkOverlap = settings.get("rag.chunk_overlap") as number;
-    const chunkMode = settings.get("rag.chunk_mode") as string;
-    const chunks = chunkMode === "semantic"
-      ? chunkTextSemantic(content, chunkSize)
-      : chunkText(content, chunkSize, chunkOverlap);
+    const chunks = this.chunkContent(content);
 
     // Store parsed metadata as JSON
     const metaJson = parseResult.metadata ? JSON.stringify(parseResult.metadata) : null;

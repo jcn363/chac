@@ -36,12 +36,12 @@ export function setupTagRoutes(app: Hono, kernel: Kernel): void {
     return c.json({ tags: tags.getDocumentTags(id) });
   }));
 
-  app.delete("/api/documents/:id/tags", async (c) => {
+  app.delete("/api/documents/:id/tags", wrap(async (c) => {
     const body = await c.req.json<{ tags: string[] }>();
     if (!body?.tags || !Array.isArray(body.tags)) {
       return c.json({ error: "Missing or invalid tags array" }, 400);
     }
-    tags.removeTags(c.req.param("id"), body.tags);
-    return c.json({ tags: tags.getDocumentTags(c.req.param("id")) });
-  });
+    tags.removeTags(c.req.param("id")!, body.tags);
+    return c.json({ tags: tags.getDocumentTags(c.req.param("id")!) });
+  }));
 }

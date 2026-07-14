@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import type { Kernel } from "../../../kernel/types";
 import { DEFAULT_SETTINGS, type SettingsServiceType } from "../../settings/types";
+import { wrap } from "../utils";
 
 export function setupSettingsRoutes(app: Hono, kernel: Kernel): void {
   const settings = kernel.get<SettingsServiceType>("settings");
@@ -9,7 +10,7 @@ export function setupSettingsRoutes(app: Hono, kernel: Kernel): void {
     return c.json(settings.getAll());
   });
 
-  app.put("/api/settings", async (c) => {
+  app.put("/api/settings", wrap(async (c) => {
     const body = await c.req.json<{ key: string; value: unknown }>();
     if (!body || typeof body.key !== "string" || body.key.length === 0) {
       return c.json({ error: "Missing or invalid key" }, 400);
@@ -26,5 +27,5 @@ export function setupSettingsRoutes(app: Hono, kernel: Kernel): void {
       return c.json({ error: result.error }, 400);
     }
     return c.json({ ok: true });
-  });
+  }));
 }

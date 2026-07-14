@@ -55,6 +55,9 @@ beforeAll(() => {
   const docs = new DocumentsService(kernel);
   kernel.provide("docs", docs);
   const chunkIndex = new VectorIndex(db, "chunks");
+  const wikiIndex = new VectorIndex(db, "wiki_pages");
+  kernel.provide("chunkIndex", chunkIndex);
+  kernel.provide("wikiIndex", wikiIndex);
   kernel.provide("search", new DocumentSearchService(db, llm, chunkIndex, settings));
   kernel.provide("searchHistory", new SearchHistoryService(db));
   kernel.provide("tags", new DocumentTagsService(db));

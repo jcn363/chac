@@ -15,13 +15,16 @@ export interface CacheStats {
 export class MemoryCache<T = unknown> {
   private store = new Map<string, CacheEntry<T>>();
   private defaultTtl: number;
+  private maxSize: number;
   private hits = 0;
   private misses = 0;
   private totalSet = 0;
   private totalEvicted = 0;
+  private cleanupTimer: ReturnType<typeof setInterval> | null = null;
 
-  constructor(defaultTtlMs: number = 5 * 60 * 1000) {
+  constructor(defaultTtlMs: number = 5 * 60 * 1000, options?: { maxSize?: number }) {
     this.defaultTtl = defaultTtlMs;
+    this.maxSize = options?.maxSize ?? 10000;
   }
 
   get(key: string): T | undefined {
@@ -48,6 +51,16 @@ export class MemoryCache<T = unknown> {
       value,
       expiresAt: Date.now() + (ttlMs ?? this.defaultTtl),
     });
+    // LRU eviction: remove oldest entry when over capacity
+    while (this.store.size > this.maxSize) {
+      const oldestKey = this.store.keys().next().value;
+      if (oldestKey !== undefined) {
+        this.store.delete(oldestKey);
+        this.totalEvicted++;
+      } else {
+        break;
+      }
+    }
   }
 
   async getOrSet(key: string, factory: () => Promise<T>, ttlMs?: number): Promise<T> {
@@ -105,6 +118,20 @@ export class MemoryCache<T = unknown> {
   get size(): number {
     return this.store.size;
   }
+
+  /** Start periodic cleanup of expired entries. */
+  startCleanup(intervalMs: number = 60000): void {
+    this.stopCleanup();
+    this.cleanupTimer = setInterval(() => this.cleanup(), intervalMs);
+  }
+
+  /** Stop periodic cleanup. */
+  stopCleanup(): void {
+    if (this.cleanupTimer) {
+      clearInterval(this.cleanupTimer);
+      this.cleanupTimer = null;
+    }
+  }
 }
 
-export const embeddingCache = new MemoryCache<Float32Array>(10 * 60 * 1000);
+export const embeddingCache = new MemoryCache<Float32Array>(10 * 60 * 1000, { maxSize: 10000 });

@@ -5,6 +5,7 @@ import { collectLlmResponse, extractJsonFromLlm } from "../../utils/llm-helpers"
 import { deleteById } from "../../utils/db-helpers";
 import type { MemoryEntry } from "./types";
 import type { LlmService } from "../llm/types";
+import type { SettingsServiceType } from "../settings/types";
 
 /** Cross-session user memory with LLM-powered extraction. */
 export class MemoryService {
@@ -17,7 +18,7 @@ export class MemoryService {
   }
 
   isEnabled(): boolean {
-    const settings = this.kernel.get<{ get: (key: string) => unknown }>("settings");
+    const settings = this.kernel.get<SettingsServiceType>("settings");
     return settings.get("memory.enabled") as boolean;
   }
 

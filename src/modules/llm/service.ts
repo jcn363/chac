@@ -1,6 +1,7 @@
 import type { Kernel } from "../../kernel/types";
 import type { LlmInstance, LlmService, ChatCompletionOptions, EmbeddingOptions, EmbeddingResponse, ModelCapabilities } from "./types";
-import { ExternalServiceError } from "../../errors";
+import type { SettingsServiceType } from "../settings/types";
+import { ExternalServiceError, NotFoundError } from "../../errors";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { getAppRoot } from "../../platform/paths";
@@ -45,7 +46,7 @@ export class LlmServiceImpl implements LlmService {
 
   private getUrl(id: string): string {
     const instance = this.instances.get(id);
-    if (!instance) throw new Error(`LLM instance "${id}" not running`);
+    if (!instance) throw new NotFoundError("LLMInstance", id);
     return `http://127.0.0.1:${instance.port}`;
   }
 
@@ -95,7 +96,7 @@ export class LlmServiceImpl implements LlmService {
   }
 
   private async doSpawnInstance(id: string, modelType: "chat" | "embed" | "vision"): Promise<string> {
-    const settings = this.kernel.get<{ get: (key: string) => unknown; set: (key: string, value: unknown) => void }>("settings");
+    const settings = this.kernel.get<SettingsServiceType>("settings");
     const ctxSize = (settings.get("llm.chat.ctx_size") as number) ?? 4096;
     const threads = (settings.get("llm.chat.threads") as number) ?? 4;
     const gpuLayers = (settings.get("llm.gpu.layers") as number) ?? 0;
@@ -226,7 +227,7 @@ export class LlmServiceImpl implements LlmService {
 
   private autoDetectContext(instance: LlmInstance): void {
     if (instance.modelType !== "chat") return;
-    const settings = this.kernel.get<{ get: (key: string) => unknown; set: (key: string, value: unknown) => void }>("settings");
+    const settings = this.kernel.get<SettingsServiceType>("settings");
     const autoDetect = settings.get("llm.chat.ctx_size.auto") as boolean;
     if (!autoDetect) return;
 
@@ -246,7 +247,7 @@ export class LlmServiceImpl implements LlmService {
     }
 
     const url = await this.ensureInstance("chat", "chat");
-    const settings = this.kernel.get<{ get: (key: string) => unknown; set: (key: string, value: unknown) => void }>("settings");
+    const settings = this.kernel.get<SettingsServiceType>("settings");
 
     const response = await fetch(`${url}/v1/chat/completions`, {
       method: "POST",
@@ -352,7 +353,7 @@ export class LlmServiceImpl implements LlmService {
   }
 
   status(): { chat: boolean; embed: boolean; vision: boolean; gpu: boolean; mtp: boolean } {
-    const settings = this.kernel.get<{ get: (key: string) => unknown; set: (key: string, value: unknown) => void }>("settings");
+    const settings = this.kernel.get<SettingsServiceType>("settings");
     return {
       chat: this.devMode || this.instances.has("chat"),
       embed: this.devMode || this.instances.has("embed"),

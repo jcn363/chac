@@ -1,6 +1,6 @@
 import type { Database } from "bun:sqlite";
 import type { Kernel } from "../../kernel/types";
-import type { ChatCompletionLLM } from "../../types/llm";
+import type { LlmService } from "../llm/types";
 import { generateId } from "../../utils/id";
 import { VectorIndex } from "../../utils/vector-index";
 import { deleteById } from "../../utils/db-helpers";
@@ -9,6 +9,7 @@ import type { ChatSession, ChatMessage, SendMessageOptions } from "./types";
 import type { DocumentSearchService } from "../documents/search";
 import type { SettingsServiceType } from "../settings/types";
 import { RagRetriever, type RagResult } from "./rag";
+import { NotFoundError } from "../../errors";
 
 const log = createLogger("chat");
 
@@ -25,11 +26,11 @@ export class ChatService {
   constructor(kernel: Kernel) {
     this.kernel = kernel;
     this.db = kernel.get<Database>("db");
-    this.wikiIndex = new VectorIndex(this.db, "wiki_pages");
-    this.chunkIndex = new VectorIndex(this.db, "chunks");
+    this.wikiIndex = kernel.get<VectorIndex>("wikiIndex");
+    this.chunkIndex = kernel.get<VectorIndex>("chunkIndex");
     this.ragRetriever = new RagRetriever(
       this.db,
-      kernel.get<ChatCompletionLLM>("llm"),
+      kernel.get<LlmService>("llm"),
       kernel.get<DocumentSearchService>("search"),
       this.wikiIndex,
       this.chunkIndex,
@@ -113,7 +114,7 @@ export class ChatService {
 
     // Build messages for LLM
     const session = this.getSession(sessionId);
-    if (!session) throw new Error("Session not found");
+    if (!session) throw new NotFoundError("ChatSession", sessionId);
     const messages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [];
 
     // Memory context (cross-session)
@@ -162,7 +163,7 @@ export class ChatService {
       .run(userMsgId, sessionId, content);
 
     // Stream response
-    const llm = this.kernel.get<ChatCompletionLLM>("llm");
+    const llm = this.kernel.get<LlmService>("llm");
 
     let fullResponse = "";
     for await (const chunk of llm.chat.completions({ messages, stream: true })) {
@@ -244,19 +245,19 @@ export class ChatService {
         .get(`%"${chunk.document_id}"%`) as { id: string } | undefined;
       if (!wikiPage) continue;
 
-      const llm = this.kernel.get<ChatCompletionLLM>("llm");
+      const llm = this.kernel.get<LlmService>("llm");
 
       const chunkData = contextChunks.find((c) => c.chunkId === chunkId);
       const chunkContent = chunkData?.content.slice(0, 500) ?? "";
 
       const messages = [
         {
-          role: "system",
+          role: "system" as const,
           content:
             "Extract one key insight from this Q&A that would improve a wiki entry. Return only the insight text, no formatting.",
         },
         {
-          role: "user",
+          role: "user" as const,
           content: `Context: ${chunkContent}\n\nQ: User asked about the context\nA: ${response.slice(0, 500)}`,
         },
       ];

@@ -1,5 +1,6 @@
 import type { Kernel } from "../../kernel/types";
 import type { SchedulerService } from "./service";
+import type { SettingsServiceType } from "../settings/types";
 import { exportDatabase } from "../../database";
 import { join } from "node:path";
 import { writeFileSync, readdirSync, unlinkSync, existsSync, mkdirSync } from "node:fs";
@@ -19,30 +20,36 @@ export function registerDefaultTasks(scheduler: SchedulerService, kernel: Kernel
         seen.set(key, entry.value);
       }
     }
+    // Cap total entries
+    const settings = kernel.get<SettingsServiceType>("settings");
+    const db = kernel.get<import("bun:sqlite").Database>("db");
+    const maxEntries = (settings.get("memory.max_entries") as number) || 500;
+    const count = db.query("SELECT COUNT(*) as count FROM user_memory").get() as { count: number };
+    if (count.count > maxEntries) {
+      db.query(`DELETE FROM user_memory WHERE id IN (SELECT id FROM user_memory ORDER BY created_at ASC LIMIT ?)`).run(count.count - maxEntries);
+    }
   });
 
   // Session cleanup — remove old sessions
   scheduler.register("session-cleanup", 3600000, async () => {
-    const settings = kernel.get<{ get: (key: string) => unknown }>("settings");
+    const settings = kernel.get<SettingsServiceType>("settings");
     const retentionDays = (settings.get("scheduler.session_retention_days") as number) ?? 30;
     const db = kernel.get<import("bun:sqlite").Database>("db");
     const cutoff = new Date(Date.now() - retentionDays * 86400000).toISOString();
     db.query("DELETE FROM chat_sessions WHERE updated_at < ?").run(cutoff);
   });
 
-  // Index health check — invalidate all search indexes
-  scheduler.register("index-check", 900000, async () => {
-    const chat = kernel.get<{ invalidateIndexes: () => void }>("chat");
-    const docs = kernel.get<{ invalidateIndex: () => void }>("docs");
-    const wiki = kernel.get<{ invalidateIndex: () => void }>("wiki");
-    chat.invalidateIndexes();
-    docs.invalidateIndex();
-    wiki.invalidateIndex();
+  // Search history cleanup — remove old search records
+  scheduler.register("search-history-cleanup", 24 * 60 * 60 * 1000, async () => {
+    const settings = kernel.get<SettingsServiceType>("settings");
+    const retentionDays = (settings.get("scheduler.search_history_retention_days") as number) || 30;
+    const db = kernel.get<import("bun:sqlite").Database>("db");
+    db.query(`DELETE FROM search_history WHERE created_at < datetime('now', '-${retentionDays} days')`).run();
   });
 
   // Auto-backup — export database to JSON files with rotation
   scheduler.register("auto-backup", 3600000, async () => {
-    const settings = kernel.get<{ get: (key: string) => unknown }>("settings");
+    const settings = kernel.get<SettingsServiceType>("settings");
     if (settings.get("scheduler.auto_backup_enabled") === false) return;
 
     const db = kernel.get<import("bun:sqlite").Database>("db");

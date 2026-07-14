@@ -46,6 +46,9 @@ export async function embedAndInsertChunks(
       "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
   );
 
+  // Compute all embeddings in batches (async, outside transaction)
+  const allBlobs: Buffer[] = [];
+  const allDimensions: number[] = [];
   const BATCH_SIZE = 8;
   for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
     const batch = chunks.slice(i, i + BATCH_SIZE);
@@ -53,22 +56,30 @@ export async function embedAndInsertChunks(
       batch.map((chunk) => llm.embeddings.create({ input: chunk.content })),
     );
     for (let j = 0; j < batch.length; j++) {
-      const chunk = batch[j]!;
       const firstEmb = embeddings[j]!.data[0];
       if (!firstEmb) throw new Error("No embedding returned");
-      const blob = embeddingToBlob(firstEmb.embedding);
+      allBlobs.push(embeddingToBlob(firstEmb.embedding));
+      allDimensions.push(firstEmb.embedding.length);
+    }
+  }
+
+  // Insert all chunks in one transaction (sync)
+  const insertAll = db.transaction(() => {
+    for (let i = 0; i < chunks.length; i++) {
+      const chunk = chunks[i]!;
       insertChunk.run(
         generateId(),
         docId,
         chunk.index,
         chunk.content,
         chunk.tokenCount,
-        blob,
+        allBlobs[i] ?? null,
         "local",
-        firstEmb.embedding.length,
+        allDimensions[i] ?? null,
       );
     }
-  }
+  });
+  insertAll();
 }
 
 /** Estimate token count from text length (~4 chars per token). */

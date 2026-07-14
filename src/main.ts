@@ -49,12 +49,17 @@ settings.onChange((key, value) => {
   }
 });
 
-// Step 4: Services (created once, reused across requests)
+// Step 4: VectorIndex singletons (shared across all services)
+const chunkIndex = new VectorIndex(db, "chunks");
+const wikiIndex = new VectorIndex(db, "wiki_pages");
+kernel.provide("chunkIndex", chunkIndex);
+kernel.provide("wikiIndex", wikiIndex);
+
+// Step 5: Services (created once, reused across requests)
 // Register services to kernel BEFORE creating services that depend on them
 const docs = new DocumentsService(kernel);
 const tags = new DocumentTagsService(db);
 const searchHistory = new SearchHistoryService(db);
-const chunkIndex = new VectorIndex(db, "chunks");
 const search = new DocumentSearchService(db, llm, chunkIndex, settings);
 kernel.provide("docs", docs);
 kernel.provide("tags", tags);
@@ -63,7 +68,6 @@ kernel.provide("search", search);
 
 // Now create services that depend on kernel registrations
 const chat = new ChatService(kernel);
-const wikiIndex = new VectorIndex(db, "wiki_pages");
 const wikiSynthesizer = new WikiSynthesizer(db, llm, wikiIndex, settings);
 const wikiCompiler = new WikiCompiler(db, llm, docs, settings, wikiSynthesizer);
 const wiki = new WikiService(kernel);
@@ -88,19 +92,21 @@ registerDefaultTasks(scheduler, kernel);
 const transcription = new TranscriptionServiceImpl();
 kernel.provide("transcription", transcription);
 
-// Step 5: Wire index invalidation — when docs/wiki change, invalidate search indexes
+// Step 6: Wire index invalidation — when docs/wiki change, invalidate search indexes
 docs.onIngest(() => {
   chat.invalidateIndexes();
-  docs.invalidateIndex();
+  chunkIndex.invalidate();
+  wikiIndex.invalidate();
   search.invalidateSearchCache();
 });
 
 wiki.onCompile(() => {
   chat.invalidateIndexes();
-  wiki.invalidateIndex();
+  wikiIndex.invalidate();
+  chunkIndex.invalidate();
 });
 
-// Step 6: Router
+// Step 7: Router
 const router = createRouter(kernel);
 
 const rawPort = parseInt(process.env.PORT || "3000", 10);

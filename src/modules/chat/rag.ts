@@ -1,11 +1,10 @@
 import type { Database } from "bun:sqlite";
-import type { ChatCompletionLLM } from "../../types/llm";
 import type { LlmService } from "../llm/types";
 import type { SettingsServiceType } from "../settings/types";
 import type { DocumentSearchService } from "../documents/search";
 import { VectorIndex } from "../../utils/vector-index";
 import { createEmbedding, estimateTokens } from "../../utils/llm-helpers";
-import { generateCitation } from "../../utils/citations";
+import { generateCitationsBatch } from "../../utils/citations";
 import { createLogger } from "../../utils/logger";
 
 const log = createLogger("chat:rag");
@@ -39,7 +38,7 @@ export interface BuildContextResult {
 export class RagRetriever {
   constructor(
     private db: Database,
-    private llm: ChatCompletionLLM,
+    private llm: LlmService,
     private searchService: DocumentSearchService,
     private wikiIndex: VectorIndex,
     private chunkIndex: VectorIndex,
@@ -47,8 +46,7 @@ export class RagRetriever {
   ) {}
 
   private async embedQuery(query: string): Promise<Float32Array> {
-    const llmService = this.llm as unknown as LlmService;
-    return createEmbedding(llmService, query);
+    return createEmbedding(this.llm, query);
   }
 
   /** Reciprocal Rank Fusion retrieval across wiki pages and document chunks. */
@@ -154,15 +152,23 @@ export class RagRetriever {
     }
 
     // Generate citations and trim to maxChunks
-    return results.slice(0, maxChunks).map((r) => {
-      const citation = generateCitation(this.db, r.chunkId, r.content);
+    const topResults = results.slice(0, maxChunks);
+    const citationMap = generateCitationsBatch(
+      this.db,
+      topResults.map((r) => r.chunkId)
+    );
+    return topResults.map((r) => {
+      const citationInfo = citationMap.get(r.chunkId);
+      const preview = r.content.slice(0, 100).replace(/\n/g, " ").trim();
       return {
         chunkId: r.chunkId,
         content: r.content,
         score: r.score,
         source: (r.source || "chunk") as "wiki" | "chunk",
-        citation: citation.citation,
-        documentTitle: citation.documentTitle,
+        citation: citationInfo
+          ? `Source: "${citationInfo.title}" — "${preview}..."`
+          : "",
+        documentTitle: citationInfo?.title ?? "",
       };
     });
   }
@@ -182,7 +188,7 @@ export class RagRetriever {
 
     const allHistory = this.db
       .query(
-        "SELECT * FROM chat_messages WHERE session_id = ? AND (role = 'user' OR role = 'assistant') ORDER BY created_at DESC"
+        "SELECT role, content FROM chat_messages WHERE session_id = ? AND (role = 'user' OR role = 'assistant') ORDER BY created_at DESC LIMIT 200"
       )
       .all(sessionId) as Array<{
       role: string;

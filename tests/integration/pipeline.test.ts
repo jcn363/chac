@@ -39,12 +39,14 @@ beforeEach(() => {
   kernel.provide("llm", llm);
   docs = new DocumentsService(kernel);
   const chunkIndex = new VectorIndex(db, "chunks");
+  const wikiIndex = new VectorIndex(db, "wiki_pages");
+  kernel.provide("chunkIndex", chunkIndex);
+  kernel.provide("wikiIndex", wikiIndex);
   kernel.provide("tags", new DocumentTagsService(db));
   kernel.provide("searchHistory", new SearchHistoryService(db));
   kernel.provide("search", new DocumentSearchService(db, llm, chunkIndex, settings));
   chat = new ChatService(kernel);
 
-  const wikiIndex = new VectorIndex(db, "wiki_pages");
   const wikiSynthesizer = new WikiSynthesizer(db, llm, wikiIndex, settings);
   const wikiCompiler = new WikiCompiler(db, llm, docs, settings, wikiSynthesizer);
   wiki = new WikiService(kernel);

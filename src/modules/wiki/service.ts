@@ -16,7 +16,7 @@ export class WikiService {
   constructor(kernel: Kernel, compiler?: WikiCompiler) {
     this.kernel = kernel;
     this.db = kernel.get<Database>("db");
-    this.wikiIndex = new VectorIndex(this.db, "wiki_pages");
+    this.wikiIndex = kernel.get<VectorIndex>("wikiIndex");
     this.compiler = compiler!;
   }
 

@@ -21,3 +21,22 @@ export function generateCitation(
     documentTitle: row.title,
   };
 }
+
+/** Batch lookup citations for multiple chunk IDs. Returns a map of chunkId → { title, preview }. */
+export function generateCitationsBatch(
+  db: Database,
+  chunkIds: string[],
+): Map<string, { title: string; preview: string }> {
+  if (chunkIds.length === 0) return new Map();
+  const placeholders = chunkIds.map(() => "?").join(",");
+  const rows = db
+    .query(
+      `SELECT c.id, d.title FROM chunks c JOIN documents d ON c.document_id = d.id WHERE c.id IN (${placeholders})`
+    )
+    .all(...chunkIds) as Array<{ id: string; title: string }>;
+  const map = new Map<string, { title: string; preview: string }>();
+  for (const row of rows) {
+    map.set(row.id, { title: row.title || "Untitled", preview: "" });
+  }
+  return map;
+}

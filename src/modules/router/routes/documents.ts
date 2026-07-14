@@ -64,14 +64,14 @@ export function setupDocumentRoutes(app: Hono, kernel: Kernel): void {
     return c.json(result, 201);
   }));
 
-  app.post("/api/documents/batch/delete", async (c) => {
+  app.post("/api/documents/batch/delete", wrap(async (c) => {
     const body = await c.req.json<{ ids: string[] }>();
     if (!body?.ids || !Array.isArray(body.ids) || body.ids.length === 0) {
       return c.json({ error: "Missing or invalid ids array" }, 400);
     }
     const result = docs.batchDelete(body.ids);
     return c.json(result);
-  });
+  }));
 
   app.get("/api/documents/:id", (c) => {
     const doc = docs.get(c.req.param("id"));

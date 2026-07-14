@@ -11,11 +11,11 @@ export function setupChatRoutes(app: Hono, kernel: Kernel): void {
     return c.json(chat.listSessions());
   });
 
-  app.post("/api/chat/sessions", async (c) => {
+  app.post("/api/chat/sessions", wrap(async (c) => {
     const body = await c.req.json<{ title?: string; systemPrompt?: string }>();
     const session = chat.createSession(body ?? {});
     return c.json(session, 201);
-  });
+  }));
 
   app.get("/api/chat/sessions/:id/messages", (c) => {
     const session = chat.getSession(c.req.param("id"));
@@ -29,25 +29,25 @@ export function setupChatRoutes(app: Hono, kernel: Kernel): void {
     return c.json({ ok: true });
   });
 
-  app.put("/api/chat/sessions/:id", async (c) => {
+  app.put("/api/chat/sessions/:id", wrap(async (c) => {
     const body = await c.req.json<{ title: string }>();
     if (!body?.title || typeof body.title !== "string") {
       return c.json({ error: "Missing or invalid title" }, 400);
     }
-    const session = chat.updateSession(c.req.param("id"), body.title);
+    const session = chat.updateSession(c.req.param("id")!, body.title);
     if (!session) return c.json({ error: "Session not found" }, 404);
     return c.json(session);
-  });
+  }));
 
-  app.put("/api/chat/messages/:id", async (c) => {
+  app.put("/api/chat/messages/:id", wrap(async (c) => {
     const body = await c.req.json<{ content: string }>();
     if (!body?.content || typeof body.content !== "string") {
       return c.json({ error: "Missing or invalid content" }, 400);
     }
-    const msg = chat.updateMessage(c.req.param("id"), body.content);
+    const msg = chat.updateMessage(c.req.param("id")!, body.content);
     if (!msg) return c.json({ error: "Message not found" }, 404);
     return c.json(msg);
-  });
+  }));
 
   app.delete("/api/chat/messages/:id", (c) => {
     const deleted = chat.deleteMessage(c.req.param("id"));
@@ -55,14 +55,14 @@ export function setupChatRoutes(app: Hono, kernel: Kernel): void {
     return c.json({ ok: true });
   });
 
-  app.put("/api/chat/sessions", async (c) => {
+  app.put("/api/chat/sessions", wrap(async (c) => {
     const body = await c.req.json<{ ids: string[] }>();
     if (!Array.isArray(body?.ids)) {
       return c.json({ error: "Missing or invalid ids" }, 400);
     }
     chat.reorderSessions(body.ids);
     return c.json({ ok: true });
-  });
+  }));
 
   app.post("/api/chat", wrap(async (c) => {
     const body = await c.req.json<{ sessionId: string; message: string }>();
@@ -86,7 +86,7 @@ export function setupChatRoutes(app: Hono, kernel: Kernel): void {
     return c.json(data);
   });
 
-  app.post("/api/chat/import", async (c) => {
+  app.post("/api/chat/import", wrap(async (c) => {
     const body = await c.req.json<{ session: Record<string, unknown>; messages: Array<Record<string, unknown>> }>();
     if (!body?.messages || !Array.isArray(body.messages)) {
       return c.json({ error: "Missing or invalid messages array" }, 400);
@@ -110,5 +110,5 @@ export function setupChatRoutes(app: Hono, kernel: Kernel): void {
       messages,
     });
     return c.json(session, 201);
-  });
+  }));
 }

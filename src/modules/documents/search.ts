@@ -42,16 +42,20 @@ export class DocumentSearchService {
 
     const queryVec = await createEmbedding(this.llm, searchQuery);
 
-    // Get document mapping for titles
-    const docMap = new Map<string, { documentId: string; documentTitle: string }>();
-    const docRows = this.db.query(
-      "SELECT c.id, c.document_id, d.title FROM chunks c JOIN documents d ON c.document_id = d.id"
-    ).all() as Array<{ id: string; document_id: string; title: string }>;
-    for (const row of docRows) {
-      docMap.set(row.id, { documentId: row.document_id, documentTitle: row.title });
-    }
-
     const results = this.chunkIndex.search(this.db, "chunks", "id", "content", queryVec, { limit: limit * 3 });
+
+    // Fetch document mapping only for result chunks (avoids loading all chunks)
+    const docMap = new Map<string, { documentId: string; documentTitle: string }>();
+    if (results.length > 0) {
+      const chunkIds = results.map((r) => r.id);
+      const placeholders = chunkIds.map(() => "?").join(",");
+      const docRows = this.db.query(
+        `SELECT c.id, c.document_id, d.title FROM chunks c JOIN documents d ON c.document_id = d.id WHERE c.id IN (${placeholders})`
+      ).all(...chunkIds) as Array<{ id: string; document_id: string; title: string }>;
+      for (const row of docRows) {
+        docMap.set(row.id, { documentId: row.document_id, documentTitle: row.title });
+      }
+    }
 
     let mapped: SearchResult[] = results.map((r) => {
       const docInfo = docMap.get(r.id);

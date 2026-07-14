@@ -31,6 +31,8 @@ export function createTestKernel(): Kernel {
   kernel.provide("db", db);
   kernel.provide("settings", settings);
   kernel.provide("llm", llm);
+  kernel.provide("chunkIndex", chunkIndex);
+  kernel.provide("wikiIndex", wikiIndex);
 
   const docs = new DocumentsService(kernel);
   kernel.provide("docs", docs);

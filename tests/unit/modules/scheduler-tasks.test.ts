@@ -44,7 +44,7 @@ describe("Scheduler default tasks", () => {
     const names = scheduler.getStatus().map((t) => t.name);
     expect(names).toContain("memory-consolidation");
     expect(names).toContain("session-cleanup");
-    expect(names).toContain("index-check");
+    expect(names).toContain("search-history-cleanup");
     expect(names).toContain("auto-backup");
   });
 

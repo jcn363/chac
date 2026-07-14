@@ -67,7 +67,7 @@ describe("Scheduler routes", () => {
   });
 
   it("POST /api/scheduler/run/:name runs a task", async () => {
-    const res = await req("/api/scheduler/run/index-check", { method: "POST" });
+    const res = await req("/api/scheduler/run/memory-consolidation", { method: "POST" });
     expect(res.status).toBe(200);
     const data = await res.json() as any;
     expect(data.ok).toBe(true);

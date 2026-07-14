@@ -234,3 +234,8 @@ Chac includes several performance optimizations:
 - **MemoryCache LRU** — embedding cache with eviction prevents unbounded memory growth
 - **Token-aware context** — fills the LLM context window to capacity, not a fixed message count
 - **Parallel ingestion** — bulk file processing in batches of 4 with isolated error handling
+- **Optimized health check** — single-query status endpoint (was 3 separate queries)
+- **LLM startup resilience** — exponential backoff on ready-wait, polling-based restart detection
+- **Async auto-backup** — non-blocking I/O for scheduled database backups
+- **Session creation** — INSERT-only (no redundant SELECT after insert)
+- **Service worker cache rotation** — auto-updates cache names on new deployments for reliable busting

@@ -15,6 +15,7 @@ import { SchedulerService } from "./modules/scheduler/service";
 import { registerDefaultTasks } from "./modules/scheduler/tasks";
 import { UrlFetcherServiceImpl } from "./modules/url-fetcher/service";
 import { TranscriptionServiceImpl } from "./modules/transcription/service";
+import { ObsidianExporter } from "./modules/obsidian/exporter";
 import { createRouter, requestTracker } from "./modules/router";
 import { setupWebSocket } from "./modules/router/ws";
 import { VectorIndex } from "./utils/vector-index";
@@ -92,6 +93,10 @@ registerDefaultTasks(scheduler, kernel);
 // Step 4c: Transcription
 const transcription = new TranscriptionServiceImpl();
 kernel.provide("transcription", transcription);
+
+// Step 4d: Obsidian exporter
+const obsidian = new ObsidianExporter(db);
+kernel.provide("obsidian", obsidian);
 
 // Step 6: Wire index invalidation — when docs/wiki change, invalidate search indexes
 docs.onIngest(() => {

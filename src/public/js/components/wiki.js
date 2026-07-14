@@ -12,10 +12,13 @@ export function initWiki() {
 
 async function loadWiki() {
   try {
-    const data = await apiGet("/api/wiki");
     const list = document.getElementById("wiki-list");
     const empty = document.getElementById("wiki-empty");
     if (!list) return;
+    list.innerHTML = '<div class="loading">Loading...</div>';
+    if (empty) empty.classList.add("hidden");
+
+    const data = await apiGet("/api/wiki");
 
     const pages = data.pages || [];
     toggleEmptyState(list, empty, pages.length > 0);

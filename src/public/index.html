@@ -24,6 +24,11 @@
 
     <main id="content">
       <section id="chat-tab" class="tab-panel active">
+        <button id="session-toggle" class="session-toggle" aria-label="Toggle sessions">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 12h18M3 6h18M3 18h18"/>
+          </svg>
+        </button>
         <div id="chat-sessions">
           <button id="new-session" data-tooltip="Start a new conversation">+ New Session</button>
           <input type="text" id="session-search" placeholder="Search sessions..." aria-label="Search sessions">
@@ -167,6 +172,9 @@
 
   <!-- Toast container -->
   <div id="toast-container" aria-live="polite" aria-atomic="true"></div>
+
+  <!-- Mobile session backdrop -->
+  <div id="session-backdrop" class="session-backdrop"></div>
 
   <script type="module" src="/static/app.js"></script>
   <script>

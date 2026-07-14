@@ -6,9 +6,8 @@ import { wrap } from '../utils';
 
 export function setupObsidianRoutes(app: Hono, kernel: Kernel): void {
   app.get('/api/obsidian/export', wrap(async (c) => {
-    const db = kernel.get<Database>('db');
     const format = c.req.query('format') ?? 'markdown';
-    const exporter = new ObsidianExporter(db);
+    const exporter = kernel.get<ObsidianExporter>('obsidian');
 
     if (format === 'zip') {
       const vault = await exporter.exportVault();

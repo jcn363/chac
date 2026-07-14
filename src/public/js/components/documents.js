@@ -90,10 +90,13 @@ async function ingestFromUrl() {
 
 async function loadDocuments(page = 1) {
   try {
-    const data = await apiGet(`/api/documents?page=${page}`);
     const list = document.getElementById("doc-list");
     const empty = document.getElementById("doc-empty");
     if (!list) return;
+    list.innerHTML = '<div class="loading">Loading...</div>';
+    if (empty) empty.classList.add("hidden");
+
+    const data = await apiGet(`/api/documents?page=${page}`);
 
     const docs = data.documents || [];
     toggleEmptyState(list, empty, docs.length > 0);

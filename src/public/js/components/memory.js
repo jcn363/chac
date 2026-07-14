@@ -8,10 +8,13 @@ export function initMemory() {
 
 async function loadMemory() {
   try {
-    const entries = await apiGet("/api/memory");
     const list = document.getElementById("memory-list");
     const empty = document.getElementById("memory-empty");
     if (!list) return;
+    list.innerHTML = '<div class="loading">Loading...</div>';
+    if (empty) empty.classList.add("hidden");
+
+    const entries = await apiGet("/api/memory");
 
     if (entries.length === 0) {
       list.innerHTML = "";

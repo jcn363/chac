@@ -7,6 +7,7 @@ import { getCurrentSession, setCurrentSession, setCurrentToken } from "../lib/st
 marked.setOptions({ breaks: true, gfm: true });
 
 let streamingDiv = null;
+let typingTimeout = null;
 
 export function initChat() {
   document.getElementById("new-session")?.addEventListener("click", createSession);
@@ -15,6 +16,19 @@ export function initChat() {
   document.getElementById("search-toggle")?.addEventListener("click", toggleSearch);
   document.getElementById("msg-search")?.addEventListener("input", onSearchInput);
   document.getElementById("session-search")?.addEventListener("input", onSessionSearch);
+
+  // Mobile session toggle
+  const toggle = document.getElementById("session-toggle");
+  const sidebar = document.getElementById("chat-sessions");
+  const backdrop = document.getElementById("session-backdrop");
+  toggle?.addEventListener("click", () => {
+    sidebar?.classList.toggle("mobile-open");
+    backdrop?.classList.toggle("visible");
+  });
+  backdrop?.addEventListener("click", () => {
+    sidebar?.classList.remove("mobile-open");
+    backdrop.classList.remove("visible");
+  });
 
   document.getElementById("chat-input")?.addEventListener("keydown", (e) => {
     if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
@@ -97,9 +111,15 @@ function showTypingIndicator() {
     indicator.classList.remove("hidden");
     indicator.scrollIntoView({ behavior: "smooth" });
   }
+  clearTimeout(typingTimeout);
+  typingTimeout = setTimeout(() => {
+    document.getElementById("typing-indicator")?.classList.add("hidden");
+    showToast("Response timed out");
+  }, 60000);
 }
 
 function hideTypingIndicator() {
+  clearTimeout(typingTimeout);
   document.getElementById("typing-indicator")?.classList.add("hidden");
 }
 
@@ -255,6 +275,9 @@ export async function loadSessions() {
         connectWebSocket();
         loadSessions();
         loadMessages();
+        // Close mobile sidebar
+        document.getElementById("chat-sessions")?.classList.remove("mobile-open");
+        document.getElementById("session-backdrop")?.classList.remove("visible");
       });
       el.addEventListener("dblclick", (e) => {
         if (e.target.closest(".session-delete")) return;

@@ -91,6 +91,17 @@
 - **Incremental Vector Cache** — diff-based persistence avoids full re-inserts on index rebuild
 - **RAG Deduplication** — deduplicates wiki and chunk results by content before fusion
 - **Settings Validation** — type, range, and enum validation on all settings writes
+- **Optimized Health Check** — single-query status endpoint (was 3 queries)
+- **LLM Resilience** — exponential backoff on startup wait, polling-based restart detection
+- **Async Auto-Backup** — non-blocking I/O for scheduled database backups
+- **Cache Maintenance** — periodic stale embedding cleanup via scheduler
+- **Session Creation** — INSERT-only (no redundant SELECT after insert)
+- **Service Worker Cache Rotation** — auto-updates cache names on new deployments
+- **Extended Database Backup** — exports search_history and vector_index_cache tables
+- **Frontend Error Parsing** — API error response bodies parsed for better user feedback
+- **X-Filename Sanitization** — prevents path traversal in Content-Disposition headers
+- **LLM Service Tests** — comprehensive unit tests for llama.cpp subprocess management
+- **Database Import Tests** — validates backup/restore round-trip integrity
 
 ---
 
@@ -280,7 +291,7 @@ chac/
 │       ├── hash.ts                  # SHA-256 content hashing
 │       └── id.ts                    # UUID generation (crypto.randomUUID)
 ├── tests/
-│   ├── unit/                        # Unit tests per module (66 test files)
+│   ├── unit/                        # Unit tests per module (57 test files)
 │   ├── integration/                 # Cross-module integration tests (4 files)
 │   ├── e2e/                         # End-to-end tests
 │   ├── benchmarks/                  # Performance benchmarks
@@ -289,7 +300,7 @@ chac/
 │   │   └── llama-cpp.ts
 │   └── helpers/
 │       └── setup.ts                 # createTestKernel() for test isolation
-├── Docs/                            # Reference documentation (10 markdown + 2 PDF)
+├── Docs/                            # Reference documentation (11 markdown + 2 PDF)
 ├── launchers/                       # USB drive launcher scripts (start.sh, start.command, start.bat)
 ├── build.ts                         # Cross-compilation build script (8 targets)
 ├── CLAUDE.md                        # Agent context (coding rules, architecture)
@@ -390,7 +401,7 @@ Full OpenAPI 3.1 documentation is available at:
 GET /api/openapi.json
 ```
 
-This spec covers all 35 API paths with 47 method definitions across settings, documents, chat, wiki, LLM, memory, search history, tags, suggestions, cache, scheduler, and backup/restore.
+This spec covers all 42 API paths with 54 method definitions across settings, documents, chat, wiki, LLM, memory, search history, tags, suggestions, cache, scheduler, backup/restore, admin, health, and obsidian export.
 
 ### Status
 

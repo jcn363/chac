@@ -821,6 +821,13 @@ button:focus-visible,
 
 .hidden { display: none !important; }
 
+.loading {
+  padding: 24px 16px;
+  color: var(--text-secondary);
+  text-align: center;
+  font-size: 14px;
+}
+
 /* ==================== */
 /* NEW: Toast           */
 /* ==================== */
@@ -1130,8 +1137,66 @@ body:not(.dark):not(.light) .theme-icon-system,
 body.dark .theme-icon-dark,
 body.light .theme-icon-light { display: inline; }
 
+/* Session toggle button */
+.session-toggle {
+  display: none;
+  background: none;
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 6px;
+  border-radius: var(--radius);
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  min-height: 36px;
+  flex-shrink: 0;
+  margin: 8px 0 0 8px;
+  transition: color 0.15s ease-out, background 0.15s ease-out;
+}
+
+.session-toggle:hover {
+  color: var(--text-primary);
+  background: var(--bg-secondary);
+}
+
+/* Mobile session backdrop */
+.session-backdrop {
+  display: none;
+}
+
 @media (max-width: 768px) {
-  #chat-sessions { display: none; }
+  .session-toggle { display: inline-flex; }
+
+  #chat-sessions {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 280px;
+    z-index: 500;
+    transform: translateX(-100%);
+    transition: transform 0.2s ease-out;
+  }
+
+  #chat-sessions.mobile-open {
+    display: flex;
+    transform: translateX(0);
+  }
+
+  .session-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.3);
+    z-index: 499;
+  }
+
+  .session-backdrop.visible {
+    display: block;
+  }
+
   #chat-tab.active { flex-direction: column; }
   .message { max-width: 95%; }
   #toast-container { left: 12px; right: 12px; bottom: 12px; }

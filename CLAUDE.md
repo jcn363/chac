@@ -130,7 +130,7 @@ Memory tab manages cross-session memory via `GET/PUT/DELETE /api/memory`. Entrie
 - **Mock LLM**: `tests/mocks/llama-cpp.ts` provides `createMockLlmService()` — no llama.cpp binary needed
 - **Run pattern**: `bun test` (all), `bun test tests/unit/chat.test.ts` (single file)
 - **New tests**: Add to `tests/unit/<module>/` matching the source module structure
-- **Target**: 673 tests pass, 0 failures, 0 TypeScript errors (1344 expect() calls across 66 test files)
+- **Target**: 692 tests pass, 0 failures, 0 TypeScript errors (1386 expect() calls across 68 test files)
 
 ### Adding a new test
 
@@ -214,6 +214,15 @@ describe("MyModule", () => {
 - MemoryCache: LRU eviction with configurable max size (default 10K entries)
 - Search history retention: configurable cleanup (default 30 days) via scheduler
 - User memory cap: configurable max entries (default 500) enforced during consolidation
+- `getStatus()` optimized from 3 queries to 1
+- LLM `waitForReady()` uses exponential backoff instead of fixed sleep
+- `restartInstance()` uses polling instead of fixed sleep for faster startup detection
+- Auto-backup uses async I/O (non-blocking)
+- `embeddingCache.startCleanup()` wired for periodic stale entry cleanup
+- `createSession()` uses INSERT-only (no SELECT after insert)
+- Service worker rotates cache names on update for reliable cache busting
+- `exportDatabase()` includes `search_history` and `vector_index_cache` tables in backup
+- Frontend parses API error response bodies for better error messages
 
 ## Build & Deploy
 

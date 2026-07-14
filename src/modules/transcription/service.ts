@@ -2,6 +2,7 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { getAppRoot } from "../../platform/paths";
 import { detectPlatform } from "../../platform/detect";
+import { ExternalServiceError } from "../../errors";
 import { createLogger } from "../../utils/logger";
 import type { TranscriptionServiceType, TranscriptionResult } from "./types";
 
@@ -62,7 +63,7 @@ export class TranscriptionServiceImpl implements TranscriptionServiceType {
 
     if (exitCode !== 0) {
       log.error(`Whisper process failed with code ${exitCode}: ${stderr}`);
-      throw new Error(`Transcription failed: ${stderr || "unknown error"}`);
+      throw new ExternalServiceError("transcription", `Transcription failed: ${stderr || "unknown error"}`);
     }
 
     const result = JSON.parse(stdout);

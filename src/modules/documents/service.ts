@@ -1,6 +1,6 @@
 import type { Database } from "bun:sqlite";
 import type { Kernel } from "../../kernel/types";
-import { NotFoundError, SecurityError } from "../../errors";
+import { ExternalServiceError, NotFoundError, SecurityError } from "../../errors";
 import { generateId } from "../../utils/id";
 import { contentHash } from "../../utils/hash";
 import { chunkText, chunkTextSemantic } from "../../utils/chunking";
@@ -107,7 +107,7 @@ export class DocumentsService {
       );
       for (const emb of embeddings) {
         const first = emb.data[0];
-        if (!first) throw new Error("No embedding returned");
+        if (!first) throw new ExternalServiceError("embedding", "No embedding returned");
         allBlobs.push(embeddingToBlob(first.embedding));
         allDimensions.push(first.embedding.length);
       }
@@ -151,7 +151,7 @@ export class DocumentsService {
 
     const content = result.content;
     if (!content || content.trim().length === 0) {
-      throw new Error("No content could be extracted from URL");
+      throw new ExternalServiceError("url-fetcher", "No content could be extracted from URL");
     }
 
     const hash = await contentHash(content);
@@ -183,7 +183,7 @@ export class DocumentsService {
       );
       for (const emb of embeddings) {
         const first = emb.data[0];
-        if (!first) throw new Error("No embedding returned");
+        if (!first) throw new ExternalServiceError("embedding", "No embedding returned");
         allBlobs.push(embeddingToBlob(first.embedding));
         allDimensions.push(first.embedding.length);
       }

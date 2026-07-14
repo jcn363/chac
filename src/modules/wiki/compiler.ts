@@ -2,6 +2,7 @@ import type { Database } from "bun:sqlite";
 import type { ChatMessage } from "../llm/types";
 import type { SettingsServiceType } from "../settings/types";
 import type { DocumentsService } from "../documents/service";
+import { ExternalServiceError } from "../../errors";
 import { embeddingToBlob } from "../../utils/vector";
 import { generateId } from "../../utils/id";
 import { contentHash } from "../../utils/hash";
@@ -53,7 +54,7 @@ export class WikiCompiler {
 
       const embResult = await this.llm.embeddings.create({ input: wikiContent });
       const firstEmb = embResult.data[0];
-      if (!firstEmb) throw new Error("No embedding returned");
+      if (!firstEmb) throw new ExternalServiceError("wiki", "No embedding returned");
       const embedding = firstEmb.embedding;
       const blob = embeddingToBlob(embedding);
 

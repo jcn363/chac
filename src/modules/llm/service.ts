@@ -1,7 +1,7 @@
 import type { Kernel } from "../../kernel/types";
 import type { LlmInstance, LlmService, ChatCompletionOptions, EmbeddingOptions, EmbeddingResponse, ModelCapabilities } from "./types";
 import type { SettingsServiceType } from "../settings/types";
-import { ExternalServiceError, NotFoundError } from "../../errors";
+import { ExternalServiceError, NotFoundError, ValidationError } from "../../errors";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { getAppRoot } from "../../platform/paths";
@@ -185,7 +185,7 @@ export class LlmServiceImpl implements LlmService {
       await Bun.sleep(delay);
       delay = Math.min(delay * 1.5, 2000);
     }
-    throw new Error(`llama.cpp on port ${port} failed to start within ${timeout}ms`);
+    throw new ExternalServiceError("llama", `llama.cpp on port ${port} failed to start within ${timeout}ms`);
   }
 
   private async queryModelInfo(port: number, modelType: string): Promise<ModelCapabilities> {
@@ -267,11 +267,11 @@ export class LlmServiceImpl implements LlmService {
     });
 
     if (!response.ok) {
-      throw new Error(`llama.cpp error: ${response.status} ${response.statusText}`);
+      throw new ExternalServiceError("llama", `llama.cpp error: ${response.status} ${response.statusText}`);
     }
 
     if (!response.body) {
-      throw new Error("No response body from llama.cpp");
+      throw new ExternalServiceError("llama", "No response body from llama.cpp");
     }
 
     const reader = response.body.getReader();
@@ -304,7 +304,7 @@ export class LlmServiceImpl implements LlmService {
 
   private async *mockChatCompletions(options: ChatCompletionOptions): AsyncGenerator<string> {
     const lastMsg = options.messages[options.messages.length - 1];
-    if (!lastMsg) throw new Error("No messages provided");
+    if (!lastMsg) throw new ValidationError("No messages provided");
     const response = `[Dev Mode] This is a mock response to: "${lastMsg.content}". ` +
       `In production, this would be answered by llama.cpp running locally.`;
     const words = response.split(" ");
@@ -336,7 +336,7 @@ export class LlmServiceImpl implements LlmService {
     });
 
     if (!response.ok) {
-      throw new Error(`Embedding error: ${response.status}`);
+      throw new ExternalServiceError("llama", `Embedding error: ${response.status}`);
     }
 
     const result = await response.json() as EmbeddingResponse;
@@ -376,7 +376,7 @@ export class LlmServiceImpl implements LlmService {
     try {
       const url = await this.ensureInstance("vision", "vision");
       const instance = this.instances.get("vision");
-      if (!instance) throw new Error("Vision instance not running");
+      if (!instance) throw new NotFoundError("LLMInstance", "vision");
 
       const file = Bun.file(imagePath);
       const arrayBuffer = await file.arrayBuffer();
@@ -400,7 +400,7 @@ export class LlmServiceImpl implements LlmService {
       });
 
       if (!response.ok) {
-        throw new Error(`Vision API error: ${response.status} ${response.statusText}`);
+        throw new ExternalServiceError("llama", `Vision API error: ${response.status} ${response.statusText}`);
       }
 
       const result = await response.json() as { choices?: Array<{ message?: { content?: string } }> };

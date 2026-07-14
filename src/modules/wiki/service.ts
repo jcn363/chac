@@ -1,6 +1,7 @@
 import type { Database } from "bun:sqlite";
 import type { Kernel } from "../../kernel/types";
 import { deleteById, countRows, parsePagination } from "../../utils/db-helpers";
+import { ExternalServiceError } from "../../errors";
 import { VectorIndex } from "../../utils/vector-index";
 import type { WikiPage } from "./types";
 import type { WikiCompiler } from "./compiler";
@@ -70,7 +71,7 @@ export class WikiService {
 
     const embResult = await llm.embeddings.create({ input: query });
     const firstEmb = embResult.data[0];
-    if (!firstEmb) throw new Error("No embedding returned");
+    if (!firstEmb) throw new ExternalServiceError("wiki", "No embedding returned");
     const queryVec = new Float32Array(firstEmb.embedding);
 
     const results = this.wikiIndex.search(this.db, "wiki_pages", "id", "content", queryVec, { limit });

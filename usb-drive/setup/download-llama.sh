@@ -8,7 +8,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT_DIR="$(dirname "$SCRIPT_DIR")"
 BIN_DIR="$ROOT_DIR/bin/llama.cpp/llama-server"
 
-LLAMA_CPP_VERSION="b9946"
+LLAMA_CPP_VERSION="b9999"
 RELEASE_BASE="https://github.com/ggerganov/llama.cpp/releases/download"
 
 echo "=== Chac llama.cpp Downloader ==="

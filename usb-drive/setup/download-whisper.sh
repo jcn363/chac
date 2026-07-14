@@ -3,15 +3,20 @@
 # Binary: whisper-cli
 # Requires: curl, unzip/tar
 # Run from the usb-drive root directory
+#
+# To update the version, change WHISPER_VERSION below and update
+# the asset names if the release naming convention changes.
+# Check https://github.com/ggml-org/whisper.cpp/releases for current assets.
 
 set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT_DIR="$(dirname "$SCRIPT_DIR")"
 BIN_DIR="$ROOT_DIR/bin/whisper.cpp"
 
-# Use a recent stable release
-WHISPER_VERSION="v1.7.5"
-RELEASE_BASE="https://github.com/ggerganov/whisper.cpp/releases/download"
+# ── Configurable version ──────────────────────────────────────────
+WHISPER_VERSION="v1.9.1"  # Latest: check https://github.com/ggml-org/whisper.cpp/releases
+RELEASE_BASE="https://github.com/ggml-org/whisper.cpp/releases/download"
+# ──────────────────────────────────────────────────────────────────
 
 echo "=== Chac whisper.cpp Downloader ==="
 echo "Version: $WHISPER_VERSION"
@@ -56,23 +61,27 @@ download_and_extract() {
   fi
 }
 
-# Archive naming may vary by release — if downloads fail, check
-# https://github.com/ggerganov/whisper.cpp/releases for exact filenames.
+# ── Platform downloads ────────────────────────────────────────────
+# Asset names from https://github.com/ggml-org/whisper.cpp/releases
+# Update these if the release naming convention changes.
 
 # Linux x64
-download_and_extract "linux-x64" "whisper.cpp-${WHISPER_VERSION#v}-bin-ubuntu-x64.tar.gz"
+download_and_extract "linux-x64" "whisper-bin-ubuntu-x64.tar.gz"
 
 # Linux ARM64
-download_and_extract "linux-arm64" "whisper.cpp-${WHISPER_VERSION#v}-bin-ubuntu-arm64.tar.gz"
-
-# macOS ARM64
-download_and_extract "darwin-arm64" "whisper.cpp-${WHISPER_VERSION#v}-bin-macos-arm64.tar.gz"
-
-# macOS x64
-download_and_extract "darwin-x64" "whisper.cpp-${WHISPER_VERSION#v}-bin-macos-x64.tar.gz"
+download_and_extract "linux-arm64" "whisper-bin-ubuntu-arm64.tar.gz"
 
 # Windows x64
-download_and_extract "windows-x64" "whisper.cpp-${WHISPER_VERSION#v}-bin-win-x64.zip"
+download_and_extract "windows-x64" "whisper-bin-x64.zip"
+
+# macOS — no pre-built CLI binary available
+# The macOS release only contains an xcframework (library), not the whisper-cli binary.
+# macOS users must build from source: cmake -B build && cmake --build build
+# Or use setup-all.sh option 2 (build from source).
+echo ""
+echo "⚠ macOS: No pre-built whisper-cli binary available."
+echo "  Build from source: cd whisper.cpp && cmake -B build && cmake --build build"
+echo "  Or use: setup-all.sh → option 2 (build from source)"
 
 echo ""
 echo "=== whisper.cpp setup complete ==="

@@ -42,8 +42,8 @@ esac
 
 echo "Platform: $PLATFORM"
 
-# Check if binary exists
-BINARY="$ROOT_DIR/bin/chac"
+# Check if binary exists (platform-specific name from build)
+BINARY="$ROOT_DIR/bin/chac-$PLATFORM"
 if [ ! -f "$BINARY" ]; then
   echo ""
   echo "⚠️  Binary not found at $BINARY"

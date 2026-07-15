@@ -235,7 +235,7 @@ chac/
 │   ├── modules/
 │   │   ├── settings/
 │   │   │   ├── service.ts           # Settings CRUD with in-memory cache + validation
-│   │   │   └── types.ts             # DEFAULT_SETTINGS (44 keys), SETTING_VALIDATORS, SettingsServiceType
+│   │   │   └── types.ts             # DEFAULT_SETTINGS (48 keys), SETTING_VALIDATORS, SettingsServiceType
 │   │   ├── llm/
 │   │   │   ├── service.ts           # llama.cpp subprocess manager + mock fallback
 │   │   │   └── types.ts             # LlmService interface, LlmInstance, ChatCompletionOptions
@@ -298,8 +298,8 @@ chac/
 │       ├── hash.ts                  # SHA-256 content hashing
 │       └── id.ts                    # UUID generation (crypto.randomUUID)
 ├── tests/
-│   ├── unit/                        # Unit tests per module (57 test files)
-│   ├── integration/                 # Cross-module integration tests (4 files)
+│   ├── unit/                        # Unit tests per module (63 test files)
+│   ├── integration/                 # Cross-module integration tests (6 files)
 │   ├── benchmarks/                  # Performance benchmarks
 │   ├── fixtures/                    # Test fixture data
 │   ├── mocks/                       # Mock LLM (no llama.cpp needed)
@@ -648,6 +648,7 @@ All settings are stored in the `settings` table and accessible via the API.
 | `llm.embed.model` | `"nomic-ai/nomic-embed-text-v2-moe"` | llm | Embedding model name |
 | `llm.embed.dimensions` | `768` | llm | Embedding vector dimensions |
 | `llm.vision.model` | `"openbmb/MiniCPM-V-4.6"` | llm | Vision model name |
+| `llm.vision.ctx_size` | `4096` | llm | Vision model context window size |
 | `llm.gpu.layers` | `20` | llm | GPU layers to offload (0=CPU, -1=all) |
 | `llm.gpu.flash_attn` | `"on"` | llm | Flash Attention: on, off, auto |
 | `llm.gpu.split_mode` | `"none"` | llm | GPU split: none, layer, row, tensor |
@@ -684,6 +685,9 @@ All settings are stored in the `settings` table and accessible via the API.
 | `scheduler.auto_backup_enabled` | `true` | scheduler | Enable automatic database backups |
 | `scheduler.auto_backup_interval` | `3600000` | scheduler | Backup interval (ms, default 1hr) |
 | `scheduler.backup_retention` | `7` | scheduler | Number of backup files to keep |
+| `transcription.model` | `"base"` | transcription | Whisper.cpp model size |
+| `transcription.language` | `"auto"` | transcription | Transcription language (auto-detect) |
+| `transcription.threads` | `4` | transcription | CPU threads for transcription |
 
 ### Update a Setting
 
@@ -756,42 +760,32 @@ interface Kernel {
 
 ```
 tests/
-├── unit/                            # Unit tests per module
+├── unit/                            # Unit tests per module (63 files)
 │   ├── kernel.test.ts
 │   ├── errors.test.ts
-│   ├── database/
-│   │   └── migrations.test.ts
-│   ├── modules/
-│   │   ├── settings.test.ts
-│   │   ├── settings-api.test.ts
-│   │   ├── chat.test.ts
-│   │   ├── chat-context.test.ts
-│   │   ├── wiki.test.ts
-│   │   ├── memory.test.ts
-│   │   ├── documents.test.ts
-│   │   ├── documents-ingest.test.ts
-│   │   ├── api-routes.test.ts
-│   │   ├── rag-quality.test.ts
-│   │   ├── transcription.test.ts
-│   │   ├── url-fetcher.test.ts
-│   │   └── ws-auth.test.ts
-│   ├── platform/
-│   │   ├── detect.test.ts
-│   │   └── paths.test.ts
-│   └── utils/
-│       ├── chunking.test.ts
-│       ├── vector.test.ts
-│       ├── hash.test.ts
-│       ├── citations.test.ts
-│       ├── id.test.ts
-│       ├── document-parser.test.ts
-│       └── vector-persistence.test.ts
-├── integration/                     # Cross-module with real DB
-│   └── error-handling.test.ts
+│   ├── scheduler.test.ts
+│   ├── database/                    # backup, import, migrations (3 files)
+│   ├── modules/                     # 39 files: chat, wiki, memory, settings, documents,
+│   │                                #   obsidian, scheduler, transcription, search, routes...
+│   ├── platform/                    # detect, paths (2 files)
+│   ├── frontend/                    # api, dom, state (3 .js files)
+│   └── utils/                       # chunking, vector, hash, citations, db-helpers,
+│                                    #   llm-helpers, cache, logger, tracing, etc. (14 files)
+├── integration/                     # Cross-module with real DB (6 files)
+│   ├── backup-routes.test.ts
+│   ├── documents-ingest.test.ts
+│   ├── error-handling.test.ts
+│   ├── graceful-shutdown.test.ts
+│   ├── pipeline.test.ts
+│   └── vector-persistence.test.ts
+├── benchmarks/                      # Performance & search quality (2 files)
 ├── mocks/
 │   └── llama-cpp.ts                 # Mock LLM for unit tests
 └── helpers/
     └── setup.ts                     # Test kernel with in-memory DB + mock LLM
+
+e2e-tests/
+└── app.e2e.ts                       # Playwright browser E2E tests (10 tests)
 ```
 
 ### Running Tests

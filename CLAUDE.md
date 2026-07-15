@@ -14,6 +14,7 @@ Chac is a portable RAG chat application that runs from a USB drive. All processi
 | `bun test --watch` | Run tests in watch mode |
 | `bun test --coverage` | Run tests with coverage |
 | `bun run test:e2e` | Run Playwright browser E2E tests |
+| `bun run typecheck` | Type-check without emitting |
 | `bun run build` | Cross-compile for 8 targets into `usb-drive/` |
 
 **Always use `bun`, never `npm`.**
@@ -39,6 +40,7 @@ Microkernel with dependency injection. The kernel (`src/kernel/`) provides servi
 - `scheduler` — SchedulerService (background tasks: memory consolidation, session cleanup, search history cleanup, auto-backup)
 - `transcription` — TranscriptionServiceImpl (Whisper.cpp binary management, speech-to-text)
 - `urlFetcher` — UrlFetcherServiceImpl (URL content extraction + LLM descriptions)
+- `obsidian` — ObsidianExporter (vault export with wikilinks and frontmatter)
 
 ### Source layout
 
@@ -70,7 +72,7 @@ src/
                          utils.ts — wrap() error handler, safeInt() helper
                          routes/ — Individual route modules (15 files)
   platform/            # OS-specific paths (getAppRoot), binary resolution
-  utils/               # Shared utilities (chunking, hashing, IDs, vectors, VectorIndex, cache, citations, document-parser, db-helpers, logger, tracing)
+  utils/               # Shared utilities (chunking, hashing, IDs, vectors, VectorIndex, cache, citations, document-parser, db-helpers, llm-helpers, logger, tracing)
   public/              # Static frontend files (HTML, CSS, JS + componentized js/)
 tests/
   helpers/setup.ts     # createTestKernel() for test isolation
@@ -131,7 +133,7 @@ Memory tab manages cross-session memory via `GET/PUT/DELETE /api/memory`. Entrie
 - **Mock LLM**: `tests/mocks/llama-cpp.ts` provides `createMockLlmService()` — no llama.cpp binary needed
 - **Run pattern**: `bun test` (all), `bun test tests/unit/chat.test.ts` (single file)
 - **New tests**: Add to `tests/unit/<module>/` matching the source module structure
-- **Target**: 768 tests pass, 0 failures, 0 TypeScript errors (1552 expect() calls across 72 test files) + 10 Playwright E2E tests
+- **Target**: 755 tests pass, 0 failures, 0 TypeScript errors (1371 expect() calls across 71 test files) + 10 Playwright E2E tests
 
 ### Playwright browser E2E tests
 
@@ -236,7 +238,7 @@ describe("MyModule", () => {
 
 ## Build & Deploy
 
-`bun run build` cross-compiles to 8 targets (linux-x64, linux-arm64, darwin-arm64, darwin-x64, windows-x64 — each with and without baseline). Output goes to `usb-drive/bin/`. Each binary embeds the full Bun runtime (~50-60MB).
+`bun run build` cross-compiles to 8 targets: linux-x64 (+baseline), linux-arm64, darwin-arm64, darwin-x64 (+baseline), windows-x64 (+baseline). Output goes to `usb-drive/bin/`. Each binary embeds the full Bun runtime (~50-60MB).
 
 ### Docker
 

@@ -23,7 +23,17 @@ jobs:
         run: bunx tsc --noEmit
 
       - name: Run tests
-        run: bun test
+        run: bun test --coverage
+
+      - name: Check coverage threshold
+        run: |
+          COVERAGE=$(bun test --coverage 2>&1 | grep -E "^src/" | awk -F'|' '{gsub(/^[ \t]+|[ \t]+$/, "", $3); if ($3+0 < 85) print $1, $3}' | head -20)
+          if [ -n "$COVERAGE" ]; then
+            echo "Files below 85% line coverage:"
+            echo "$COVERAGE"
+            exit 1
+          fi
+          echo "All files above 85% line coverage"
 
   build:
     runs-on: ubuntu-latest

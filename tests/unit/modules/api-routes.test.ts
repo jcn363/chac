@@ -181,6 +181,22 @@ describe("Documents API", () => {
     expect(res.status).toBe(400);
   });
 
+  it("POST /api/documents/upload ingests a valid file", async () => {
+    const content = "Upload test content for ingestion via file upload endpoint.";
+    const res = await req("/api/documents/upload", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/octet-stream",
+        "X-Filename": "uploaded.txt",
+      },
+      body: content,
+    });
+    expect(res.status).toBe(201);
+    const data = await res.json() as any;
+    expect(data).toHaveProperty("id");
+    expect(data).toHaveProperty("title");
+  });
+
   it("POST /api/documents/batch returns 400 for non-array", async () => {
     const res = await json("POST", "/api/documents/batch", { paths: "not-an-array" });
     expect(res.status).toBe(400);

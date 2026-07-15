@@ -1,8 +1,11 @@
 import { Hono } from "hono";
+import { join } from "path";
+import { mkdir } from "fs/promises";
 import type { Kernel } from "../../../kernel/types";
 import type { DocumentsService } from "../../documents/service";
 import type { DocumentSearchService } from "../../documents/search";
 import type { SettingsServiceType } from "../../settings/types";
+import { getAppRoot } from "../../../platform/paths";
 import { safeInt, wrap } from "../utils";
 
 export function setupDocumentRoutes(app: Hono, kernel: Kernel): void {
@@ -43,7 +46,9 @@ export function setupDocumentRoutes(app: Hono, kernel: Kernel): void {
     }
     const rawFilename = c.req.header("X-Filename") || "upload";
     const filename = rawFilename.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 255);
-    const tmpPath = `/tmp/chac-upload-${Date.now()}-${filename}`;
+    const tmpDir = join(getAppRoot(), "tmp");
+    await mkdir(tmpDir, { recursive: true });
+    const tmpPath = join(tmpDir, `chac-upload-${Date.now()}-${filename}`);
     await Bun.write(tmpPath, file);
     try {
       const result = await docs.ingest(tmpPath);

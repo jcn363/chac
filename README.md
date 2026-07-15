@@ -202,6 +202,13 @@ bun run dev
 
 Open `http://localhost:3000` in your browser.
 
+### Docker
+
+```bash
+docker build -t chac .
+docker run -p 3000:3000 -v ./data:/app/data -v ./models:/app/models chac
+```
+
 ### What You Get (Dev Mode)
 
 When `llama.cpp` binaries aren't available, Chac runs in **dev mode** with mock LLM responses. This lets you test the full flow without downloading 1.7GB of AI models.
@@ -618,6 +625,8 @@ PRAGMA busy_timeout = 5000;       -- USB latency tolerance
 | v4 | Search history | `search_history` table for search analytics |
 | v5 | Chat citations | `chat_messages.citations` column for source tracking |
 | v6 | Vector index cache | `vector_index_cache` table for HNSW persistence (fast cold starts) |
+| v7 | Auth tokens | `chat_sessions.auth_token` column for WebSocket authentication |
+| v8 | Document metadata | `documents.description` and `documents.transcription` columns |
 
 ---
 
@@ -669,6 +678,7 @@ All settings are stored in the `settings` table and accessible via the API.
 | `server.host` | `"127.0.0.1"` | server | HTTP server bind address |
 | `server.rate_limit_enabled` | `true` | server | Enable API rate limiting |
 | `server.rate_limit_max` | `100` | server | Max requests per minute per IP |
+| `server.log_max_entries` | `1000` | server | Max request log entries (ring buffer) |
 | `scheduler.auto_backup_enabled` | `true` | scheduler | Enable automatic database backups |
 | `scheduler.auto_backup_interval` | `3600000` | scheduler | Backup interval (ms, default 1hr) |
 | `scheduler.backup_retention` | `7` | scheduler | Number of backup files to keep |
@@ -863,12 +873,16 @@ usb-drive/
 │   ├── chac-darwin-x64-baseline
 │   ├── chac-windows-x64.exe
 │   ├── chac-windows-x64-baseline.exe
-│   └── llama.cpp/
-│       └── llama-server/              # Platform-specific llama.cpp binaries
+│   ├── llama.cpp/
+│   │   └── llama-server/              # Platform-specific llama.cpp binaries
+│   │       ├── linux-x64/
+│   │       ├── linux-arm64/
+│   │       ├── darwin-arm64/
+│   │       ├── darwin-x64/
+│   │       └── windows-x64/
+│   └── whisper.cpp/
+│       └── whisper-cli/               # Speech-to-text binaries
 │           ├── linux-x64/
-│           ├── linux-arm64/
-│           ├── darwin-arm64/
-│           ├── darwin-x64/
 │           └── windows-x64/
 ├── launchers/
 │   ├── start.bat                      # Windows launcher
@@ -878,15 +892,17 @@ usb-drive/
 │   ├── install.sh                     # Unix installer
 │   ├── install.bat                    # Windows installer
 │   ├── download-llama.sh              # Download llama.cpp binaries
+│   ├── download-whisper.sh            # Download whisper.cpp binaries (Unix)
+│   ├── download-whisper.bat           # Download whisper.cpp binaries (Windows)
 │   ├── download-models.sh             # Download AI models (Unix)
 │   ├── download-models.bat            # Download AI models (Windows)
 │   └── setup-all.sh                   # Full setup (install + download)
 ├── data/                              # Runtime data (created on first run)
+├── tmp/                               # Temporary upload files (auto-created)
 ├── models/                            # AI models (download via setup/download-models.sh)
 │   ├── chat.gguf                      # ~1.7 GB
 │   ├── embed.gguf                     # ~130 MB
 │   └── vision.gguf                    # ~505 MB
-├── README.txt                         # Quick start guide
 └── .gitignore
 ```
 

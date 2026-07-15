@@ -130,7 +130,7 @@ Memory tab manages cross-session memory via `GET/PUT/DELETE /api/memory`. Entrie
 - **Mock LLM**: `tests/mocks/llama-cpp.ts` provides `createMockLlmService()` — no llama.cpp binary needed
 - **Run pattern**: `bun test` (all), `bun test tests/unit/chat.test.ts` (single file)
 - **New tests**: Add to `tests/unit/<module>/` matching the source module structure
-- **Target**: 755 tests pass, 0 failures, 0 TypeScript errors (1542 expect() calls across 73 test files)
+- **Target**: 764 tests pass, 0 failures, 0 TypeScript errors (1488 expect() calls across 72 test files)
 
 ### Adding a new test
 
@@ -208,6 +208,7 @@ describe("MyModule", () => {
 - CSP: Content-Security-Policy header with `default-src 'self'`, `img-src 'self' data: blob:`, `connect-src 'self' ws: wss:`
 - Body limits: 10MB max for API requests, 50MB for file uploads
 - Rate limiter: IP-based with configurable window and max requests
+- Request log rotation: configurable max entries (default 1000) via `server.log_max_entries`
 - Chat message validation: max 10,000 characters per message
 - WebSocket reconnect: exponential backoff with jitter (1s → 30s max)
 - Session search: filter sessions by title in the chat sidebar
@@ -227,6 +228,13 @@ describe("MyModule", () => {
 ## Build & Deploy
 
 `bun run build` cross-compiles to 8 targets (linux-x64, linux-arm64, darwin-arm64, darwin-x64, windows-x64 — each with and without baseline). Output goes to `usb-drive/bin/`. Each binary embeds the full Bun runtime (~50-60MB).
+
+### Docker
+
+```bash
+docker build -t chac .
+docker run -p 3000:3000 -v ./data:/app/data -v ./models:/app/models chac
+```
 
 ## Environment
 

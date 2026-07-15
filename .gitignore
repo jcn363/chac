@@ -10,6 +10,7 @@ dist
 usb-drive/bin
 usb-drive/start.*
 usb-drive/README.txt
+usb-drive/llama.cpp/
 
 # code coverage
 coverage

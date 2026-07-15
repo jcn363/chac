@@ -2,7 +2,7 @@
 
 > "The best hardware is the hardware you already have." — llama.cpp philosophy
 
-**See also:** [The Karpathy Method](./Karpathy.md) · [Mixture of Experts](./MoE.md) · [Sub-Quadratic Attention](./Sub-quadratic.md) · [DSpark Speculative Decoding](./Dspark.md) · [README](../README.md) · [FAQ](../FAQ.md) · [BENCHMARK](../BENCHMARK.md)
+**See also:** [The Karpathy Method](./Karpathy.md) · [Mixture of Experts](./MoE.md) · [Sub-Quadratic Attention](./Sub-quadratic.md) · [DSpark Speculative Decoding](./Dspark.md) · [GGUF Format](./gguf.md) · [Sakana Fugu](./Fugu.md) · [ObsidianSA](./ObsidianSA.md) · [README](../README.md) · [FAQ](../FAQ.md) · [BENCHMARK](../BENCHMARK.md)
 
 ## Table of Contents
 
@@ -285,6 +285,19 @@ llama-server -m model.gguf --no-mmap
 ```
 
 **For Chac on USB**: mmap works well with USB drives, but USB read speeds (100–400 MB/s for USB 3.x) are slower than SSDs. For frequently used models, copying to local SSD first is recommended. The OS page cache will keep hot pages in RAM after the first access.
+
+### USB Drive Specifics
+
+| USB Version | Sequential Read | Random 4K Read | Suitability |
+|------------|----------------|----------------|-------------|
+| USB 2.0 | 25–40 MB/s | ~1 MB/s | Poor — model loading takes minutes |
+| USB 3.0 | 100–200 MB/s | ~5 MB/s | Adequate for small models (1–3B) |
+| USB 3.1 Gen 2 | 400–800 MB/s | ~10 MB/s | Good — comparable to SATA SSD |
+| USB 3.2 Gen 2x2 | 1–2 GB/s | ~20 MB/s | Excellent — near NVMe speeds |
+
+**FAT32 limitation**: USB drives formatted as FAT32 cannot store files larger than 4GB. A 7B Q4_K_M model is ~4GB — right at the limit. Format as exFAT or NTFS for larger models.
+
+**Recommendation**: For Chac's 1B models (~600MB each), USB 3.0+ is sufficient. For larger models, copy to local disk or use USB 3.1+ with exFAT formatting.
 
 ---
 
@@ -588,14 +601,13 @@ Combining multiple quantized models can sometimes yield better quality than a si
 python merge_lora.py --base model.gguf --lora adapter.gguf --output merged.gguf
 ```
 
-### 4. Flash Attention
+### 4. Flash Attention (GPU)
 
-Flash attention reduces KV cache memory by computing attention in tiled blocks:
+Flash attention reduces KV cache memory by computing attention in tiled blocks. Note: this is primarily a **GPU optimization** in llama.cpp — the CUDA/Metal kernels implement the tiled attention pattern. For CPU-only inference, the equivalent memory optimization is KV cache quantization (see [KV Cache Quantization](#kv-cache-quantization) section above).
 
 ```bash
-# Flash attention is enabled by default in newer llama.cpp
-# Can be toggled:
-llama-server -m model.gguf --flash-attn  # enable (default)
+# Flash attention is enabled by default in newer llama.cpp (GPU only)
+llama-server -m model.gguf --flash-attn  # enable (default, GPU only)
 llama-server -m model.gguf --no-flash-attn  # disable
 ```
 
@@ -614,20 +626,20 @@ llama-server -m model.gguf -c 16384 -np 4
 
 1. Gerganov, G. (2023–2026). "llama.cpp: LLM inference in C/C++." https://github.com/ggml-org/llama.cpp
 
-2. GGML Team. "GGUF Format Specification." https://github.com/ggml-org/ggml/blob/master/docs/gguf.md
+2. GGML Team. "GGUF Specification." https://github.com/ggml-org/ggml/blob/master/docs/gguf.md
 
-3. Elhoushi, M., et al. (2024). "LayerSkip: Enabling Early Exit Inference and Self-Speculative Decoding." ACL 2024. arXiv:2404.16710. https://arxiv.org/abs/2404.16710
+3. llama.cpp. "Quantize Tool." https://github.com/ggml-org/llama.cpp/blob/master/tools/quantize/README.md
 
-4. Dettmers, T., et al. (2023). "GPTQ: Accurate Post-Training Quantization for Generative Pre-trained Transformers." arXiv:2210.17323. https://arxiv.org/abs/2210.17323
+4. Elhoushi, M., et al. (2024). "LayerSkip: Enabling Early Exit Inference and Self-Speculative Decoding." ACL 2024. arXiv:2404.16710. https://arxiv.org/abs/2404.16710
 
-5. Lin, J., et al. (2024). "AWQ: Activation-aware Weight Quantization for LLM Compression and Acceleration." MLSys 2024. arXiv:2306.00978. https://arxiv.org/abs/2306.00978
+5. Dettmers, T., et al. (2023). "GPTQ: Accurate Post-Training Quantization for Generative Pre-trained Transformers." arXiv:2210.17323. https://arxiv.org/abs/2210.17323
 
-6. AMD. "AMD CPU Optimization for AI Inference." https://developer.amd.com/resources/developer-articles/optimizing-ai-inference-on-amd-cpus/
+6. Lin, J., et al. (2024). "AWQ: Activation-aware Weight Quantization for LLM Compression and Acceleration." MLSys 2024. arXiv:2306.00978. https://arxiv.org/abs/2306.00978
 
-7. Apple. "Accelerate Framework." https://developer.apple.com/accelerate/
+7. llama.cpp Wiki. "Performance Troubleshooting." https://github.com/ggml-org/llama.cpp/blob/master/docs/development/token_generation_performance_tips.md
 
-8. llama.cpp Wiki. "Performance Troubleshooting." https://github.com/ggml-org/llama.cpp/blob/master/docs/development/token_generation_performance_tips.md
+8. Apple. "Accelerate Framework." https://developer.apple.com/accelerate/
 
 ---
 
-**See also:** [The Karpathy Method](./Karpathy.md) · [Mixture of Experts](./MoE.md) · [Sub-Quadratic Attention](./Sub-quadratic.md) · [DSpark Speculative Decoding](./Dspark.md) · [README](../README.md) · [FAQ](../FAQ.md) · [BENCHMARK](../BENCHMARK.md)
+**See also:** [The Karpathy Method](./Karpathy.md) · [Mixture of Experts](./MoE.md) · [Sub-Quadratic Attention](./Sub-quadratic.md) · [DSpark Speculative Decoding](./Dspark.md) · [GGUF Format](./gguf.md) · [Sakana Fugu](./Fugu.md) · [ObsidianSA](./ObsidianSA.md) · [README](../README.md) · [FAQ](../FAQ.md) · [BENCHMARK](../BENCHMARK.md)

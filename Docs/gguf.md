@@ -2,7 +2,7 @@
 
 > "Single-file deployment — all information needed to load a model is contained in the file." — GGUF specification
 
-**See also:** [CPU+RAM Inference](./cpuram.md) · [The Karpathy Method](./Karpathy.md) · [Mixture of Experts](./MoE.md) · [DSpark Speculative Decoding](./Dspark.md) · [README](../README.md) · [FAQ](../FAQ.md) · [BENCHMARK](../BENCHMARK.md)
+**See also:** [CPU+RAM Inference](./cpuram.md) · [The Karpathy Method](./Karpathy.md) · [Mixture of Experts](./MoE.md) · [DSpark Speculative Decoding](./Dspark.md) · [Sakana Fugu](./Fugu.md) · [ObsidianSA](./ObsidianSA.md) · [README](../README.md) · [FAQ](../FAQ.md) · [BENCHMARK](../BENCHMARK.md)
 
 ## Table of Contents
 
@@ -433,6 +433,20 @@ GGUF files embed the tokenizer directly, eliminating external dependencies.
 |-----|------|-------------|
 | `tokenizer.chat_template` | string | Jinja template for chat formatting |
 
+The `tokenizer.chat_template` defines how the model expects conversation input to be formatted. For example, ChatML format wraps messages with `<|im_start|>user`, `<|im_start|>assistant` tokens. llama.cpp uses this template to automatically format multi-turn conversations correctly. Different models use different templates — using the wrong one degrades output quality significantly.
+
+### LoRA Adapters
+
+GGUF supports LoRA (Low-Rank Adaptation) adapters as separate files. A LoRA GGUF contains only the delta weights (rank-reduced matrices) that modify a base model.
+
+| Key | Type | Description |
+|-----|------|-------------|
+| `general.type` | string | `"adapter"` for LoRA files |
+| `adapter.base_model` | string | Architecture of the base model |
+| `adapter.type` | string | `"lora"` |
+
+LoRA files are loaded alongside a base model, not standalone. They are typically very small (1–100 MB) and enable task-specific fine-tuning without duplicating the full model weights.
+
 ---
 
 ## Tensor Naming Convention
@@ -490,6 +504,12 @@ python convert_hf_to_gguf.py --outtype f16 /path/to/model-dir/
 ```
 
 This produces a large, full-precision GGUF file (e.g., 16GB for a 7B model).
+
+**Other conversion paths**: While `convert_hf_to_gguf.py` is the primary tool, converters exist for other frameworks:
+- **PyTorch**: Convert `.pt`/`.bin` → HuggingFace format first, then use `convert_hf_to_gguf.py`
+- **TensorFlow**: Use `transformers` library to export to PyTorch/HuggingFace format
+- **ONNX**: ONNX models can be converted via intermediate HuggingFace format
+- **Safetensors**: Directly supported by `convert_hf_to_gguf.py` (default for modern models)
 
 ### Step 2: Quantize
 
@@ -675,20 +695,18 @@ Chac validates GGUF files on download:
 
 1. GGML Team. "GGUF Specification." https://github.com/ggml-org/ggml/blob/master/docs/gguf.md
 
-2. GGML Team. "GGUF Format." https://github.com/ggml-org/ggml/blob/master/docs/gguf.md
+2. llama.cpp. "Quantize Tool." https://github.com/ggml-org/llama.cpp/blob/master/tools/quantize/README.md
 
-3. llama.cpp. "Quantize Tool." https://github.com/ggml-org/llama.cpp/blob/master/tools/quantize/README.md
+3. llama.cpp. "Supported Models." https://github.com/ggml-org/llama.cpp
 
-4. llama.cpp. "Supported Models." https://github.com/ggml-org/llama.cpp
+4. Hugging Face. "GGUF Editor." https://huggingface.co/spaces/CISCai/gguf-editor
 
-5. Hugging Face. "GGUF Editor." https://huggingface.co/spaces/CISCai/gguf-editor
+5. Hugging Face. "GGUF-my-repo." https://huggingface.co/spaces/ggml-org/gguf-my-repo
 
-6. Hugging Face. "GGUF-my-repo." https://huggingface.co/spaces/ggml-org/gguf-my-repo
+6. Dettmers, T., et al. (2023). "GPTQ: Accurate Post-Training Quantization." arXiv:2210.17323.
 
-7. Dettmers, T., et al. (2023). "GPTQ: Accurate Post-Training Quantization." arXiv:2210.17323.
-
-8. Lin, J., et al. (2024). "AWQ: Activation-aware Weight Quantization." MLSys 2024. arXiv:2306.00978.
+7. Lin, J., et al. (2024). "AWQ: Activation-aware Weight Quantization." MLSys 2024. arXiv:2306.00978.
 
 ---
 
-**See also:** [CPU+RAM Inference](./cpuram.md) · [The Karpathy Method](./Karpathy.md) · [Mixture of Experts](./MoE.md) · [DSpark Speculative Decoding](./Dspark.md) · [README](../README.md) · [FAQ](../FAQ.md) · [BENCHMARK](../BENCHMARK.md)
+**See also:** [CPU+RAM Inference](./cpuram.md) · [The Karpathy Method](./Karpathy.md) · [Mixture of Experts](./MoE.md) · [DSpark Speculative Decoding](./Dspark.md) · [Sakana Fugu](./Fugu.md) · [ObsidianSA](./ObsidianSA.md) · [README](../README.md) · [FAQ](../FAQ.md) · [BENCHMARK](../BENCHMARK.md)

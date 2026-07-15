@@ -2,7 +2,7 @@
 
 > "One model to command them all." — Sakana AI
 
-**See also:** [Swarm Intelligence](./Swarm.md) · [Mixture of Experts](./MoE.md) · [The Karpathy Method](./Karpathy.md) · [Sub-Quadratic Attention](./Sub-quadratic.md) · [README](../README.md) · [FAQ](../FAQ.md) · [BENCHMARK](../BENCHMARK.md)
+**See also:** [Swarm Intelligence](./Swarm.md) · [Mixture of Experts](./MoE.md) · [The Karpathy Method](./Karpathy.md) · [Sub-Quadratic Attention](./Sub-quadratic.md) · [CPU+RAM Inference](./cpuram.md) · [GGUF Format](./gguf.md) · [ObsidianSA](./ObsidianSA.md) · [README](../README.md) · [FAQ](../FAQ.md) · [BENCHMARK](../BENCHMARK.md)
 
 ## Table of Contents
 
@@ -152,7 +152,7 @@ Both papers demonstrate that learned coordination can unlock performance beyond 
 
 ## Benchmarks
 
-Performance comparison from Sakana AI's June 2026 evaluation:
+Performance comparison from Sakana AI's June 2026 evaluation ([technical report arXiv:2606.21228](https://arxiv.org/abs/2606.21228)):
 
 | Benchmark | Fugu | Fugu Ultra | Opus 4.8 | Gemini 3.1 Pro | GPT 5.5 |
 |-----------|------|-----------|----------|----------------|---------|
@@ -269,6 +269,22 @@ All tiers include both Fugu and Fugu Ultra.
 
 ---
 
+## Comparison to Other Multi-Agent Systems
+
+Fugu's approach — learning orchestration end-to-end — differs from hand-designed multi-agent frameworks:
+
+| System | Orchestration | Coordination | Key Difference |
+|--------|--------------|-------------|----------------|
+| **Fugu** | Learned (evolutionary + RL) | Dynamic per-query | Coordinator is itself an LLM |
+| ChatDev | Role-play scripts | Sequential waterfall | Human-designed roles and phases |
+| AutoGen | Agent graphs | Conversation patterns | User specifies topology |
+| CrewAI | Role assignments | Sequential/parallel | Agent definitions are static |
+| LangGraph | State machines | User-defined edges | Manual graph construction |
+
+Fugu's key insight is that coordination strategies can be *learned* rather than hand-coded. The TRINITY coordinator and Conductor discover non-obvious collaboration patterns that outperform any fixed topology.
+
+---
+
 ## References
 
 1. Tang, Y., Cetin, E., Xu, J., et al. (2026). "Sakana Fugu Technical Report." arXiv:2606.21228. https://arxiv.org/abs/2606.21228
@@ -277,10 +293,14 @@ All tiers include both Fugu and Fugu Ultra.
 
 3. Nielsen, S., Cetin, E., Schwendeman, P., Sun, Q., Xu, J., & Tang, Y. (2025). "Learning to Orchestrate Agents in Natural Language with the Conductor." ICLR 2026. arXiv:2512.04388. https://arxiv.org/abs/2512.04388
 
-4. Sakana AI. "Sakana Fugu." https://sakana.ai/fugu
+4. Wu, Q., et al. (2023). "ChatDev: Communicative Agents for Software Development." arXiv:2307.07924. https://arxiv.org/abs/2307.07924
 
-5. Sakana AI. "Fugu Repository." https://github.com/SakanaAI/fugu
+5. Wu, Q., et al. (2023). "AutoGen: Enabling Next-Gen LLM Applications via Multi-Agent Conversation." arXiv:2308.08155. https://arxiv.org/abs/2308.08155
+
+6. Sakana AI. "Sakana Fugu." https://sakana.ai/fugu
+
+7. Sakana AI. "Fugu Repository." https://github.com/SakanaAI/fugu
 
 ---
 
-**See also:** [Swarm Intelligence](./Swarm.md) · [Mixture of Experts](./MoE.md) · [The Karpathy Method](./Karpathy.md) · [Sub-Quadratic Attention](./Sub-quadratic.md) · [README](../README.md) · [FAQ](../FAQ.md) · [BENCHMARK](../BENCHMARK.md)
+**See also:** [Swarm Intelligence](./Swarm.md) · [Mixture of Experts](./MoE.md) · [The Karpathy Method](./Karpathy.md) · [Sub-Quadratic Attention](./Sub-quadratic.md) · [CPU+RAM Inference](./cpuram.md) · [GGUF Format](./gguf.md) · [ObsidianSA](./ObsidianSA.md) · [README](../README.md) · [FAQ](../FAQ.md) · [BENCHMARK](../BENCHMARK.md)

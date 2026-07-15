@@ -712,6 +712,7 @@ bun run typecheck    # Type-check without emitting
 bun test             # Run all unit + integration tests
 bun test --watch     # Run tests in watch mode
 bun test --coverage  # Run tests with coverage report
+bun run test:all     # Run Bun tests + Playwright E2E tests
 bun run test:e2e     # Run Playwright browser E2E tests
 bun run build        # Cross-compile for all platforms
 ```
@@ -792,6 +793,7 @@ e2e-tests/
 
 ```bash
 bun test                          # Run all unit + integration tests
+bun run test:all                  # Run Bun tests + Playwright E2E tests
 bun test tests/unit/              # Unit tests only
 bun test tests/integration/       # Integration tests only
 bun test tests/integration/error-handling.test.ts  # Single file

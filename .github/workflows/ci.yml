@@ -54,9 +54,26 @@ jobs:
       - name: Run E2E tests
         run: bun run test:e2e
 
+  docker:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t chac:ci .
+
+      - name: Smoke test
+        run: |
+          docker run -d --name chac -p 3000:3000 -v ./data:/app/data -v ./models:/app/models chac:ci
+          sleep 3
+          curl -sf http://localhost:3000/api/status | grep -q '"status":"ok"'
+          curl -sf http://localhost:3000/api/health | grep -q '"status":"ok"'
+          docker stop chac
+
   build:
     runs-on: ubuntu-latest
-    needs: [test, e2e]
+    needs: [test, e2e, docker]
     steps:
       - uses: actions/checkout@v4
 

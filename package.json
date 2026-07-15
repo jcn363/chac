@@ -10,6 +10,7 @@
     "test": "bun test",
     "test:watch": "bun test --watch",
     "test:coverage": "bun test --coverage",
+    "test:all": "bun test && bun run test:e2e",
     "test:e2e": "npx playwright test",
     "typecheck": "bunx tsc --noEmit"
   },

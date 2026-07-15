@@ -13,6 +13,7 @@ Chac is a portable RAG chat application that runs from a USB drive. All processi
 | `bun test` | Run all unit + integration tests |
 | `bun test --watch` | Run tests in watch mode |
 | `bun test --coverage` | Run tests with coverage |
+| `bun run test:all` | Run Bun tests + Playwright E2E tests |
 | `bun run test:e2e` | Run Playwright browser E2E tests |
 | `bun run typecheck` | Type-check without emitting |
 | `bun run build` | Cross-compile for 8 targets into `usb-drive/` |
@@ -133,7 +134,7 @@ Memory tab manages cross-session memory via `GET/PUT/DELETE /api/memory`. Entrie
 - **Mock LLM**: `tests/mocks/llama-cpp.ts` provides `createMockLlmService()` — no llama.cpp binary needed
 - **Run pattern**: `bun test` (all), `bun test tests/unit/chat.test.ts` (single file)
 - **New tests**: Add to `tests/unit/<module>/` matching the source module structure
-- **Target**: 755 tests pass, 0 failures, 0 TypeScript errors (1371 expect() calls across 71 test files) + 10 Playwright E2E tests
+- **Target**: 755 tests pass, 0 failures, 0 TypeScript errors (1522 expect() calls across 71 test files) + 10 Playwright E2E tests
 
 ### Playwright browser E2E tests
 

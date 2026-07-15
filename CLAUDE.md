@@ -10,9 +10,10 @@ Chac is a portable RAG chat application that runs from a USB drive. All processi
 |---------|-------------|
 | `bun install` | Install dependencies |
 | `bun run dev` | Start dev server (hot reload) at http://localhost:3000 |
-| `bun test` | Run all tests |
+| `bun test` | Run all unit + integration tests |
 | `bun test --watch` | Run tests in watch mode |
 | `bun test --coverage` | Run tests with coverage |
+| `bun run test:e2e` | Run Playwright browser E2E tests |
 | `bun run build` | Cross-compile for 8 targets into `usb-drive/` |
 
 **Always use `bun`, never `npm`.**
@@ -130,7 +131,15 @@ Memory tab manages cross-session memory via `GET/PUT/DELETE /api/memory`. Entrie
 - **Mock LLM**: `tests/mocks/llama-cpp.ts` provides `createMockLlmService()` — no llama.cpp binary needed
 - **Run pattern**: `bun test` (all), `bun test tests/unit/chat.test.ts` (single file)
 - **New tests**: Add to `tests/unit/<module>/` matching the source module structure
-- **Target**: 764 tests pass, 0 failures, 0 TypeScript errors (1488 expect() calls across 72 test files)
+- **Target**: 768 tests pass, 0 failures, 0 TypeScript errors (1552 expect() calls across 72 test files) + 10 Playwright E2E tests
+
+### Playwright browser E2E tests
+
+- **Config**: `playwright.config.ts` — headless Chromium, single worker
+- **Tests**: `e2e-tests/app.e2e.ts` — 10 browser tests covering all tabs, interactions, API
+- **Run**: `bun run test:e2e` (starts dev server automatically)
+- **Vendor bundles**: `src/public/vendor/` contains ESM bundles for `marked` + `dompurify` (imported via `<script type="importmap">` in `index.html`)
+- **Rate limiting**: Disabled in `beforeAll` to avoid 429 during rapid test execution
 
 ### Adding a new test
 

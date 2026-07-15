@@ -180,7 +180,7 @@ Chac uses a **microkernel architecture** with dependency injection. A minimal ke
 | **Database** | `bun:sqlite` | Built-in, zero deps, WAL mode |
 | **Frontend** | Vanilla HTML/CSS/JS + marked + DOMPurify | Zero build step, markdown rendering, XSS protection |
 | **LLM Backend** | llama.cpp | OpenAI-compatible API, cross-platform |
-| **Testing** | `bun test` | Bun-native test runner, Vitest-compatible API |
+| **Testing** | `bun test` + Playwright | Bun-native unit tests + browser E2E tests |
 
 ---
 
@@ -300,13 +300,16 @@ chac/
 ├── tests/
 │   ├── unit/                        # Unit tests per module (57 test files)
 │   ├── integration/                 # Cross-module integration tests (4 files)
-│   ├── e2e/                         # End-to-end tests
+│   ├── e2e/                         # Bun-native end-to-end tests
 │   ├── benchmarks/                  # Performance benchmarks
 │   ├── fixtures/                    # Test fixture data
 │   ├── mocks/                       # Mock LLM (no llama.cpp needed)
 │   │   └── llama-cpp.ts
 │   └── helpers/
 │       └── setup.ts                 # createTestKernel() for test isolation
+├── e2e-tests/
+│   └── app.e2e.ts                   # Playwright browser E2E tests (10 tests)
+├── playwright.config.ts             # Playwright config (headless Chromium)
 ├── Docs/                            # Reference documentation (11 markdown + 2 PDF)
 ├── launchers/                       # USB drive launcher scripts (start.sh, start.command, start.bat)
 ├── build.ts                         # Cross-compilation build script (8 targets)
@@ -703,9 +706,10 @@ curl -X PUT http://localhost:3000/api/settings \
 bun install          # Install dependencies
 bun run dev          # Start dev server with hot reload
 bun run typecheck    # Type-check without emitting
-bun test             # Run all tests
+bun test             # Run all unit + integration tests
 bun test --watch     # Run tests in watch mode
 bun test --coverage  # Run tests with coverage report
+bun run test:e2e     # Run Playwright browser E2E tests
 bun run build        # Cross-compile for all platforms
 ```
 
@@ -800,6 +804,16 @@ bun test                          # Run all unit + integration tests
 bun test tests/unit/              # Unit tests only
 bun test tests/integration/       # Integration tests only
 bun test tests/integration/error-handling.test.ts  # Single file
+bun run test:e2e                  # Playwright browser E2E tests (starts dev server)
+```
+
+### Playwright Browser E2E Tests
+
+```
+e2e-tests/
+└── app.e2e.ts                    # 10 browser tests (tabs, chat, docs, wiki, memory, settings, health)
+playwright.config.ts              # Headless Chromium, single worker, auto-starts dev server
+src/public/vendor/                # ESM bundles for marked + dompurify (import map in index.html)
 ```
 
 ### Writing Tests

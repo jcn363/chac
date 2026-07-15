@@ -110,8 +110,8 @@ export function importDatabase(data: BackupData, database?: Database): void {
 
       for (let ri = 0; ri < rows.length; ri++) {
         const rowRecord = rows[ri] as Record<string, unknown>;
-        const values: unknown[] = columns.map((col) => jsonBlobToUint8Array(rowRecord[col] ?? null));
-        insert.run(...values);
+        const values = columns.map((col) => jsonBlobToUint8Array(rowRecord[col] ?? null));
+        insert.run(...values as any[]);
       }
     }
   });

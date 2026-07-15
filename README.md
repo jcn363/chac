@@ -300,7 +300,6 @@ chac/
 ├── tests/
 │   ├── unit/                        # Unit tests per module (57 test files)
 │   ├── integration/                 # Cross-module integration tests (4 files)
-│   ├── e2e/                         # Bun-native end-to-end tests
 │   ├── benchmarks/                  # Performance benchmarks
 │   ├── fixtures/                    # Test fixture data
 │   ├── mocks/                       # Mock LLM (no llama.cpp needed)
@@ -789,8 +788,6 @@ tests/
 │       └── vector-persistence.test.ts
 ├── integration/                     # Cross-module with real DB
 │   └── error-handling.test.ts
-├── e2e/                             # End-to-end (excluded by default)
-│   └── app.test.ts
 ├── mocks/
 │   └── llama-cpp.ts                 # Mock LLM for unit tests
 └── helpers/

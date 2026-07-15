@@ -76,6 +76,22 @@ export function exportDatabase(database?: Database): BackupData {
   };
 }
 
+/** Convert a JSON-deserialized BLOB (plain object with numeric keys) back to Uint8Array. */
+function jsonBlobToUint8Array(val: unknown): Uint8Array | unknown {
+  if (val === null || val === undefined) return val;
+  if (val instanceof Uint8Array || val instanceof ArrayBuffer) return val;
+  if (typeof val === "object" && !Array.isArray(val)) {
+    const keys = Object.keys(val as Record<string, unknown>);
+    if (keys.length > 0 && keys.every((k) => /^\d+$/.test(k))) {
+      const obj = val as Record<string, number>;
+      const arr = new Uint8Array(keys.length);
+      for (let i = 0; i < keys.length; i++) arr[i] = obj[keys[i]!] ?? 0;
+      return arr;
+    }
+  }
+  return val;
+}
+
 export function importDatabase(data: BackupData, database?: Database): void {
   const database_ = database ?? getDb();
 
@@ -92,9 +108,9 @@ export function importDatabase(data: BackupData, database?: Database): void {
         `INSERT INTO ${table} (${columns.join(", ")}) VALUES (${placeholders})`
       );
 
-      for (const row of rows) {
-        const rowRecord = row as Record<string, unknown>;
-        const values = columns.map((col) => rowRecord[col] ?? null) as [null];
+      for (let ri = 0; ri < rows.length; ri++) {
+        const rowRecord = rows[ri] as Record<string, unknown>;
+        const values: unknown[] = columns.map((col) => jsonBlobToUint8Array(rowRecord[col] ?? null));
         insert.run(...values);
       }
     }

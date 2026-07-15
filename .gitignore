@@ -15,6 +15,7 @@ usb-drive/llama.cpp/
 # code coverage
 coverage
 *.lcov
+test-results/
 
 # logs
 logs

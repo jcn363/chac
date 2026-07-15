@@ -18,6 +18,11 @@ export class DocumentSearchService {
     private settings: SettingsServiceType
   ) {}
 
+  /** Clear the module-level search cache. Useful for tests. */
+  static clearCache(): void {
+    searchCache.clear();
+  }
+
   async search(query: string, options: { limit?: number; rerank?: boolean; expand?: boolean } = {}): Promise<SearchResult[]> {
     const limit = options.limit ?? 5;
     const rerank = options.rerank ?? false;

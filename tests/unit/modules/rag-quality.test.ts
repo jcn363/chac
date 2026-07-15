@@ -14,6 +14,7 @@ describe("RAG Quality", () => {
   let testDir: string;
 
   beforeEach(() => {
+    DocumentSearchService.clearCache();
     kernel = createTestKernel();
     docs = kernel.get<DocumentsService>("docs");
     search = kernel.get<DocumentSearchService>("search");

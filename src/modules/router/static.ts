@@ -19,7 +19,11 @@ export function setupStaticRoutes(app: Hono): void {
     await next();
     setCacheHeaders(c, c.req.path);
   });
-  app.use("/static/*", serveStatic({ root: "./src/public", path: "/" }));
+  // Strip /static/ prefix: /static/styles.css → src/public/styles.css
+  app.use("/static/*", serveStatic({
+    root: "./src/public",
+    rewriteRequestPath: (path) => path.replace(/^\/static/, ""),
+  }));
 
   app.get("/", async (c, next) => {
     await next();

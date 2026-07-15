@@ -26,22 +26,24 @@ Microkernel with dependency injection. The kernel (`src/kernel/`) provides servi
 
 ### Service tokens (registered in `src/main.ts`)
 
-- `db` — Bun SQLite database
-- `settings` — SettingsService (in-memory cached, reads from DB, onChange events)
-- `llm` — LlmServiceImpl (llama.cpp subprocess management)
-- `chunkIndex` — VectorIndex singleton for chunks (kernel, shared across services)
-- `wikiIndex` — VectorIndex singleton for wiki_pages (kernel, shared across services)
-- `docs` — DocumentsService (ingest, chunk, embed — document lifecycle only)
-- `tags` — DocumentTagsService (document tag CRUD)
-- `searchHistory` — SearchHistoryService (search analytics)
-- `search` — DocumentSearchService (semantic search, query expansion, reranking)
-- `chat` — ChatService (sessions, messages — delegates RAG to RagRetriever)
-- `wiki` — WikiService (delegates compilation to WikiCompiler)
-- `memory` — MemoryService (cross-session user memory)
-- `urlFetcher` — UrlFetcherServiceImpl (URL content extraction + LLM descriptions)
-- `scheduler` — SchedulerService (background tasks: memory consolidation, session cleanup, search history cleanup, auto-backup)
-- `transcription` — TranscriptionServiceImpl (Whisper.cpp binary management, speech-to-text)
-- `obsidian` — ObsidianExporter (vault export with wikilinks and frontmatter)
+Registration order (critical — `search` before `chat`, `chunkIndex`/`wikiIndex` before services that use them):
+
+1. `db` — Bun SQLite database
+2. `settings` — SettingsService (in-memory cached, reads from DB, onChange events)
+3. `llm` — LlmServiceImpl (llama.cpp subprocess management)
+4. `chunkIndex` — VectorIndex singleton for chunks (kernel, shared across services)
+5. `wikiIndex` — VectorIndex singleton for wiki_pages (kernel, shared across services)
+6. `docs` — DocumentsService (ingest, chunk, embed — document lifecycle only)
+7. `tags` — DocumentTagsService (document tag CRUD)
+8. `searchHistory` — SearchHistoryService (search analytics)
+9. `search` — DocumentSearchService (semantic search, query expansion, reranking)
+10. `chat` — ChatService (sessions, messages — delegates RAG to RagRetriever)
+11. `wiki` — WikiService (delegates compilation to WikiCompiler)
+12. `memory` — MemoryService (cross-session user memory)
+13. `urlFetcher` — UrlFetcherServiceImpl (URL content extraction + LLM descriptions)
+14. `scheduler` — SchedulerService (background tasks: memory consolidation, session cleanup, search history cleanup, auto-backup)
+15. `transcription` — TranscriptionServiceImpl (Whisper.cpp binary management, speech-to-text)
+16. `obsidian` — ObsidianExporter (vault export with wikilinks and frontmatter)
 
 ### Source layout
 
@@ -206,7 +208,7 @@ describe("MyModule", () => {
 - Frontend: componentized into `js/components/` (chat, documents, wiki, memory, settings, help) + `js/lib/` (api, dom, state)
 - Service worker: offline-first caching for static assets, network-first for API calls
 - OpenAPI 3.1 spec at `/api/openapi.json` documenting all endpoints
-- Route handlers use `wrap()` for automatic error handling — `AppError` passes through, others become 500
+- Route handlers use `wrap()` for automatic error handling — `AppError` passes through, others become 500. Note: simple GET/DELETE handlers that don't call throwing service methods are typically NOT wrapped.
 - Services throw typed errors (`NotFoundError`, `ValidationError`, `SecurityError`) — no string matching in route handlers
 - Single LLM type: `LlmService` from `src/modules/llm/types.ts` (no duplicate `ChatCompletionLLM`)
 - Settings type: `SettingsServiceType` from `src/modules/settings/types.ts` used consistently across all modules

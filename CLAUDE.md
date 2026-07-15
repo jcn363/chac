@@ -29,6 +29,8 @@ Microkernel with dependency injection. The kernel (`src/kernel/`) provides servi
 - `db` — Bun SQLite database
 - `settings` — SettingsService (in-memory cached, reads from DB, onChange events)
 - `llm` — LlmServiceImpl (llama.cpp subprocess management)
+- `chunkIndex` — VectorIndex singleton for chunks (kernel, shared across services)
+- `wikiIndex` — VectorIndex singleton for wiki_pages (kernel, shared across services)
 - `docs` — DocumentsService (ingest, chunk, embed — document lifecycle only)
 - `tags` — DocumentTagsService (document tag CRUD)
 - `searchHistory` — SearchHistoryService (search analytics)
@@ -36,11 +38,9 @@ Microkernel with dependency injection. The kernel (`src/kernel/`) provides servi
 - `chat` — ChatService (sessions, messages — delegates RAG to RagRetriever)
 - `wiki` — WikiService (delegates compilation to WikiCompiler)
 - `memory` — MemoryService (cross-session user memory)
-- `chunkIndex` — VectorIndex singleton for chunks (kernel, shared across services)
-- `wikiIndex` — VectorIndex singleton for wiki_pages (kernel, shared across services)
+- `urlFetcher` — UrlFetcherServiceImpl (URL content extraction + LLM descriptions)
 - `scheduler` — SchedulerService (background tasks: memory consolidation, session cleanup, search history cleanup, auto-backup)
 - `transcription` — TranscriptionServiceImpl (Whisper.cpp binary management, speech-to-text)
-- `urlFetcher` — UrlFetcherServiceImpl (URL content extraction + LLM descriptions)
 - `obsidian` — ObsidianExporter (vault export with wikilinks and frontmatter)
 
 ### Source layout
@@ -134,7 +134,7 @@ Memory tab manages cross-session memory via `GET/PUT/DELETE /api/memory`. Entrie
 - **Mock LLM**: `tests/mocks/llama-cpp.ts` provides `createMockLlmService()` — no llama.cpp binary needed
 - **Run pattern**: `bun test` (all), `bun test tests/unit/chat.test.ts` (single file)
 - **New tests**: Add to `tests/unit/<module>/` matching the source module structure
-- **Target**: 755 tests pass, 0 failures, 0 TypeScript errors (1522 expect() calls across 71 test files) + 10 Playwright E2E tests
+- **Target**: 754 pass, 1 skip, 0 failures, 0 TypeScript errors (1522 expect() calls across 71 test files) + 10 Playwright E2E tests
 
 ### Playwright browser E2E tests
 
@@ -207,17 +207,16 @@ describe("MyModule", () => {
 - Service worker: offline-first caching for static assets, network-first for API calls
 - OpenAPI 3.1 spec at `/api/openapi.json` documenting all endpoints
 - Route handlers use `wrap()` for automatic error handling — `AppError` passes through, others become 500
-- ALL route handlers are wrapped with `wrap()` for consistent typed error propagation
 - Services throw typed errors (`NotFoundError`, `ValidationError`, `SecurityError`) — no string matching in route handlers
 - Single LLM type: `LlmService` from `src/modules/llm/types.ts` (no duplicate `ChatCompletionLLM`)
 - Settings type: `SettingsServiceType` from `src/modules/settings/types.ts` used consistently across all modules
 - TranscriptionService: Whisper.cpp binary management (dev mode mock when binary absent), 5min timeout for large files
 - UrlFetcherService: Built-in `fetch()` + `stripHtml()` for HTML content, LLM-generated descriptions, HEAD request for accessibility check
 - Vision pipeline: `LlmService.visionDescribe()` sends images to vision model for text descriptions, used during image ingestion
-- Image ingestion: DocumentParser detects image formats (JPEG, PNG, WebP, GIF, BMP, TIFF) via magic bytes, vision model generates descriptions
+- Image ingestion: DocumentParser detects image formats (JPEG, PNG, WebP, GIF via magic bytes, BMP/TIFF via extension), vision model generates descriptions
 - File upload: `POST /api/documents/upload` accepts multipart file uploads, saves to tmp, ingests, cleans up
 - CORS: restricted to localhost only (port from settings)
-- CSP: Content-Security-Policy header with `default-src 'self'`, `img-src 'self' data: blob:`, `connect-src 'self' ws: wss:`
+- CSP: Content-Security-Policy with `default-src 'self'`, `script-src 'self' 'unsafe-inline'`, `style-src 'self' 'unsafe-inline'`, `img-src 'self' data: blob:`, `connect-src 'self' ws: wss:`, `font-src 'self'`
 - Body limits: 10MB max for API requests, 50MB for file uploads
 - Rate limiter: IP-based with configurable window and max requests
 - Request log rotation: configurable max entries (default 1000) via `server.log_max_entries`
@@ -233,7 +232,7 @@ describe("MyModule", () => {
 - Auto-backup uses async I/O (non-blocking)
 - `embeddingCache.startCleanup()` wired for periodic stale entry cleanup
 - `createSession()` uses INSERT-only (no SELECT after insert)
-- Service worker rotates cache names on update for reliable cache busting
+- Service worker: versioned cache name (`chac-v1`), old caches cleaned on activate
 - `exportDatabase()` includes `search_history` and `vector_index_cache` tables in backup
 - Frontend parses API error response bodies for better error messages
 

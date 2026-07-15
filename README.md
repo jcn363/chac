@@ -227,7 +227,7 @@ chac/
 │   │   └── types.ts                 # Module contract (interface)
 │   ├── database/
 │   │   ├── index.ts                 # DB connection, WAL mode, foreign keys, backup/restore
-│   │   └── migrations.ts            # Schema (inline) + version-tracked migration runner (v8)
+│   │   └── migrations.ts            # Schema (inline) + version-tracked migration runner (v7)
 │   ├── platform/
 │   │   ├── detect.ts                # OS/arch detection (SSOT)
 │   │   ├── paths.ts                 # Portable path resolution (compiled binary vs dev mode)
@@ -261,6 +261,15 @@ chac/
 │   │   │   ├── service.ts           # Background task scheduler (memory, sessions, search history, backup)
 │   │   │   ├── tasks.ts             # Task definitions and execution
 │   │   │   └── types.ts             # ScheduledTask, TaskStatus
+│   │   ├── transcription/
+│   │   │   ├── service.ts           # Whisper.cpp binary management, speech-to-text
+│   │   │   └── types.ts             # TranscriptionService interface
+│   │   ├── url-fetcher/
+│   │   │   ├── service.ts           # URL content extraction + LLM descriptions
+│   │   │   └── types.ts             # UrlFetcherService interface
+│   │   ├── obsidian/
+│   │   │   ├── exporter.ts          # Vault export with wikilinks and frontmatter
+│   │   │   └── types.ts             # ObsidianExporter types
 │   │   └── router/
 │   │       ├── index.ts             # Hono app setup, global error handler
 │   │       ├── api.ts               # Route setup orchestration
@@ -268,6 +277,8 @@ chac/
 │   │       ├── openapi.ts           # OpenAPI 3.1 spec
 │   │       ├── ws.ts                # WebSocket handler (real-time chat streaming)
 │   │       ├── static.ts            # Frontend asset serving
+│   │       ├── rate-limit.ts        # IP-based rate limiting middleware
+│   │       ├── request-logger.ts    # Structured request logging middleware
 │   │       └── routes/              # Individual route modules (15 files)
 │   ├── public/
 │   │   ├── index.html               # Main HTML (tabs: Chat, Documents, Wiki, Memory, Settings)
@@ -296,7 +307,9 @@ chac/
 │       ├── document-parser.ts       # PDF, DOCX, Markdown, HTML, text, image parsing
 │       ├── db-helpers.ts            # deleteById, countRows, parsePagination, extractErrorMessage
 │       ├── hash.ts                  # SHA-256 content hashing
-│       └── id.ts                    # UUID generation (crypto.randomUUID)
+│       ├── id.ts                    # UUID generation (crypto.randomUUID)
+│       ├── logger.ts                # Structured JSON logging (stderr) + colored output (stdout)
+│       └── tracing.ts               # AsyncLocalStorage correlation IDs
 ├── tests/
 │   ├── unit/                        # Unit tests per module (63 test files)
 │   ├── integration/                 # Cross-module integration tests (6 files)
@@ -601,7 +614,7 @@ Connect to `ws://localhost:3000/ws` for real-time chat streaming.
 | `chat_sessions` | Conversation groups | `id`, `title`, `system_prompt`, `sort_order` |
 | `chat_messages` | Individual messages | `session_id`, `role`, `content`, `context_chunks` (JSON), `citations` (JSON) |
 | `wiki_pages` | LLM-synthesized entries | `id`, `title`, `slug`, `content`, `embedding` (BLOB) |
-| `settings` | App configuration (34 keys) | `key`, `value` (JSON), `category` |
+| `settings` | App configuration (48 keys) | `key`, `value` (JSON), `category` |
 | `document_tags` | Many-to-many tags | `document_id`, `tag` |
 | `usage_log` | Monitoring | `event_type`, `tokens_used`, `latency_ms` |
 | `user_memory` | Cross-session memory | `category`, `key`, `value`, `source`, `confidence` |
@@ -628,7 +641,6 @@ PRAGMA busy_timeout = 5000;       -- USB latency tolerance
 | v5 | Chat citations | `chat_messages.citations` column for source tracking |
 | v6 | Vector index cache | `vector_index_cache` table for HNSW persistence (fast cold starts) |
 | v7 | Auth tokens | `chat_sessions.auth_token` column for WebSocket authentication |
-| v8 | Document metadata | `documents.description` and `documents.transcription` columns |
 
 ---
 
@@ -649,7 +661,7 @@ All settings are stored in the `settings` table and accessible via the API.
 | `llm.embed.dimensions` | `768` | llm | Embedding vector dimensions |
 | `llm.vision.model` | `"openbmb/MiniCPM-V-4.6"` | llm | Vision model name |
 | `llm.vision.ctx_size` | `4096` | llm | Vision model context window size |
-| `llm.gpu.layers` | `20` | llm | GPU layers to offload (0=CPU, -1=all) |
+| `llm.gpu.layers` | `20` | llm | GPU layers to offload (0=CPU only, -1=all) |
 | `llm.gpu.flash_attn` | `"on"` | llm | Flash Attention: on, off, auto |
 | `llm.gpu.split_mode` | `"none"` | llm | GPU split: none, layer, row, tensor |
 | `llm.mtp.enabled` | `false` | llm | Multi-Token Prediction (model must support MTP) |
@@ -771,7 +783,7 @@ tests/
 │   ├── platform/                    # detect, paths (2 files)
 │   ├── frontend/                    # api, dom, state (3 .js files)
 │   └── utils/                       # chunking, vector, hash, citations, db-helpers,
-│                                    #   llm-helpers, cache, logger, tracing, etc. (14 files)
+│                                    #   llm-helpers, cache, logger, tracing, etc. (13 files)
 ├── integration/                     # Cross-module with real DB (6 files)
 │   ├── backup-routes.test.ts
 │   ├── documents-ingest.test.ts
@@ -871,8 +883,7 @@ Executables are placed in `usb-drive/bin/`.
 ```
 usb-drive/
 ├── bin/
-│   ├── chac                           # Compiled Bun executables
-│   ├── chac-linux-x64
+│   ├── chac-linux-x64                # Compiled Bun executables (8 targets)
 │   ├── chac-linux-x64-baseline
 │   ├── chac-linux-arm64
 │   ├── chac-darwin-arm64
@@ -890,6 +901,7 @@ usb-drive/
 │   └── whisper.cpp/
 │       └── whisper-cli/               # Speech-to-text binaries
 │           ├── linux-x64/
+│           ├── linux-arm64/
 │           └── windows-x64/
 ├── launchers/
 │   ├── start.bat                      # Windows launcher

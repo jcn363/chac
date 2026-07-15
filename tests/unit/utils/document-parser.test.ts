@@ -198,6 +198,17 @@ startxref
       }
     });
 
+    it("detects image files", () => {
+      expect(detectFormat("file.jpg")).toBe("image");
+      expect(detectFormat("file.jpeg")).toBe("image");
+      expect(detectFormat("file.png")).toBe("image");
+      expect(detectFormat("file.webp")).toBe("image");
+      expect(detectFormat("file.gif")).toBe("image");
+      expect(detectFormat("file.bmp")).toBe("image");
+      expect(detectFormat("file.tiff")).toBe("image");
+      expect(detectFormat("file.tif")).toBe("image");
+    });
+
     it("detects unknown extension as text", () => {
       expect(detectFormat("file.xyz")).toBe("text");
       expect(detectFormat("file.unknown")).toBe("text");
@@ -335,6 +346,49 @@ startxref
     it("handles small buffers without errors", () => {
       const buffer = new TextEncoder().encode("Hi").buffer;
       expect(validateFormat("file.txt", buffer)).toBe("text");
+    });
+
+    it("validates PNG by magic bytes", () => {
+      const header = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+      expect(validateFormat("file.png", header.buffer)).toBe("image");
+    });
+
+    it("validates JPEG by magic bytes", () => {
+      const header = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46]);
+      expect(validateFormat("file.jpg", header.buffer)).toBe("image");
+    });
+
+    it("validates GIF by magic bytes", () => {
+      const header = new Uint8Array([0x47, 0x49, 0x46, 0x38, 0x39, 0x61, 0x00, 0x00]);
+      expect(validateFormat("file.gif", header.buffer)).toBe("image");
+    });
+
+    it("validates WebP by RIFF+WEBP magic bytes", () => {
+      const header = new Uint8Array([
+        0x52, 0x49, 0x46, 0x46, 0x24, 0x00, 0x00, 0x00, // RIFF....
+        0x57, 0x45, 0x42, 0x50, // WEBP
+      ]);
+      expect(validateFormat("file.webp", header.buffer)).toBe("image");
+    });
+
+    it("returns RIFF but not WebP for non-WebP RIFF files", () => {
+      const header = new Uint8Array([
+        0x52, 0x49, 0x46, 0x46, 0x24, 0x00, 0x00, 0x00, // RIFF....
+        0x41, 0x56, 0x49, 0x20, // AVI  (not WEBP)
+      ]);
+      // Falls through to extension-based detection
+      expect(validateFormat("file.avi", header.buffer)).toBe("video");
+    });
+  });
+
+  describe("image parsing", () => {
+    it("returns empty content with needsVision for image", async () => {
+      const buffer = new ArrayBuffer(0);
+      const result = await parseDocument("photo.png", buffer);
+      expect(result.format).toBe("image");
+      expect(result.content).toBe("");
+      expect(result.metadata?.needsVision).toBe(true);
+      expect(result.metadata?.filePath).toBe("photo.png");
     });
   });
 

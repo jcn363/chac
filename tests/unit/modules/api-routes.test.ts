@@ -36,7 +36,9 @@ beforeEach(() => {
   runMigrations(db);
   kernel = createTestKernel();
   kernel.provide("db", db);
-  kernel.provide("settings", new SettingsService(db));
+  const settings = new SettingsService(db);
+  settings.set("server.rate_limit_enabled", false);
+  kernel.provide("settings", settings);
   app = createRouter(kernel);
 });
 
@@ -176,6 +178,16 @@ describe("Documents API", () => {
 
   it("POST /api/documents/search returns 400 for missing query", async () => {
     const res = await json("POST", "/api/documents/search", {});
+    expect(res.status).toBe(400);
+  });
+
+  it("POST /api/documents/batch returns 400 for non-array", async () => {
+    const res = await json("POST", "/api/documents/batch", { paths: "not-an-array" });
+    expect(res.status).toBe(400);
+  });
+
+  it("POST /api/documents/batch/delete returns 400 for non-array", async () => {
+    const res = await json("POST", "/api/documents/batch/delete", { ids: "not-an-array" });
     expect(res.status).toBe(400);
   });
 });

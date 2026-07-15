@@ -1,5 +1,6 @@
 import type { Context, Next } from "hono";
 import { generateCorrelationId, runWithCorrelation } from "../../utils/tracing";
+import type { SettingsServiceType } from "../settings/types";
 
 interface RequestLog {
   method: string;
@@ -12,7 +13,7 @@ interface RequestLog {
 }
 
 const logs: RequestLog[] = [];
-const MAX_LOGS = 1000;
+let maxLogs = 1000;
 
 export function getRequestLogs(): RequestLog[] {
   return logs;
@@ -22,7 +23,18 @@ export function clearRequestLogs(): void {
   logs.length = 0;
 }
 
-export function requestLogger() {
+export function setMaxLogs(max: number): void {
+  maxLogs = max;
+}
+
+export function requestLogger(settings?: SettingsServiceType) {
+  if (settings) {
+    const configured = settings.get("server.log_max_entries");
+    if (typeof configured === "number" && configured > 0) {
+      maxLogs = configured;
+    }
+  }
+
   return async (c: Context, next: Next) => {
     const correlationId = generateCorrelationId();
     const start = performance.now();
@@ -45,7 +57,7 @@ export function requestLogger() {
     };
 
     logs.push(entry);
-    if (logs.length > MAX_LOGS) logs.shift();
+    if (logs.length > maxLogs) logs.shift();
 
     // Console output for non-asset requests
     if (

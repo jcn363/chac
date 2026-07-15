@@ -19,7 +19,7 @@ export function createRouter(kernel: Kernel): Hono {
   const app = new Hono();
   const settings = kernel.get<import("../settings/types").SettingsServiceType>("settings");
 
-  app.use("*", requestLogger());
+  app.use("*", requestLogger(settings));
   const port = settings.get("server.port");
   app.use("*", cors({
     origin: [`http://localhost:${port}`, `http://127.0.0.1:${port}`],

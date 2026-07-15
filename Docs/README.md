@@ -16,6 +16,9 @@ Technical reference docs for the Chac project. Each doc covers a distinct topic 
 | [GPT.md](./GPT.md) | GPT Architecture | ~300 | Generative Pre-trained Transformer: decoder-only architecture, scaling, and evolution |
 | [ObsidianSA.md](./ObsidianSA.md) | Obsidian Vault Philosophy | ~280 | Steph Ango's vault structure, linking philosophy, and knowledge management principles |
 | [Dspark.md](./Dspark.md) | DSpark Speculative Decoding | ~300 | DeepSeek's DSpark framework: semi-autoregressive drafting, confidence-scheduled verification, 60–85% inference speedup |
+| [Fugu.md](./Fugu.md) | Sakana Fugu Multi-Agent Orchestration | ~350 | Fugu: learned LLM coordinator that dynamically orchestrates frontier models via TRINITY and Conductor (ICLR 2026) |
+| [cpuram.md](./cpuram.md) | CPU+RAM Inference Optimization | ~450 | Running LLMs on CPU: quantization, threading, mmap, memory architecture, and practical tuning |
+| [gguf.md](./gguf.md) | GGUF Model File Format | ~550 | GGUF specification: file structure, metadata, quantization types, naming, conversion, and Chac integration |
 
 ## Project Docs
 
@@ -61,6 +64,21 @@ DSpark     ←→ MoE       (DeepSeek-V4 uses MoE architecture; DSpark accelerat
 DSpark     ←→ MLA       (V4 uses MLA for KV cache compression; DSpark reduces verification waste)
 DSpark     ←→ Sub-quad  (speculative decoding complements sub-quadratic attention for speed)
 DSpark     ←→ GPT       (DSpark accelerates GPT-based model inference)
+Fugu       ←→ Swarm     (Fugu's multi-agent orchestration is a learned form of swarm coordination)
+Fugu       ←→ MoE       (Fugu routes across model pools; MoE routes across expert networks)
+Fugu       ←→ Karpathy  (Fugu could enhance Chac's multi-agent wiki synthesis and RAG routing)
+Fugu       ←→ DSpark    (speculative decoding could accelerate Fugu's individual agent inference)
+cpuram     ←→ Karpathy  (Chac's portable design requires CPU-optimized inference for USB deployment)
+cpuram     ←→ MLA       (MLA compresses KV cache — directly impacts CPU memory budget)
+cpuram     ←→ DSpark    (speculative decoding can double CPU inference speed)
+cpuram     ←→ Sub-quad  (sub-quadratic attention reduces compute — beneficial for CPU bound systems)
+cpuram     ←→ GPT       (GPT architecture determines memory/compute profile on CPU)
+gguf       ←→ cpuram    (GGUF quantization type determines CPU memory and speed)
+gguf       ←→ Karpathy  (Chac ingests GGUF models for local RAG inference)
+gguf       ←→ MoE       (GGUF stores MoE expert weights with routing metadata)
+gguf       ←→ MLA       (GGUF metadata encodes MLA KV compression parameters)
+gguf       ←→ GPT       (GGUF contains transformer architecture metadata)
+gguf       ←→ DSpark    (GGUF MTP sidecar enables speculative decoding draft models)
 ```
 
 ## Reading Order
@@ -78,3 +96,6 @@ For a new reader, the recommended order is:
 9. **Swarm.md** — advanced multi-agent extensions
 10. **ObsidianSA.md** — knowledge management philosophy (optional, for understanding organizational principles)
 11. **Dspark.md** — inference optimization via speculative decoding (optional, for understanding serving efficiency)
+12. **Fugu.md** — multi-agent orchestration as a single model (optional, for understanding learned coordination)
+13. **cpuram.md** — CPU and RAM inference optimization (essential for Chac's portable USB deployment)
+14. **gguf.md** — GGUF model file format: structure, metadata, quantization, and conversion (essential for understanding Chac's model files)
